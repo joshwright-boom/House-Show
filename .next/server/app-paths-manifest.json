@@ -1,6 +1,9 @@
 {
-  "/page": "app/page.js",
-  "/auth/register/page": "app/auth/register/page.js",
+  "/show/[id]/page": "app/show/[id]/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/not-found": "app/not-found.js",
+  "/radar/page": "app/radar/page.js",
   "/create-show/page": "app/create-show/page.js",
-  "/show/[id]/page": "app/show/[id]/page.js"
+  "/browse/page": "app/browse/page.js",
+  "/page": "app/page.js"
 }
