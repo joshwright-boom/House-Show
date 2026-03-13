@@ -136,7 +136,7 @@ export default function RadarPage() {
           el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
           el.addEventListener('click', () => setSelectedVenue(venue))
 
-          new (window as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(el)
+          new (window as any).mapboxgl.Marker(el)
             .setLngLat([venue.lng, venue.lat])
             .addTo(map)
         })
