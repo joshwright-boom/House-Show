@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface Booking {
   id: string
@@ -12,14 +15,42 @@ interface Booking {
   price: number
   tickets_sold: number
   total_tickets: number
-  status: 'upcoming' | 'past' | 'cancelled'
+  status: 'upcoming' | 'past' | 'cancelled' | 'pending_payment'
+  created_at: string
+  musician_id?: string
+  host_id?: string
+}
+
+interface Show {
+  id: string
+  title: string
+  description: string
+  date: string
+  time: string
+  price: number
+  total_tickets: number
+  host_id: string
+  status: 'available' | 'booked'
   created_at: string
 }
 
 export default function Bookings() {
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [availableShows, setAvailableShows] = useState<Show[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [processingPayment, setProcessingPayment] = useState(false)
+  
+  // Form states
+  const [newShow, setNewShow] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    price: '',
+    total_tickets: ''
+  })
 
   useEffect(() => {
     const checkUser = async () => {
@@ -29,8 +60,23 @@ export default function Bookings() {
         return
       }
       
-      setUser({ id: user.id, email: user.email })
+      // Get user profile to determine user type
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single()
+      
+      setUser({ 
+        id: user.id, 
+        email: user.email,
+        user_type: profile?.user_type || 'musician'
+      })
+      
       await fetchBookings(user.id)
+      if (profile?.user_type === 'musician') {
+        await fetchAvailableShows()
+      }
     }
     
     checkUser()
@@ -50,7 +96,9 @@ export default function Bookings() {
           tickets_sold: 15,
           total_tickets: 20,
           status: 'upcoming',
-          created_at: '2024-02-15T10:00:00Z'
+          created_at: '2024-02-15T10:00:00Z',
+          musician_id: userId,
+          host_id: 'host-123'
         },
         {
           id: '2',
@@ -71,6 +119,136 @@ export default function Bookings() {
       console.error('Error fetching bookings:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAvailableShows = async () => {
+    try {
+      // Mock available shows
+      const mockShows: Show[] = [
+        {
+          id: 'show-1',
+          title: 'Cozy Acoustic Night',
+          description: 'Intimate living room setting, perfect for solo artists',
+          date: '2024-04-15',
+          time: '7:00 PM',
+          price: 20,
+          total_tickets: 15,
+          host_id: 'host-123',
+          status: 'available',
+          created_at: '2024-03-01T10:00:00Z'
+        }
+      ]
+      
+      setAvailableShows(mockShows)
+    } catch (error) {
+      console.error('Error fetching available shows:', error)
+    }
+  }
+
+  const handleCreateShow = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    
+    try {
+      const showData = {
+        title: newShow.title,
+        description: newShow.description,
+        date: newShow.date,
+        time: newShow.time,
+        price: parseFloat(newShow.price),
+        total_tickets: parseInt(newShow.total_tickets),
+        host_id: user.id,
+        status: 'available',
+        created_at: new Date().toISOString()
+      }
+      
+      // Mock creation - replace with actual Supabase insert
+      console.log('Creating show:', showData)
+      
+      // Reset form
+      setNewShow({
+        title: '',
+        description: '',
+        date: '',
+        time: '',
+        price: '',
+        total_tickets: ''
+      })
+      setShowCreateForm(false)
+      
+      // Refresh available shows
+      if (user.user_type === 'musician') {
+        await fetchAvailableShows()
+      }
+    } catch (error) {
+      console.error('Error creating show:', error)
+    }
+  }
+
+  const handleBookShow = async (show: Show) => {
+    if (!user) return
+    
+    setProcessingPayment(true)
+    
+    try {
+      // Create payment intent
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: show.price,
+          bookingId: `booking-${Date.now()}`,
+          musicianId: user.id,
+          hostId: show.host_id,
+        }),
+      })
+      
+      const { clientSecret, paymentIntentId } = await response.json()
+      
+      const stripe = await stripePromise
+      
+      if (stripe) {
+        const { error } = await stripe.confirmPayment({
+          clientSecret,
+          elements: undefined,
+          confirmParams: {
+            return_url: `${window.location.origin}/bookings`,
+          },
+          redirect: 'always',
+        })
+        
+        if (error) {
+          console.error('Payment failed:', error)
+          alert('Payment failed. Please try again.')
+        } else {
+          // Payment successful - create booking
+          const bookingData: Booking = {
+            id: `booking-${Date.now()}`,
+            artist_name: 'Current User', // Would get from profile
+            venue_name: show.title,
+            date: show.date,
+            time: show.time,
+            price: show.price,
+            tickets_sold: 1,
+            total_tickets: show.total_tickets,
+            status: 'upcoming' as const,
+            created_at: new Date().toISOString(),
+            musician_id: user.id,
+            host_id: show.host_id
+          }
+          
+          setBookings(prev => [...prev, bookingData])
+          setAvailableShows(prev => prev.filter(s => s.id !== show.id))
+        }
+      }
+    } catch (error) {
+      console.error('Error booking show:', error)
+      alert('Error booking show. Please try again.')
+    } finally {
+      setProcessingPayment(false)
     }
   }
 
@@ -218,6 +396,81 @@ export default function Bookings() {
     </div>
   )
 
+  const ShowCard = ({ show }: { show: Show }) => (
+    <div style={{
+      border: '1px solid rgba(212,130,10,0.2)',
+      borderRadius: '12px',
+      padding: '24px',
+      background: 'rgba(44,34,24,0.3)',
+      marginBottom: '16px'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+        <div>
+          <h3 style={{ 
+            fontFamily: "'Playfair Display', serif", 
+            fontSize: '1.3rem', 
+            color: '#F5F0E8', 
+            marginBottom: '4px' 
+          }}>
+            {show.title}
+          </h3>
+          <p style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.95rem',
+            marginBottom: '8px'
+          }}>
+            {show.description}
+          </p>
+          <p style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.85rem' 
+          }}>
+            📍 Host Venue • {formatDate(show.date)} at {show.time}
+          </p>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ 
+            fontFamily: "'Space Mono', monospace", 
+            fontSize: '1.1rem', 
+            color: '#F0A500', 
+            fontWeight: 600 
+          }}>
+            ${show.price}
+          </div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.85rem' 
+          }}>
+            per ticket
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => handleBookShow(show)}
+        disabled={processingPayment}
+        style={{
+          background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+          color: '#1A1410',
+          padding: '12px 24px',
+          borderRadius: '6px',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          fontFamily: "'DM Sans', sans-serif",
+          border: 'none',
+          cursor: processingPayment ? 'not-allowed' : 'pointer',
+          opacity: processingPayment ? 0.7 : 1,
+          width: '100%'
+        }}
+      >
+        {processingPayment ? 'Processing...' : 'Book This Show'}
+      </button>
+    </div>
+  )
+
   if (!user) {
     return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#8C7B6B' }}>Loading...</p>
@@ -245,7 +498,12 @@ export default function Bookings() {
       <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
           <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
-          <a href="/dashboard" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Back to Dashboard</a>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>
+              {user.user_type === 'host' ? '🏠 Host' : '🎸 Musician'}
+            </span>
+            <a href="/dashboard" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Back to Dashboard</a>
+          </div>
         </nav>
 
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -259,12 +517,241 @@ export default function Bookings() {
             Manage your upcoming and past house shows.
           </p>
 
+          {/* Host: Create Show Button */}
+          {user.user_type === 'host' && (
+            <div style={{ marginBottom: '48px' }}>
+              <button
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                style={{
+                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                  color: '#1A1410',
+                  padding: '16px 32px',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  border: 'none',
+                  cursor: 'pointer',
+                  marginBottom: '24px'
+                }}
+              >
+                {showCreateForm ? 'Cancel' : 'Create New Show'}
+              </button>
+
+              {showCreateForm && (
+                <form onSubmit={handleCreateShow} style={{
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '12px',
+                  padding: '32px',
+                  background: 'rgba(44,34,24,0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '24px'
+                }}>
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                    Create New Show
+                  </h3>
+
+                  <div>
+                    <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                      Show Title
+                    </label>
+                    <input
+                      type="text"
+                      value={newShow.title}
+                      onChange={(e) => setNewShow(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="e.g., Cozy Acoustic Night"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(26,20,16,0.5)',
+                        color: '#F5F0E8',
+                        fontSize: '1rem',
+                        fontFamily: "'DM Sans', sans-serif"
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                      Description
+                    </label>
+                    <textarea
+                      value={newShow.description}
+                      onChange={(e) => setNewShow(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Describe your venue and what kind of music you're looking for..."
+                      rows={3}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(26,20,16,0.5)',
+                        color: '#F5F0E8',
+                        fontSize: '1rem',
+                        fontFamily: "'DM Sans', sans-serif",
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                        Date
+                      </label>
+                      <input
+                        type="date"
+                        value={newShow.date}
+                        onChange={(e) => setNewShow(prev => ({ ...prev, date: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '1px solid rgba(212,130,10,0.2)',
+                          borderRadius: '6px',
+                          background: 'rgba(26,20,16,0.5)',
+                          color: '#F5F0E8',
+                          fontSize: '1rem',
+                          fontFamily: "'DM Sans', sans-serif"
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                        Time
+                      </label>
+                      <input
+                        type="time"
+                        value={newShow.time}
+                        onChange={(e) => setNewShow(prev => ({ ...prev, time: e.target.value }))}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '1px solid rgba(212,130,10,0.2)',
+                          borderRadius: '6px',
+                          background: 'rgba(26,20,16,0.5)',
+                          color: '#F5F0E8',
+                          fontSize: '1rem',
+                          fontFamily: "'DM Sans', sans-serif"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                        Ticket Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        value={newShow.price}
+                        onChange={(e) => setNewShow(prev => ({ ...prev, price: e.target.value }))}
+                        placeholder="25"
+                        min="1"
+                        step="0.01"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '1px solid rgba(212,130,10,0.2)',
+                          borderRadius: '6px',
+                          background: 'rgba(26,20,16,0.5)',
+                          color: '#F5F0E8',
+                          fontSize: '1rem',
+                          fontFamily: "'DM Sans', sans-serif"
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                        Total Tickets
+                      </label>
+                      <input
+                        type="number"
+                        value={newShow.total_tickets}
+                        onChange={(e) => setNewShow(prev => ({ ...prev, total_tickets: e.target.value }))}
+                        placeholder="20"
+                        min="1"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          border: '1px solid rgba(212,130,10,0.2)',
+                          borderRadius: '6px',
+                          background: 'rgba(26,20,16,0.5)',
+                          color: '#F5F0E8',
+                          fontSize: '1rem',
+                          fontFamily: "'DM Sans', sans-serif"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    style={{
+                      background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                      color: '#1A1410',
+                      padding: '16px 32px',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      fontFamily: "'DM Sans', sans-serif',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Create Show
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <p style={{ color: '#8C7B6B' }}>Loading your bookings...</p>
             </div>
           ) : (
             <>
+              {/* Available Shows (for musicians) */}
+              {user.user_type === 'musician' && availableShows.length > 0 && (
+                <section style={{ marginBottom: '64px' }}>
+                  <h2 style={{ 
+                    fontFamily: "'Playfair Display', serif", 
+                    fontSize: '1.8rem', 
+                    color: '#F5F0E8', 
+                    marginBottom: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    🎵 Available Shows
+                    <span style={{ 
+                      fontFamily: "'Space Mono', monospace", 
+                      fontSize: '0.8rem', 
+                      color: '#F0A500',
+                      background: 'rgba(240,165,0,0.1)',
+                      padding: '4px 12px',
+                      borderRadius: '20px'
+                    }}>
+                      {availableShows.length}
+                    </span>
+                  </h2>
+                  
+                  {availableShows.map(show => <ShowCard key={show.id} show={show} />)}
+                </section>
+              )}
+
               {/* Upcoming Shows */}
               <section style={{ marginBottom: '64px' }}>
                 <h2 style={{ 
@@ -311,21 +798,31 @@ export default function Bookings() {
                       color: '#8C7B6B', 
                       marginBottom: '24px' 
                     }}>
-                      You don't have any shows scheduled yet. Start browsing for venues or artists!
+                      {user.user_type === 'musician' 
+                        ? 'You don\'t have any shows scheduled yet. Browse available shows below!' 
+                        : 'You don\'t have any shows scheduled yet. Create a new show to get started!'
+                      }
                     </p>
-                    <a href="/browse" style={{
-                      display: 'inline-block',
-                      background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                      color: '#1A1410',
-                      padding: '12px 24px',
-                      borderRadius: '6px',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                      fontFamily: "'DM Sans', sans-serif",
-                      textDecoration: 'none'
-                    }}>
-                      Browse Shows
-                    </a>
+                    {user.user_type === 'host' && (
+                      <button
+                        onClick={() => setShowCreateForm(true)}
+                        style={{
+                          display: 'inline-block',
+                          background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                          color: '#1A1410',
+                          padding: '12px 24px',
+                          borderRadius: '6px',
+                          fontSize: '0.9rem',
+                          fontWeight: 600,
+                          fontFamily: "'DM Sans', sans-serif",
+                          textDecoration: 'none',
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Create Your First Show
+                      </button>
+                    )}
                   </div>
                 ) : (
                   upcomingShows.map(booking => <BookingCard key={booking.id} booking={booking} />)
