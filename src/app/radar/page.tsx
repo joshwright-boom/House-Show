@@ -149,7 +149,7 @@ export default function RadarPage() {
           border: 3px solid #fff;
           box-shadow: 0 0 16px rgba(240,165,0,0.7);
         `
-        new (window as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(userEl)
+        new (window as any).mapboxgl.Marker(userEl)
           .setLngLat([userLocation.lng, userLocation.lat])
           .addTo(map)
 
