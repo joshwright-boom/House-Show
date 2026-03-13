@@ -439,6 +439,29 @@ export default function Bookings() {
             </div>
           )}
 
+          {user.user_type === 'musician' && (
+            <div style={{ marginBottom: '48px' }}>
+              <a
+                href="/browse"
+                style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                  color: '#1A1410',
+                  padding: '16px 32px',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  marginBottom: '24px'
+                }}
+              >
+                Find Shows to Book
+              </a>
+            </div>
+          )}
+
           {loading ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <p style={{ color: '#8C7B6B' }}>Loading your bookings...</p>
@@ -516,6 +539,26 @@ export default function Bookings() {
                       Manage Tickets
                     </a>
                   )}
+                  {user.user_type === 'musician' && (
+                    <a
+                      href="/browse"
+                      style={{
+                        display: 'inline-block',
+                        background: '#F0A500',
+                        color: '#1A1410',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        fontFamily: "'DM Sans', sans-serif",
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        marginLeft: 'auto'
+                      }}
+                    >
+                      Find Shows
+                    </a>
+                  )}
                 </h2>
                 
                 {upcomingShows.length === 0 ? (
@@ -558,10 +601,30 @@ export default function Bookings() {
                           fontWeight: 600,
                           fontFamily: "'DM Sans', sans-serif",
                           textDecoration: 'none',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          marginRight: '12px'
                         }}
                       >
                         Create Your First Show
+                      </a>
+                    )}
+                    {user.user_type === 'musician' && (
+                      <a
+                        href="/browse"
+                        style={{
+                          display: 'inline-block',
+                          background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                          color: '#1A1410',
+                          padding: '12px 24px',
+                          borderRadius: '6px',
+                          fontSize: '0.9rem',
+                          fontWeight: 600,
+                          fontFamily: "'DM Sans', sans-serif",
+                          textDecoration: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Find Shows to Book
                       </a>
                     )}
                   </div>
