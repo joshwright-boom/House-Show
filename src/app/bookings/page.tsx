@@ -557,6 +557,26 @@ export default function Bookings() {
                   }}>
                     {upcomingShows.length}
                   </span>
+                  {user.user_type === 'host' && (
+                    <a
+                      href="/create-show"
+                      style={{
+                        display: 'inline-block',
+                        background: '#F0A500',
+                        color: '#1A1410',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        fontFamily: "'DM Sans', sans-serif",
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        marginLeft: 'auto'
+                      }}
+                    >
+                      Create a Show
+                    </a>
+                  )}
                 </h2>
                 
                 {upcomingShows.length === 0 ? (
