@@ -1,254 +1,119 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
-interface FormData {
-  artist_name: string
+interface Show {
+  id: string
+  show_name: string
   venue_name: string
   venue_address: string
-  show_date: string
-  show_time: string
+  date: string
+  time: string
   ticket_price: number
-  capacity: number
-  description: string
-  spotify_url: string
-  youtube_url: string
-  instagram_url: string
+  max_capacity: number
+  show_description: string
+  genre_preference: string
+  host_id: string
+  status: 'open' | 'booked' | 'cancelled'
+  created_at: string
 }
 
-export default function CreateShowPage() {
-  const [formData, setFormData] = useState<FormData>({
-    artist_name: '',
+export default function CreateShow() {
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    show_name: '',
     venue_name: '',
     venue_address: '',
-    show_date: '',
-    show_time: '8:00 PM',
-    ticket_price: 0,
-    capacity: 0,
-    description: '',
-    spotify_url: '',
-    youtube_url: '',
-    instagram_url: ''
+    date: '',
+    time: '',
+    ticket_price: '',
+    max_capacity: '',
+    show_description: '',
+    genre_preference: 'Any'
   })
   
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
-  const [showUrl, setShowUrl] = useState('')
-  const [copiedLink, setCopiedLink] = useState(false)
+  const router = useRouter()
 
-  const generateSlug = (artistName: string, showDate: string) => {
-    const cleanArtist = artistName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-    const dateObj = new Date(showDate)
-    const dateStr = dateObj.toISOString().split('T')[0]
-    return `${cleanArtist}-${dateStr}`
-  }
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/auth/login')
+        return
+      }
+      
+      // Check if user is a host
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single()
+      
+      if (profile?.user_type !== 'host') {
+        router.push('/dashboard')
+        return
+      }
+      
+      setUser({ id: user.id, email: user.email })
+    }
+    
+    checkUser()
+  }, [router])
 
-  const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
-
-  const copyShowLink = () => {
-    navigator.clipboard.writeText(showUrl)
-    setCopiedLink(true)
-    setTimeout(() => setCopiedLink(false), 2000)
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
-
+    if (!user) return
+    
+    setLoading(true)
+    
     try {
-      // Generate slug for the show
-      const slug = generateSlug(formData.artist_name, formData.show_date)
-      const fullShowUrl = `https://houseshow.net/show/${slug}`
-
-      // Save to Supabase (mock implementation)
       const showData = {
-        ...formData,
-        slug,
-        status: 'on_sale',
-        tickets_sold: 0,
+        show_name: formData.show_name,
+        venue_name: formData.venue_name,
+        venue_address: formData.venue_address,
+        date: formData.date,
+        time: formData.time,
+        ticket_price: parseFloat(formData.ticket_price),
+        max_capacity: parseInt(formData.max_capacity),
+        show_description: formData.show_description,
+        genre_preference: formData.genre_preference,
+        host_id: user.id,
+        status: 'open',
         created_at: new Date().toISOString()
       }
-
-      // Mock API call - replace with actual Supabase implementation
-      await new Promise(resolve => setTimeout(resolve, 1500))
       
-      // console.log('Saving to Supabase:', showData)
+      // Save to Supabase
+      const { error } = await supabase
+        .from('shows')
+        .insert(showData)
       
-      setShowUrl(fullShowUrl)
-      setShowSuccess(true)
+      if (error) {
+        console.error('Error creating show:', error)
+        alert('Error creating show. Please try again.')
+        return
+      }
+      
+      // Redirect to bookings page
+      router.push('/bookings')
     } catch (error) {
       console.error('Error creating show:', error)
-      alert('Failed to create show. Please try again.')
+      alert('Error creating show. Please try again.')
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
-  if (showSuccess) {
-    return (
-      <>
-        <style jsx global>{`
-          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
-          
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
-          body {
-            font-family: 'DM Sans', sans-serif;
-            background-color: #1A1410;
-            color: #F5F0E8;
-          }
-          
-          .heading {
-            font-family: 'Playfair Display', serif;
-          }
-          
-          input, textarea {
-            font-family: 'DM Sans', sans-serif;
-          }
-        `}</style>
-
-        {/* Sticky Navigation */}
-        <div style={{
-          position: 'sticky',
-          top: 0,
-          backgroundColor: '#1A1410EE',
-          borderBottom: '1px solid rgba(212,130,10,0.25)',
-          padding: '16px 0',
-          zIndex: 100,
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div style={{
-            maxWidth: '800px',
-            margin: '0 auto',
-            padding: '0 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{
-              fontSize: '24px',
-              fontWeight: '700',
-              color: '#F0A500',
-              fontFamily: 'Playfair Display, serif'
-            }}>
-              HouseShow
-            </div>
-            <div style={{
-              fontSize: '14px',
-              color: '#8C7B6B'
-            }}>
-              Show Created Successfully
-            </div>
-          </div>
-        </div>
-
-        {/* Success Content */}
-        <div style={{
-          maxWidth: '600px',
-          margin: '0 auto',
-          padding: '80px 24px',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            fontSize: '64px',
-            marginBottom: '24px'
-          }}>
-            🎉
-          </div>
-          
-          <h1 style={{
-            fontSize: '36px',
-            fontWeight: '700',
-            marginBottom: '16px',
-            color: '#F5F0E8',
-            fontFamily: 'Playfair Display, serif'
-          }}>
-            Your Show is Live!
-          </h1>
-          
-          <p style={{
-            fontSize: '18px',
-            lineHeight: '1.6',
-            marginBottom: '40px',
-            color: '#8C7B6B'
-          }}>
-            {formData.artist_name} at {formData.venue_name} is now available for fans to discover and purchase tickets.
-          </p>
-
-          <div style={{
-            backgroundColor: 'rgba(212,130,10,0.08)',
-            border: '1px solid rgba(212,130,10,0.25)',
-            borderRadius: '12px',
-            padding: '24px',
-            marginBottom: '32px'
-          }}>
-            <div style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              marginBottom: '8px',
-              color: '#F0A500'
-            }}>
-              Your Show URL
-            </div>
-            <div style={{
-              fontSize: '16px',
-              fontWeight: '600',
-              color: '#F5F0E8',
-              marginBottom: '16px',
-              wordBreak: 'break-all'
-            }}>
-              {showUrl}
-            </div>
-            <button
-              onClick={copyShowLink}
-              style={{
-                padding: '12px 24px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                backgroundColor: '#D4820A',
-                color: '#1A1410',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#F0A500'
-                e.currentTarget.style.transform = 'scale(1.02)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#D4820A'
-                e.currentTarget.style.transform = 'scale(1)'
-              }}
-            >
-              <span>📋</span>
-              {copiedLink ? 'Link Copied!' : 'Copy Link'}
-            </button>
-          </div>
-
-          <div style={{
-            fontSize: '14px',
-            color: '#8C7B6B',
-            lineHeight: '1.5'
-          }}>
-            Share this link with your fans on social media to start selling tickets immediately. 
-            You can always find your show in your HouseShow dashboard.
-          </div>
-        </div>
-      </>
-    )
+  if (!user) {
+    return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: '#8C7B6B' }}>Loading...</p>
+    </div>
   }
 
   return (
@@ -263,559 +128,332 @@ export default function CreateShowPage() {
         }
         
         body {
-          font-family: 'DM Sans', sans-serif;
-          background-color: #1A1410;
-          color: #F5F0E8;
-        }
-        
-        .heading {
-          font-family: 'Playfair Display', serif;
-        }
-        
-        input, textarea {
+          background: #1A1410;
+          color: '#F5F0E8';
           font-family: 'DM Sans', sans-serif;
         }
       `}</style>
+      
+      <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+          <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+          <a href="/bookings" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Back to Bookings</a>
+        </nav>
 
-      {/* Sticky Navigation */}
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        backgroundColor: '#1A1410EE',
-        borderBottom: '1px solid rgba(212,130,10,0.25)',
-        padding: '16px 0',
-        zIndex: 100,
-        backdropFilter: 'blur(10px)'
-      }}>
-        <div style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          padding: '0 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <div style={{
-            fontSize: '24px',
-            fontWeight: '700',
-            color: '#F0A500',
-            fontFamily: 'Playfair Display, serif'
-          }}>
-            HouseShow
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+            Create Show
           </div>
-          <div style={{
-            fontSize: '14px',
-            color: '#8C7B6B'
-          }}>
-            Create New Show
-          </div>
-        </div>
-      </div>
-
-      {/* Form Content */}
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '48px 24px'
-      }}>
-        <div style={{
-          marginBottom: '48px'
-        }}>
-          <h1 style={{
-            fontSize: '42px',
-            fontWeight: '700',
-            marginBottom: '16px',
-            color: '#F5F0E8',
-            fontFamily: 'Playfair Display, serif'
-          }}>
-            Create Your Show
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', color: '#F5F0E8', marginBottom: '16px' }}>
+            Host a House Show
           </h1>
-          <p style={{
-            fontSize: '18px',
-            lineHeight: '1.6',
-            color: '#8C7B6B'
-          }}>
-            Fill in the details below to create your public show listing. Fans will be able to discover and purchase tickets immediately.
+          <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '48px' }}>
+            Create a listing for your house show and connect with talented musicians in your area.
           </p>
-        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '32px',
-            marginBottom: '32px'
-          }}>
-            {/* Left Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {/* Show Name */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Show Name
+              </label>
+              <input
+                type="text"
+                value={formData.show_name}
+                onChange={(e) => handleInputChange('show_name', e.target.value)}
+                placeholder="e.g., Cozy Acoustic Night"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              />
+            </div>
+
+            {/* Venue Name */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Venue Name
+              </label>
+              <input
+                type="text"
+                value={formData.venue_name}
+                onChange={(e) => handleInputChange('venue_name', e.target.value)}
+                placeholder="e.g., Sarah's Living Room"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              />
+            </div>
+
+            {/* Venue Address */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Venue Address
+              </label>
+              <input
+                type="text"
+                value={formData.venue_address}
+                onChange={(e) => handleInputChange('venue_address', e.target.value)}
+                placeholder="123 Main St, City, State"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              />
+            </div>
+
+            {/* Date and Time */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{
                   display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
                 }}>
-                  Artist Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.artist_name}
-                  onChange={(e) => handleInputChange('artist_name', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="The Midnight Souls"
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
-                }}>
-                  Venue Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.venue_name}
-                  onChange={(e) => handleInputChange('venue_name', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="The Blue Note"
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
-                }}>
-                  Venue Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.venue_address}
-                  onChange={(e) => handleInputChange('venue_address', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="123 Main St, City, State 12345"
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
-                }}>
-                  Show Date *
+                  Date
                 </label>
                 <input
                   type="date"
+                  value={formData.date}
+                  onChange={(e) => handleInputChange('date', e.target.value)}
                   required
-                  value={formData.show_date}
-                  onChange={(e) => handleInputChange('show_date', e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
                     borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
+                    background: 'rgba(44,34,24,0.3)',
                     color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
+                    fontSize: '1rem',
+                    fontFamily: "'DM Sans', sans-serif"
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Time
+                </label>
+                <input
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => handleInputChange('time', e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
+                    borderRadius: '8px',
+                    background: 'rgba(44,34,24,0.3)',
+                    color: '#F5F0E8',
+                    fontSize: '1rem',
+                    fontFamily: "'DM Sans', sans-serif"
                   }}
                 />
               </div>
             </div>
 
-            {/* Right Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Ticket Price and Capacity */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{
                   display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
                 }}>
-                  Show Time *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.show_time}
-                  onChange={(e) => handleInputChange('show_time', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="8:00 PM"
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
-                }}>
-                  Ticket Price ($) *
+                  Ticket Price ($)
                 </label>
                 <input
                   type="number"
-                  required
-                  min="0"
-                  step="0.01"
                   value={formData.ticket_price}
-                  onChange={(e) => handleInputChange('ticket_price', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleInputChange('ticket_price', e.target.value)}
+                  placeholder="25"
+                  min="1"
+                  step="0.01"
+                  required
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
                     borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
+                    background: 'rgba(44,34,24,0.3)',
                     color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
+                    fontSize: '1rem',
+                    fontFamily: "'DM Sans', sans-serif"
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="35.00"
                 />
               </div>
 
               <div>
                 <label style={{
                   display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
                 }}>
-                  Capacity (Max Tickets) *
+                  Max Capacity
                 </label>
                 <input
                   type="number"
-                  required
+                  value={formData.max_capacity}
+                  onChange={(e) => handleInputChange('max_capacity', e.target.value)}
+                  placeholder="20"
                   min="1"
-                  value={formData.capacity}
-                  onChange={(e) => handleInputChange('capacity', parseInt(e.target.value) || 0)}
+                  required
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
                     borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
+                    background: 'rgba(44,34,24,0.3)',
                     color: '#F5F0E8',
-                    fontSize: '16px',
-                    transition: 'all 0.2s ease'
+                    fontSize: '1rem',
+                    fontFamily: "'DM Sans', sans-serif"
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="150"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Description */}
-          <div style={{ marginBottom: '32px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: '500',
-              marginBottom: '8px',
-              color: '#F5F0E8'
-            }}>
-              Description (Pitch to Fans) *
-            </label>
-            <textarea
-              required
-              rows={4}
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212,130,10,0.25)',
-                backgroundColor: 'rgba(212,130,10,0.05)',
+            {/* Genre Preference */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
                 color: '#F5F0E8',
-                fontSize: '16px',
-                resize: 'vertical',
-                minHeight: '120px',
-                transition: 'all 0.2s ease',
-                fontFamily: 'DM Sans, sans-serif'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-              }}
-              placeholder="Join us for an unforgettable night with amazing music and great vibes..."
-            />
-          </div>
-
-          {/* Optional Links */}
-          <div style={{ marginBottom: '40px' }}>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              marginBottom: '16px',
-              color: '#F5F0E8',
-              fontFamily: 'Playfair Display, serif'
-            }}>
-              Music Links (Optional)
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: '16px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#8C7B6B'
-                }}>
-                  Spotify URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.spotify_url}
-                  onChange={(e) => handleInputChange('spotify_url', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="https://open.spotify.com/artist/..."
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#8C7B6B'
-                }}>
-                  YouTube URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.youtube_url}
-                  onChange={(e) => handleInputChange('youtube_url', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="https://youtube.com/..."
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  marginBottom: '8px',
-                  color: '#8C7B6B'
-                }}>
-                  Instagram URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.instagram_url}
-                  onChange={(e) => handleInputChange('instagram_url', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    backgroundColor: 'rgba(212,130,10,0.05)',
-                    color: '#F5F0E8',
-                    fontSize: '14px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.5)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.08)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(212,130,10,0.25)'
-                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.05)'
-                  }}
-                  placeholder="https://instagram.com/..."
-                />
-              </div>
+                marginBottom: '12px'
+              }}>
+                Genre Preference
+              </label>
+              <select
+                value={formData.genre_preference}
+                onChange={(e) => handleInputChange('genre_preference', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              >
+                <option value="Any">Any</option>
+                <option value="Folk/Acoustic">Folk/Acoustic</option>
+                <option value="Jazz">Jazz</option>
+                <option value="Rock">Rock</option>
+                <option value="Classical">Classical</option>
+                <option value="Electronic">Electronic</option>
+                <option value="Hip-Hop">Hip-Hop</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <div style={{ textAlign: 'center' }}>
+            {/* Show Description */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Show Description
+              </label>
+              <textarea
+                value={formData.show_description}
+                onChange={(e) => handleInputChange('show_description', e.target.value)}
+                placeholder="Describe your venue, the atmosphere, and what kind of show you're looking to host..."
+                rows={4}
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif",
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={loading}
               style={{
-                padding: '16px 48px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                backgroundColor: isSubmitting ? '#8C7B6B' : '#D4820A',
+                background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                 color: '#1A1410',
+                padding: '16px 32px',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
                 border: 'none',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-                opacity: isSubmitting ? 0.7 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!isSubmitting) {
-                  e.currentTarget.style.backgroundColor = '#F0A500'
-                  e.currentTarget.style.transform = 'scale(1.02)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSubmitting) {
-                  e.currentTarget.style.backgroundColor = '#D4820A'
-                  e.currentTarget.style.transform = 'scale(1)'
-                }
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1
               }}
             >
-              {isSubmitting ? 'Creating Show...' : 'Create Show'}
+              {loading ? 'Creating Show...' : 'Create Show'}
             </button>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
+      </main>
     </>
   )
 }

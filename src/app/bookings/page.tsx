@@ -39,18 +39,7 @@ export default function Bookings() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [availableShows, setAvailableShows] = useState<Show[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateForm, setShowCreateForm] = useState(false)
   const [processingPayment, setProcessingPayment] = useState(false)
-  
-  // Form states
-  const [newShow, setNewShow] = useState({
-    title: '',
-    description: '',
-    date: '',
-    time: '',
-    price: '',
-    total_tickets: ''
-  })
 
   useEffect(() => {
     const checkUser = async () => {
@@ -124,65 +113,35 @@ export default function Bookings() {
 
   const fetchAvailableShows = async () => {
     try {
-      // Mock available shows
-      const mockShows: Show[] = [
-        {
-          id: 'show-1',
-          title: 'Cozy Acoustic Night',
-          description: 'Intimate living room setting, perfect for solo artists',
-          date: '2024-04-15',
-          time: '7:00 PM',
-          price: 20,
-          total_tickets: 15,
-          host_id: 'host-123',
-          status: 'available',
-          created_at: '2024-03-01T10:00:00Z'
-        }
-      ]
+      // Fetch available shows from Supabase
+      const { data: shows, error } = await supabase
+        .from('shows')
+        .select('*')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
       
-      setAvailableShows(mockShows)
+      if (error) {
+        console.error('Error fetching shows:', error)
+        return
+      }
+      
+      // Transform shows data to match Show interface
+      const transformedShows: Show[] = (shows || []).map(show => ({
+        id: show.id,
+        title: show.show_name,
+        description: show.show_description,
+        date: show.date,
+        time: show.time,
+        price: show.ticket_price,
+        total_tickets: show.max_capacity,
+        host_id: show.host_id,
+        status: 'available',
+        created_at: show.created_at
+      }))
+      
+      setAvailableShows(transformedShows)
     } catch (error) {
       console.error('Error fetching available shows:', error)
-    }
-  }
-
-  const handleCreateShow = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user) return
-    
-    try {
-      const showData = {
-        title: newShow.title,
-        description: newShow.description,
-        date: newShow.date,
-        time: newShow.time,
-        price: parseFloat(newShow.price),
-        total_tickets: parseInt(newShow.total_tickets),
-        host_id: user.id,
-        status: 'available',
-        created_at: new Date().toISOString()
-      }
-      
-      // Mock creation - replace with actual Supabase insert
-      console.log('Creating show:', showData)
-      
-      // Reset form
-      setNewShow({
-        title: '',
-        description: '',
-        date: '',
-        time: '',
-        price: '',
-        total_tickets: ''
-      })
-      setShowCreateForm(false)
-      
-      // Refresh available shows
-      if (user.user_type === 'musician') {
-        await fetchAvailableShows()
-      }
-    } catch (error) {
-      console.error('Error creating show:', error)
     }
   }
 
@@ -520,9 +479,10 @@ export default function Bookings() {
           {/* Host: Create Show Button */}
           {user.user_type === 'host' && (
             <div style={{ marginBottom: '48px' }}>
-              <button
-                onClick={() => setShowCreateForm(!showCreateForm)}
+              <a
+                href="/create-show"
                 style={{
+                  display: 'inline-block',
                   background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                   color: '#1A1410',
                   padding: '16px 32px',
@@ -530,190 +490,13 @@ export default function Bookings() {
                   fontSize: '1rem',
                   fontWeight: 600,
                   fontFamily: "'DM Sans', sans-serif",
-                  border: 'none',
+                  textDecoration: 'none',
                   cursor: 'pointer',
                   marginBottom: '24px'
                 }}
               >
-                {showCreateForm ? 'Cancel' : 'Create New Show'}
-              </button>
-
-              {showCreateForm && (
-                <form onSubmit={handleCreateShow} style={{
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '12px',
-                  padding: '32px',
-                  background: 'rgba(44,34,24,0.3)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '24px'
-                }}>
-                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                    Create New Show
-                  </h3>
-
-                  <div>
-                    <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                      Show Title
-                    </label>
-                    <input
-                      type="text"
-                      value={newShow.title}
-                      onChange={(e) => setNewShow(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="e.g., Cozy Acoustic Night"
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        border: '1px solid rgba(212,130,10,0.2)',
-                        borderRadius: '6px',
-                        background: 'rgba(26,20,16,0.5)',
-                        color: '#F5F0E8',
-                        fontSize: '1rem',
-                        fontFamily: "'DM Sans', sans-serif"
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                      Description
-                    </label>
-                    <textarea
-                      value={newShow.description}
-                      onChange={(e) => setNewShow(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Describe your venue and what kind of music you're looking for..."
-                      rows={3}
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        border: '1px solid rgba(212,130,10,0.2)',
-                        borderRadius: '6px',
-                        background: 'rgba(26,20,16,0.5)',
-                        color: '#F5F0E8',
-                        fontSize: '1rem',
-                        fontFamily: "'DM Sans', sans-serif",
-                        resize: 'vertical'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        Date
-                      </label>
-                      <input
-                        type="date"
-                        value={newShow.date}
-                        onChange={(e) => setNewShow(prev => ({ ...prev, date: e.target.value }))}
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          border: '1px solid rgba(212,130,10,0.2)',
-                          borderRadius: '6px',
-                          background: 'rgba(26,20,16,0.5)',
-                          color: '#F5F0E8',
-                          fontSize: '1rem',
-                          fontFamily: "'DM Sans', sans-serif"
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        Time
-                      </label>
-                      <input
-                        type="time"
-                        value={newShow.time}
-                        onChange={(e) => setNewShow(prev => ({ ...prev, time: e.target.value }))}
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          border: '1px solid rgba(212,130,10,0.2)',
-                          borderRadius: '6px',
-                          background: 'rgba(26,20,16,0.5)',
-                          color: '#F5F0E8',
-                          fontSize: '1rem',
-                          fontFamily: "'DM Sans', sans-serif"
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        Ticket Price ($)
-                      </label>
-                      <input
-                        type="number"
-                        value={newShow.price}
-                        onChange={(e) => setNewShow(prev => ({ ...prev, price: e.target.value }))}
-                        placeholder="25"
-                        min="1"
-                        step="0.01"
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          border: '1px solid rgba(212,130,10,0.2)',
-                          borderRadius: '6px',
-                          background: 'rgba(26,20,16,0.5)',
-                          color: '#F5F0E8',
-                          fontSize: '1rem',
-                          fontFamily: "'DM Sans', sans-serif"
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        Total Tickets
-                      </label>
-                      <input
-                        type="number"
-                        value={newShow.total_tickets}
-                        onChange={(e) => setNewShow(prev => ({ ...prev, total_tickets: e.target.value }))}
-                        placeholder="20"
-                        min="1"
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          border: '1px solid rgba(212,130,10,0.2)',
-                          borderRadius: '6px',
-                          background: 'rgba(26,20,16,0.5)',
-                          color: '#F5F0E8',
-                          fontSize: '1rem',
-                          fontFamily: "'DM Sans', sans-serif"
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    style={{
-                      background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                      color: '#1A1410',
-                      padding: '16px 32px',
-                      borderRadius: '8px',
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      fontFamily: "'DM Sans', sans-serif',
-                      border: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Create Show
-                  </button>
-                </form>
-              )}
+                Create a Show
+              </a>
             </div>
           )}
 
@@ -804,8 +587,8 @@ export default function Bookings() {
                       }
                     </p>
                     {user.user_type === 'host' && (
-                      <button
-                        onClick={() => setShowCreateForm(true)}
+                      <a
+                        href="/create-show"
                         style={{
                           display: 'inline-block',
                           background: 'linear-gradient(135deg, #D4820A, #F0A500)',
@@ -816,12 +599,11 @@ export default function Bookings() {
                           fontWeight: 600,
                           fontFamily: "'DM Sans', sans-serif",
                           textDecoration: 'none',
-                          border: 'none',
                           cursor: 'pointer'
                         }}
                       >
                         Create Your First Show
-                      </button>
+                      </a>
                     )}
                   </div>
                 ) : (
