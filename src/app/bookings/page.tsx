@@ -145,70 +145,9 @@ export default function Bookings() {
     }
   }
 
-  const handleBookShow = async (show: Show) => {
-    if (!user) return
-    
-    setProcessingPayment(true)
-    
-    try {
-      // Create payment intent
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: show.price,
-          bookingId: `booking-${Date.now()}`,
-          musicianId: user.id,
-          hostId: show.host_id,
-        }),
-      })
-      
-      const { clientSecret, paymentIntentId } = await response.json()
-      
-      const stripe = await stripePromise
-      
-      if (stripe) {
-        const { error } = await stripe.confirmPayment({
-          clientSecret,
-          elements: undefined,
-          confirmParams: {
-            return_url: `${window.location.origin}/bookings`,
-          },
-          redirect: 'always',
-        })
-        
-        if (error) {
-          console.error('Payment failed:', error)
-          alert('Payment failed. Please try again.')
-        } else {
-          // Payment successful - create booking
-          const bookingData: Booking = {
-            id: `booking-${Date.now()}`,
-            artist_name: 'Current User', // Would get from profile
-            venue_name: show.title,
-            date: show.date,
-            time: show.time,
-            price: show.price,
-            tickets_sold: 1,
-            total_tickets: show.total_tickets,
-            status: 'upcoming' as const,
-            created_at: new Date().toISOString(),
-            musician_id: user.id,
-            host_id: show.host_id
-          }
-          
-          setBookings(prev => [...prev, bookingData])
-          setAvailableShows(prev => prev.filter(s => s.id !== show.id))
-        }
-      }
-    } catch (error) {
-      console.error('Error booking show:', error)
-      alert('Error booking show. Please try again.')
-    } finally {
-      setProcessingPayment(false)
-    }
+  const handleBookShow = (show: Show) => {
+    // Redirect to detailed booking page
+    window.location.href = `/book-show?id=${show.id}`
   }
 
   const upcomingShows = bookings.filter(booking => booking.status === 'upcoming')
@@ -559,7 +498,7 @@ export default function Bookings() {
                   </span>
                   {user.user_type === 'host' && (
                     <a
-                      href="/create-show"
+                      href="/manage-tickets"
                       style={{
                         display: 'inline-block',
                         background: '#F0A500',
@@ -574,7 +513,7 @@ export default function Bookings() {
                         marginLeft: 'auto'
                       }}
                     >
-                      Create a Show
+                      Manage Tickets
                     </a>
                   )}
                 </h2>
