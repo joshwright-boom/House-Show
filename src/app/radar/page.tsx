@@ -62,7 +62,7 @@ export default function RadarPage() {
     const script = document.createElement('script')
     script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'
     script.onload = () => {
-      const mapboxgl = (window as Window & { mapboxgl: { accessToken: string; Map: new (config: object) => unknown; LngLat: new (lng: number, lat: number) => unknown } }).mapboxgl
+      const mapboxgl = (window as any).mapboxgl
       mapboxgl.accessToken = MAPBOX_TOKEN
 
       if (!mapContainer.current) return
