@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
@@ -34,7 +34,7 @@ interface Booking {
   created_at: string
 }
 
-export default function BookShow() {
+function BookShowContent() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
   const [show, setShow] = useState<Show | null>(null)
   const [loading, setLoading] = useState(true)
@@ -333,35 +333,125 @@ export default function BookShow() {
                   Show Details
                 </h3>
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#8C7B6B' }}>📍 Venue:</span>
-                  <span style={{ color: '#F5F0E8' }}>{show.venue_name}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+                  <div>
+                    <h4 style={{ 
+                      fontFamily: "'Playfair Display', serif", 
+                      fontSize: '1.1rem', 
+                      color: '#F5F0E8', 
+                      marginBottom: '8px' 
+                    }}>
+                      📍 Venue
+                    </h4>
+                    <p style={{ 
+                      fontFamily: "'DM Sans', sans-serif", 
+                      color: '#8C7B6B', 
+                      fontSize: '0.95rem',
+                      marginBottom: '8px'
+                    }}>
+                      {show.venue_name}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 style={{ 
+                      fontFamily: "'Playfair Display', serif", 
+                      fontSize: '1.1rem', 
+                      color: '#F5F0E8', 
+                      marginBottom: '8px' 
+                    }}>
+                      📅 Date
+                    </h4>
+                    <p style={{ 
+                      fontFamily: "'DM Sans', sans-serif", 
+                      color: '#8C7B6B', 
+                      fontSize: '0.95rem',
+                      marginBottom: '8px'
+                    }}>
+                      {formatDate(show.date)}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 style={{ 
+                      fontFamily: "'Playfair Display', serif", 
+                      fontSize: '1.1rem', 
+                      color: '#F5F0E8', 
+                      marginBottom: '8px' 
+                    }}>
+                      🕐 Time
+                    </h4>
+                    <p style={{ 
+                      fontFamily: "'DM Sans', sans-serif", 
+                      color: '#8C7B6B', 
+                      fontSize: '0.95rem',
+                      marginBottom: '8px'
+                    }}>
+                      {show.time}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 style={{ 
+                      fontFamily: "'Playfair Display', serif", 
+                      fontSize: '1.1rem', 
+                      color: '#F5F0E8', 
+                      marginBottom: '8px' 
+                    }}>
+                      🎵 Genre
+                    </h4>
+                    <p style={{ 
+                      fontFamily: "'DM Sans', sans-serif", 
+                      color: '#8C7B6B', 
+                      fontSize: '0.95rem',
+                      marginBottom: '8px'
+                    }}>
+                      {show.genre_preference}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 style={{ 
+                      fontFamily: "'Playfair Display', serif", 
+                      fontSize: '1.1rem', 
+                      color: '#F5F0E8', 
+                      marginBottom: '8px' 
+                    }}>
+                      📍 Address
+                    </h4>
+                    <p style={{ 
+                      fontFamily: "'DM Sans', sans-serif", 
+                      color: '#8C7B6B', 
+                      fontSize: '0.95rem',
+                      marginBottom: '8px'
+                    }}>
+                      {show.venue_address}
+                    </p>
+                  </div>
                 </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#8C7B6B' }}>📅 Date:</span>
-                  <span style={{ color: '#F5F0E8' }}>{formatDate(show.date)}</span>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#8C7B6B' }}>🕐 Time:</span>
-                  <span style={{ color: '#F5F0E8' }}>{show.time}</span>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#8C7B6B' }}>🎵 Genre:</span>
-                  <span style={{ color: '#F5F0E8' }}>{show.genre_preference}</span>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#8C7B6B' }}>📍 Address:</span>
-                  <span style={{ color: '#F5F0E8', textAlign: 'right' }}>{show.venue_address}</span>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ 
+                    fontFamily: "'Space Mono', monospace", 
+                    fontSize: '1.1rem', 
+                    color: '#F0A500', 
+                    fontWeight: 600 
+                  }}>
+                    ${show.ticket_price}
+                  </div>
+                  <div style={{ 
+                    fontFamily: "'DM Sans', sans-serif", 
+                    color: '#8C7B6B', 
+                    fontSize: '0.85rem' 
+                  }}>
+                    per ticket
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Booking Form */}
-            <div>
+
+              <div style={{ 
+                borderTop: '1px solid rgba(212,130,10,0.1)', 
+                paddingTop: '16px', 
+                marginBottom: '16px' 
+              }} />
+              
+              {/* Booking Form */}
               <div style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '24px', background: 'rgba(44,34,24,0.3)' }}>
                 <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', color: '#F5F0E8', marginBottom: '16px' }}>
                   Book This Show
@@ -400,32 +490,32 @@ export default function BookShow() {
                   </h4>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B' }}>Ticket Price:</span>
+                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Ticket Price:</span>
                     <span style={{ color: '#F5F0E8' }}>${show.ticket_price} × {ticketQuantity}</span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B' }}>Subtotal:</span>
+                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Subtotal:</span>
                     <span style={{ color: '#F5F0E8' }}>${calculateTotal()}</span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B' }}>Platform Fee (10%):</span>
+                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Platform Fee (10%):</span>
                     <span style={{ color: '#D4820A' }}>${calculatePlatformFee()}</span>
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B' }}>Musician Share (70%):</span>
+                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Musician Share (70%):</span>
                     <span style={{ color: '#F0A500' }}>${calculateMusicianShare()}</span>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <span style={{ color: '#8C7B6B' }}>Host Share (30%):</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Host Share (30%):</span>
                     <span style={{ color: '#F0A500' }}>${calculateHostShare()}</span>
                   </div>
                   
                   <div style={{ 
-                    borderTop: '1px solid rgba(212,130,10,0.2)', 
+                    borderTop: '1px solid rgba(212,130,10,0.1)', 
                     paddingTop: '16px',
                     display: 'flex',
                     justifyContent: 'space-between'
@@ -460,5 +550,13 @@ export default function BookShow() {
         </div>
       </main>
     </>
+  )
+}
+
+export default function BookShowPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BookShowContent />
+    </Suspense>
   )
 }
