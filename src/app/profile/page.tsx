@@ -9,6 +9,12 @@ interface Profile {
   bio: string
   photo_url: string
   user_type: 'musician' | 'host'
+  spotify_url?: string
+  soundcloud_url?: string
+  instagram_url?: string
+  facebook_url?: string
+  youtube_url?: string
+  website_url?: string
   created_at: string
 }
 
@@ -19,7 +25,13 @@ export default function Profile() {
     name: '',
     bio: '',
     photo_url: '',
-    user_type: 'musician' as 'musician' | 'host'
+    user_type: 'musician' as 'musician' | 'host',
+    spotify_url: '',
+    soundcloud_url: '',
+    instagram_url: '',
+    facebook_url: '',
+    youtube_url: '',
+    website_url: ''
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -47,7 +59,13 @@ export default function Profile() {
           name: profileData.name || '',
           bio: profileData.bio || '',
           photo_url: profileData.photo_url || '',
-          user_type: profileData.user_type || 'musician'
+          user_type: profileData.user_type || 'musician',
+          spotify_url: profileData.spotify_url || '',
+          soundcloud_url: profileData.soundcloud_url || '',
+          instagram_url: profileData.instagram_url || '',
+          facebook_url: profileData.facebook_url || '',
+          youtube_url: profileData.youtube_url || '',
+          website_url: profileData.website_url || ''
         })
       }
     }
@@ -69,6 +87,12 @@ export default function Profile() {
         bio: formData.bio,
         photo_url: formData.photo_url,
         user_type: formData.user_type,
+        spotify_url: formData.spotify_url || null,
+        soundcloud_url: formData.soundcloud_url || null,
+        instagram_url: formData.instagram_url || null,
+        facebook_url: formData.facebook_url || null,
+        youtube_url: formData.youtube_url || null,
+        website_url: formData.website_url || null,
         updated_at: new Date().toISOString()
       }
       
@@ -98,6 +122,17 @@ export default function Profile() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const getSocialLinks = () => {
+    const links = []
+    if (profile?.spotify_url) links.push({ name: 'Spotify', url: profile.spotify_url, icon: '🎵' })
+    if (profile?.soundcloud_url) links.push({ name: 'SoundCloud', url: profile.soundcloud_url, icon: '🎧' })
+    if (profile?.instagram_url) links.push({ name: 'Instagram', url: profile.instagram_url, icon: '📷' })
+    if (profile?.facebook_url) links.push({ name: 'Facebook', url: profile.facebook_url, icon: '📘' })
+    if (profile?.youtube_url) links.push({ name: 'YouTube', url: profile.youtube_url, icon: '🎬' })
+    if (profile?.website_url) links.push({ name: 'Website', url: profile.website_url, icon: '🌐' })
+    return links
+  }
+
   if (!user) {
     return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#8C7B6B' }}>Loading...</p>
@@ -124,18 +159,18 @@ export default function Profile() {
       
       <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
         <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
-          <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+          <a href="/dashboard" style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
           <a href="/dashboard" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Back to Dashboard</a>
         </nav>
 
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+          <div style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
             Profile Builder
           </div>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', color: '#F5F0E8', marginBottom: '16px' }}>
+          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2.5rem', color: '#F5F0E8', marginBottom: '16px' }}>
             Build Your Profile
           </h1>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '48px' }}>
+          <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '1rem', marginBottom: '48px' }}>
             Create your {formData.user_type === 'musician' ? 'artist' : 'host'} profile to start connecting with the HouseShow community.
           </p>
 
@@ -147,10 +182,99 @@ export default function Profile() {
               padding: '16px',
               marginBottom: '32px',
               color: '#22c55e',
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: 'DM Sans, sans-serif',
               fontSize: '0.9rem'
             }}>
               ✓ Profile saved successfully!
+            </div>
+          )}
+
+          {/* Display existing profile with social links */}
+          {profile && (
+            <div style={{
+              border: '1px solid rgba(212,130,10,0.2)',
+              borderRadius: '12px',
+              padding: '24px',
+              background: 'rgba(44,34,24,0.3)',
+              marginBottom: '48px'
+            }}>
+              <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.3rem', color: '#F5F0E8', marginBottom: '16px' }}>
+                Your Profile
+              </h3>
+              
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                {profile.photo_url && (
+                  <img 
+                    src={profile.photo_url} 
+                    alt={profile.name}
+                    style={{ 
+                      width: '80px', 
+                      height: '80px', 
+                      borderRadius: '50%', 
+                      marginRight: '16px',
+                      objectFit: 'cover'
+                    }}
+                  />
+                )}
+                <div>
+                  <h4 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '4px' }}>
+                    {profile.name}
+                  </h4>
+                  <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.9rem' }}>
+                    {profile.user_type === 'musician' ? 'Musician 🎸' : 'Host 🏠'}
+                  </p>
+                </div>
+              </div>
+              
+              {profile.bio && (
+                <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#F5F0E8', fontSize: '0.95rem', marginBottom: '16px' }}>
+                  {profile.bio}
+                </p>
+              )}
+              
+              {/* Social Links Display */}
+              {profile.user_type === 'musician' && getSocialLinks().length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <h5 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#F5F0E8', marginBottom: '12px' }}>
+                    Connect
+                  </h5>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    {getSocialLinks().map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          background: 'rgba(240,165,0,0.1)',
+                          border: '1px solid rgba(240,165,0,0.2)',
+                          borderRadius: '6px',
+                          color: '#F0A500',
+                          textDecoration: 'none',
+                          fontSize: '0.85rem',
+                          fontFamily: 'DM Sans, sans-serif',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(240,165,0,0.2)'
+                          e.currentTarget.style.transform = 'translateY(-2px)'
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(240,165,0,0.1)'
+                          e.currentTarget.style.transform = 'translateY(0)'
+                        }}
+                      >
+                        <span style={{ fontSize: '1rem' }}>{link.icon}</span>
+                        {link.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -159,7 +283,7 @@ export default function Profile() {
             <div>
               <label style={{
                 display: 'block',
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: 'Playfair Display, serif',
                 fontSize: '1.1rem',
                 color: '#F5F0E8',
                 marginBottom: '12px'
@@ -204,7 +328,7 @@ export default function Profile() {
             <div>
               <label style={{
                 display: 'block',
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: 'Playfair Display, serif',
                 fontSize: '1.1rem',
                 color: '#F5F0E8',
                 marginBottom: '12px'
@@ -225,7 +349,7 @@ export default function Profile() {
                   background: 'rgba(44,34,24,0.3)',
                   color: '#F5F0E8',
                   fontSize: '1rem',
-                  fontFamily: "'DM Sans', sans-serif"
+                  fontFamily: 'DM Sans, sans-serif'
                 }}
               />
             </div>
@@ -234,7 +358,7 @@ export default function Profile() {
             <div>
               <label style={{
                 display: 'block',
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: 'Playfair Display, serif',
                 fontSize: '1.1rem',
                 color: '#F5F0E8',
                 marginBottom: '12px'
@@ -257,7 +381,7 @@ export default function Profile() {
                   background: 'rgba(44,34,24,0.3)',
                   color: '#F5F0E8',
                   fontSize: '1rem',
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: 'DM Sans, sans-serif',
                   resize: 'vertical'
                 }}
               />
@@ -267,7 +391,7 @@ export default function Profile() {
             <div>
               <label style={{
                 display: 'block',
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: 'Playfair Display, serif',
                 fontSize: '1.1rem',
                 color: '#F5F0E8',
                 marginBottom: '12px'
@@ -287,10 +411,194 @@ export default function Profile() {
                   background: 'rgba(44,34,24,0.3)',
                   color: '#F5F0E8',
                   fontSize: '1rem',
-                  fontFamily: "'DM Sans', sans-serif"
+                  fontFamily: 'DM Sans, sans-serif'
                 }}
               />
             </div>
+
+            {/* Social Links - Only for Musicians */}
+            {formData.user_type === 'musician' && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: 'Playfair Display, serif',
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Social Links (Optional)
+                </label>
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'DM Sans, sans-serif',
+                      fontSize: '0.9rem',
+                      color: '#8C7B6B',
+                      marginBottom: '8px'
+                    }}>
+                      🎵 Spotify
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.spotify_url}
+                      onChange={(e) => handleInputChange('spotify_url', e.target.value)}
+                      placeholder="https://open.spotify.com/artist/..."
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '0.9rem',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'DM Sans, sans-serif',
+                      fontSize: '0.9rem',
+                      color: '#8C7B6B',
+                      marginBottom: '8px'
+                    }}>
+                      🎧 SoundCloud
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.soundcloud_url}
+                      onChange={(e) => handleInputChange('soundcloud_url', e.target.value)}
+                      placeholder="https://soundcloud.com/..."
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '0.9rem',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'DM Sans, sans-serif',
+                      fontSize: '0.9rem',
+                      color: '#8C7B6B',
+                      marginBottom: '8px'
+                    }}>
+                      📷 Instagram
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.instagram_url}
+                      onChange={(e) => handleInputChange('instagram_url', e.target.value)}
+                      placeholder="https://instagram.com/..."
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '0.9rem',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'DM Sans, sans-serif',
+                      fontSize: '0.9rem',
+                      color: '#8C7B6B',
+                      marginBottom: '8px'
+                    }}>
+                      📘 Facebook
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.facebook_url}
+                      onChange={(e) => handleInputChange('facebook_url', e.target.value)}
+                      placeholder="https://facebook.com/..."
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '0.9rem',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'DM Sans, sans-serif',
+                      fontSize: '0.9rem',
+                      color: '#8C7B6B',
+                      marginBottom: '8px'
+                    }}>
+                      🎬 YouTube
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.youtube_url}
+                      onChange={(e) => handleInputChange('youtube_url', e.target.value)}
+                      placeholder="https://youtube.com/..."
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '0.9rem',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'DM Sans, sans-serif',
+                      fontSize: '0.9rem',
+                      color: '#8C7B6B',
+                      marginBottom: '8px'
+                    }}>
+                      🌐 Website
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.website_url}
+                      onChange={(e) => handleInputChange('website_url', e.target.value)}
+                      placeholder="https://yourwebsite.com"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '6px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '0.9rem',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -303,7 +611,7 @@ export default function Profile() {
                 borderRadius: '8px',
                 fontSize: '1rem',
                 fontWeight: 600,
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: 'DM Sans, sans-serif',
                 border: 'none',
                 cursor: isSaving ? 'not-allowed' : 'pointer',
                 opacity: isSaving ? 0.7 : 1
