@@ -108,7 +108,7 @@ export default function Home() {
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', background: 'rgba(212,130,10,0.1)' }}>
         {[
           { role: 'Musicians', tagline: 'Play intimate shows. Keep the money.', features: ['Build a profile with your Spotify, YouTube & SoundCloud', 'Set your rate and availability', 'Get booked by hosts in your area', 'Sell tickets directly — 70% of every door goes to you', '100-mile venue radar shows every opportunity nearby'], cta: 'Create Artist Profile', href: '/auth/register?type=musician' },
-          { role: 'Hosts', tagline: 'Turn your space into a venue.', features: ['List your home, backyard, or small venue', 'Browse artists by genre, price, and availability', 'Handle tickets and RSVPs in one place', 'Keep 30% of every ticket sold at your show', 'Build a reputation as the best house show host in town'], cta: 'List Your Space', href: '/auth/register?type=host' },
+          { role: 'Hosts', tagline: 'Turn your space into a venue.', features: ['List your home, backyard, or small venue', 'Browse artists by genre, price, and availability', 'Handle tickets and RSVPs in one place', 'Keep 30% of every ticket sold at your show', 'Build a reputation as the best house show host in town'], cta: 'List Your Space', href: '/auth/register?role=host' },
         ].map((p) => (
           <div key={p.role} style={{ background: '#1A1410', padding: '64px 48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>For {p.role}</div>

@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-export default function Register() {
+function RegisterContent() {
+  const searchParams = useSearchParams()
   const [role, setRole] = useState<'musician' | 'host'>('musician')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -12,6 +14,13 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    const roleParam = searchParams.get('role')
+    if (roleParam === 'host') {
+      setRole('host')
+    }
+  }, [searchParams])
 
   const handleRegister = async () => {
     setLoading(true)
@@ -132,5 +141,13 @@ export default function Register() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function Register() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegisterContent />
+    </Suspense>
   )
 }
