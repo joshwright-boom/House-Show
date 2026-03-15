@@ -35,6 +35,8 @@ export default function Profile() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -67,6 +69,10 @@ export default function Profile() {
           youtube_url: profileData.youtube_url || '',
           website_url: profileData.website_url || ''
         })
+        // Set photo preview if existing photo exists
+        if (profileData.photo_url) {
+          setPhotoPreview(profileData.photo_url)
+        }
       }
     }
     
@@ -120,6 +126,59 @@ export default function Profile() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be smaller than 5MB')
+      return
+    }
+
+    setUploadingPhoto(true)
+
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          upsert: true,
+          contentType: file.type
+        })
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Update form data and preview
+      setFormData(prev => ({ ...prev, photo_url: publicUrl }))
+      setPhotoPreview(publicUrl)
+
+    } catch (error) {
+      console.error('Error uploading photo:', error)
+      alert('Failed to upload photo. Please try again.')
+    } finally {
+      setUploadingPhoto(false)
+    }
   }
 
   const getSocialLinks = () => {
@@ -387,7 +446,7 @@ export default function Profile() {
               />
             </div>
 
-            {/* Photo URL */}
+            {/* Photo Upload */}
             <div>
               <label style={{
                 display: 'block',
@@ -396,24 +455,116 @@ export default function Profile() {
                 color: '#F5F0E8',
                 marginBottom: '12px'
               }}>
-                Photo URL (Optional)
+                Profile Photo (Optional)
               </label>
-              <input
-                type="url"
-                value={formData.photo_url}
-                onChange={(e) => handleInputChange('photo_url', e.target.value)}
-                placeholder="https://example.com/your-photo.jpg"
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  background: 'rgba(44,34,24,0.3)',
-                  color: '#F5F0E8',
-                  fontSize: '1rem',
-                  fontFamily: 'DM Sans, sans-serif'
-                }}
-              />
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                {/* Photo Preview */}
+                {(photoPreview || formData.photo_url) ? (
+                  <div style={{ position: 'relative' }}>
+                    <img 
+                      src={photoPreview || formData.photo_url}
+                      alt="Profile preview"
+                      style={{ 
+                        width: '120px', 
+                        height: '120px', 
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '3px solid #F0A500'
+                      }}
+                    />
+                    {!uploadingPhoto && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoPreview(null)
+                          setFormData(prev => ({ ...prev, photo_url: '' }))
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: '#D4820A',
+                          color: '#1A1410',
+                          border: '2px solid #1A1410',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    border: '2px dashed rgba(212,130,10,0.3)',
+                    background: 'rgba(44,34,24,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#8C7B6B',
+                    fontSize: '2rem'
+                  }}>
+                    👤
+                  </div>
+                )}
+
+                {/* Upload Button */}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    disabled={uploadingPhoto}
+                    style={{
+                      position: 'absolute',
+                      opacity: 0,
+                      width: '100%',
+                      height: '100%',
+                      cursor: uploadingPhoto ? 'not-allowed' : 'pointer'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingPhoto}
+                    style={{
+                      padding: '12px 24px',
+                      background: uploadingPhoto 
+                        ? 'rgba(212,130,10,0.3)' 
+                        : 'rgba(240,165,0,0.1)',
+                      border: '1px solid rgba(240,165,0,0.3)',
+                      borderRadius: '6px',
+                      color: uploadingPhoto ? '#8C7B6B' : '#F0A500',
+                      fontSize: '0.9rem',
+                      fontFamily: 'DM Sans, sans-serif',
+                      cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {uploadingPhoto ? 'Uploading...' : 'Choose Photo'}
+                  </button>
+                </div>
+
+                <p style={{
+                  color: '#8C7B6B',
+                  fontSize: '0.8rem',
+                  fontFamily: 'DM Sans, sans-serif',
+                  textAlign: 'center',
+                  margin: 0
+                }}>
+                  JPG, PNG, or GIF • Max 5MB
+                </p>
+              </div>
             </div>
 
             {/* Social Links - Only for Musicians */}
