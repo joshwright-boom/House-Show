@@ -40,20 +40,27 @@ export default function Profile() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      // First check if we have a session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session) {
+        // No session, redirect to login
         window.location.href = '/auth/login'
         return
       }
       
-      setUser({ id: user.id, email: user.email })
+      setUser({ id: session.user.id, email: session.user.email })
       
       // Load existing profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', session.user.id)
         .single()
+      
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error loading profile:', profileError)
+      }
       
       if (profileData) {
         setProfile(profileData)
@@ -77,6 +84,17 @@ export default function Profile() {
     }
     
     checkUser()
+    
+    // Set up auth state listener for session changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        window.location.href = '/auth/login'
+      } else {
+        setUser({ id: session.user.id, email: session.user.email })
+      }
+    })
+    
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
