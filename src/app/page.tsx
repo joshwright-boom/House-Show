@@ -95,7 +95,7 @@ export default function Home() {
           }}>I Want to Host</a>
         </div>
         <div style={{ display: 'flex', gap: '48px', marginTop: '80px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[{ num: '100mi', label: 'Venue Radar' }, { num: '70%', label: 'Goes to the Artist' }, { num: '0%', label: 'Platform Fee on Bookings' }].map((s) => (
+          {[{ num: '50%', label: 'GOES TO THE ARTIST' }, { num: '45%', label: 'GOES TO THE HOST' }, { num: '5%', label: 'PLATFORM FEE' }].map((s) => (
             <div key={s.label} style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontWeight: 700, color: '#F0A500' }}>{s.num}</div>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '4px' }}>{s.label}</div>
