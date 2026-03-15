@@ -16,7 +16,7 @@ function RegisterContent() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    const roleParam = searchParams.get('role')
+    const roleParam = searchParams.get('role') || searchParams.get('type')
     if (roleParam === 'host') {
       setRole('host')
     }
