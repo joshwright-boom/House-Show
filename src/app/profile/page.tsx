@@ -114,24 +114,6 @@ export default function Profile() {
     setSaveSuccess(false)
     
     try {
-      console.log('Saving profile data:', {
-        id: user.id,
-        name: formData.name,
-        bio: formData.bio,
-        zip_code: formData.zip_code,
-        user_type: formData.user_type,
-        availability_status: formData.availability_status,
-        tour_dates: formData.tour_dates,
-        photo_url: formData.photo_url,
-        spotify_url: formData.spotify_url || null,
-        soundcloud_url: formData.soundcloud_url || null,
-        instagram_url: formData.instagram_url || null,
-        facebook_url: formData.facebook_url || null,
-        youtube_url: formData.youtube_url || null,
-        website_url: formData.website_url || null,
-        updated_at: new Date().toISOString()
-      })
-      
       const profileData = {
         id: user.id,
         name: formData.name,
@@ -150,6 +132,8 @@ export default function Profile() {
         updated_at: new Date().toISOString()
       }
       
+      console.log('Saving profile data:', profileData)
+      
       // Use upsert to handle both insert and update
       const { error } = await supabase
         .from('profiles')
@@ -159,20 +143,37 @@ export default function Profile() {
       
       if (error) {
         console.error('Error saving profile:', error)
-        alert('Failed to save profile. Please try again.')
+        console.error('Error details:', JSON.stringify(error, null, 2))
+        console.error('Profile data being saved:', JSON.stringify(profileData, null, 2))
+        alert(`Failed to save profile: ${error.message || 'Unknown error'}. Please check browser console for details.`)
         return
       }
       
       // Update local profile state
       setProfile({
-        ...profileData,
+        id: profileData.id,
+        name: profileData.name,
+        bio: profileData.bio,
+        zip_code: profileData.zip_code,
+        user_type: profileData.user_type,
+        availability_status: profileData.availability_status,
+        tour_dates: profileData.tour_dates,
+        photo_url: profileData.photo_url,
+        spotify_url: profileData.spotify_url || null,
+        soundcloud_url: profileData.soundcloud_url || null,
+        instagram_url: profileData.instagram_url || null,
+        facebook_url: profileData.facebook_url || null,
+        youtube_url: profileData.youtube_url || null,
+        website_url: profileData.website_url || null,
         created_at: profile?.created_at || new Date().toISOString()
       } as Profile)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error) {
       console.error('Error saving profile:', error)
-      alert('Failed to save profile. Please try again.')
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to save profile: ${errorMessage}. Please check browser console for details.`)
     } finally {
       setIsSaving(false)
     }
