@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
 interface Show {
   id: string
@@ -27,6 +29,9 @@ interface Musician {
   bio: string
   photo_url?: string
   user_type: 'musician'
+  latitude?: number
+  longitude?: number
+  location_address?: string
 }
 
 export default function CreateShow() {
@@ -37,6 +42,14 @@ export default function CreateShow() {
   const [musicianResults, setMusicianResults] = useState<Musician[]>([])
   const [searchingMusicians, setSearchingMusicians] = useState(false)
   const [showMusicianDropdown, setShowMusicianDropdown] = useState(false)
+  
+  // Map state
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<unknown>(null)
+  const [hostLocation, setHostLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [nearbyMusicians, setNearbyMusicians] = useState<Musician[]>([])
+  const [mapLoading, setMapLoading] = useState(true)
+  const [mapError, setMapError] = useState(false)
   
   const [formData, setFormData] = useState({
     show_name: '',
@@ -125,6 +138,149 @@ export default function CreateShow() {
     setMusicianSearch('')
     setShowMusicianDropdown(false)
   }
+
+  // Load host location and nearby musicians
+  useEffect(() => {
+    if (!user) return
+
+    const loadHostLocationAndMusicians = async () => {
+      try {
+        // Get host profile with location
+        const { data: hostProfile } = await supabase
+          .from('profiles')
+          .select('latitude, longitude, location_address')
+          .eq('id', user.id)
+          .single()
+
+        if (hostProfile?.latitude && hostProfile?.longitude) {
+          setHostLocation({ lat: hostProfile.latitude, lng: hostProfile.longitude })
+          
+          // Load nearby musicians (within 100 miles)
+          const { data: musicians } = await supabase
+            .from('profiles')
+            .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address')
+            .eq('user_type', 'musician')
+            .not('latitude', 'is', null)
+            .not('longitude', 'is', null)
+
+          if (musicians) {
+            // Filter musicians within ~100 miles (simple distance calculation)
+            const nearby = musicians.filter(musician => {
+              if (!musician.latitude || !musician.longitude) return false
+              
+              const distance = calculateDistance(
+                hostProfile.latitude, 
+                hostProfile.longitude, 
+                musician.latitude, 
+                musician.longitude
+              )
+              return distance <= 160.934 // 100 miles in km
+            })
+            
+            setNearbyMusicians(nearby)
+          }
+        } else {
+          setMapError(true)
+        }
+      } catch (error) {
+        console.error('Error loading location data:', error)
+        setMapError(true)
+      } finally {
+        setMapLoading(false)
+      }
+    }
+
+    loadHostLocationAndMusicians()
+  }, [user])
+
+  // Calculate distance between two points (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371 // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
+
+  // Initialize map
+  useEffect(() => {
+    if (!hostLocation || !mapContainer.current || mapRef.current) return
+
+    // Load Mapbox GL JS
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css'
+    document.head.appendChild(link)
+
+    const script = document.createElement('script')
+    script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'
+    script.onload = () => {
+      const mapboxgl = (window as unknown as Window & { mapboxgl: { accessToken: string; Map: new (config: object) => unknown; LngLat: new (lng: number, lat: number) => unknown } }).mapboxgl
+      mapboxgl.accessToken = MAPBOX_TOKEN
+
+      if (!mapContainer.current) return
+
+      const map = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [hostLocation.lng, hostLocation.lat],
+        zoom: 10,
+      })
+
+      mapRef.current = map
+
+      const mapInstance = map as {
+        on: (event: string, cb: () => void) => void
+        getCanvas: () => HTMLElement
+      }
+
+      mapInstance.on('load', () => {
+        // Add host location marker
+        const hostEl = document.createElement('div')
+        hostEl.style.cssText = `
+          width: 20px; height: 20px; border-radius: 50%;
+          background: #F0A500;
+          border: 3px solid #fff;
+          box-shadow: 0 0 16px rgba(240,165,0,0.7);
+        `
+        new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(hostEl)
+          .setLngLat([hostLocation.lng, hostLocation.lat])
+          .addTo(map)
+
+        // Add musician markers
+        nearbyMusicians.forEach(musician => {
+          if (!musician.latitude || !musician.longitude) return
+
+          const musicianEl = document.createElement('div')
+          musicianEl.style.cssText = `
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid #fff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(34,197,94,0.5);
+            transition: transform 0.15s;
+          `
+          musicianEl.addEventListener('mouseenter', () => { musicianEl.style.transform = 'scale(1.5)' })
+          musicianEl.addEventListener('mouseleave', () => { musicianEl.style.transform = 'scale(1)' })
+          musicianEl.addEventListener('click', () => {
+            selectMusician(musician)
+            // Scroll to musician search field
+            document.getElementById('musician-search-field')?.scrollIntoView({ behavior: 'smooth' })
+          })
+
+          new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
+            .setLngLat([musician.longitude, musician.latitude])
+            .addTo(map)
+        })
+
+        mapInstance.getCanvas().style.cursor = 'grab'
+      })
+    }
+    document.head.appendChild(script)
+  }, [hostLocation, nearbyMusicians])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -461,8 +617,105 @@ export default function CreateShow() {
               </select>
             </div>
 
-            {/* Musician Selection */}
+            {/* Nearby Musicians Map */}
             <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Nearby Musicians
+              </label>
+              <div style={{
+                background: 'rgba(26,20,16,0.5)',
+                border: '1px solid rgba(212,130,10,0.2)',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                {mapLoading ? (
+                  <div style={{
+                    height: '300px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#8C7B6B',
+                    fontFamily: "'DM Sans', sans-serif"
+                  }}>
+                    Loading map...
+                  </div>
+                ) : mapError ? (
+                  <div style={{
+                    height: '300px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#8C7B6B',
+                    fontFamily: "'DM Sans', sans-serif",
+                    textAlign: 'center',
+                    gap: '8px'
+                  }}>
+                    <div>Location not available</div>
+                    <div style={{ fontSize: '0.85rem' }}>
+                      Add your location to your profile to see nearby musicians
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{
+                      height: '300px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      marginBottom: '12px'
+                    }} ref={mapContainer}></div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '16px',
+                      fontSize: '0.85rem',
+                      fontFamily: "'DM Sans', sans-serif",
+                      color: '#8C7B6B'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: '#F0A500',
+                          border: '2px solid #fff'
+                        }}></div>
+                        <span>Your Location</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: '#22c55e',
+                          border: '2px solid #fff'
+                        }}></div>
+                        <span>Nearby Musicians ({nearbyMusicians.length})</span>
+                      </div>
+                    </div>
+                    {nearbyMusicians.length > 0 && (
+                      <div style={{
+                        marginTop: '8px',
+                        fontSize: '0.8rem',
+                        color: '#D4820A',
+                        fontFamily: "'DM Sans', sans-serif"
+                      }}>
+                        Click on a musician pin to select them
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Musician Selection */}
+            <div id="musician-search-field">
               <label style={{
                 display: 'block',
                 fontFamily: "'Playfair Display', serif",

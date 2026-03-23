@@ -26,11 +26,16 @@ Run the following SQL commands in your Supabase SQL Editor (Project → SQL Edit
 -- Copy contents from: supabase/migrations/003_create_shows_table.sql
 ```
 
+### 4. Add Profile Locations
+```sql
+-- Copy contents from: supabase/migrations/004_add_profile_locations.sql
+```
+
 ## Step 2: Verify Setup
 
 After running the migrations, verify everything is working:
 
-1. **Check Profiles Table**: In Supabase → Table Editor, you should see a `profiles` table
+1. **Check Profiles Table**: In Supabase → Table Editor, you should see a `profiles` table with location fields (latitude, longitude, location_address)
 2. **Check Shows Table**: In Supabase → Table Editor, you should see a `shows` table
 3. **Check Storage Bucket**: In Supabase → Storage, you should see an `avatars` bucket
 4. **Check RLS Policies**: In Supabase → Authentication → Policies, you should see policies for `profiles`, `shows`, and `storage.objects`
@@ -49,9 +54,12 @@ After running the migrations, verify everything is working:
 ## Step 4: Test Show Creation
 
 1. Create a host account (or set user_type to 'host' in profiles table)
-2. Go to: http://localhost:3000/create-show
-3. Test:
+2. Add location to your profile (latitude, longitude fields)
+3. Go to: http://localhost:3000/create-show
+4. Test:
    - Fill out show details
+   - View the nearby musicians map
+   - Click on musician pins to select them
    - Search and select a musician (optional)
    - Create the show and verify it appears in bookings
 
@@ -71,6 +79,12 @@ After running the migrations, verify everything is working:
 
 ### Issue: Musician search not working
 **Solution**: Ensure there are musician profiles in the profiles table (user_type = 'musician') and that the RLS policies allow reading profiles.
+
+### Issue: Map not showing musicians
+**Solution**: Make sure host profile has latitude/longitude values and that musician profiles have location data. Verify the MAPBOX_TOKEN environment variable is set.
+
+### Issue: "Location not available" on create show
+**Solution**: Add latitude and longitude values to your profile in the profiles table.
 
 ## Manual SQL Commands
 
