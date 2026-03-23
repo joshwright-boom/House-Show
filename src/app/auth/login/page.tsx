@@ -8,6 +8,9 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetMessage, setResetMessage] = useState('')
+  const [showReset, setShowReset] = useState(false)
 
   const handleLogin = async () => {
     setLoading(true)
@@ -19,6 +22,33 @@ export default function Login() {
       window.location.href = '/dashboard'
     }
     setLoading(false)
+  }
+
+  const handlePasswordReset = async () => {
+    if (!email.trim()) {
+      setResetMessage('Please enter your email address first')
+      return
+    }
+
+    setResetLoading(true)
+    setResetMessage('')
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      })
+      
+      if (error) {
+        setResetMessage(error.message)
+      } else {
+        setResetMessage('Password reset email sent! Check your inbox.')
+        setShowReset(false)
+      }
+    } catch (error) {
+      setResetMessage('Failed to send reset email. Please try again.')
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   const inputStyle = {
@@ -64,6 +94,10 @@ export default function Login() {
             <p style={{ color: '#ff6b6b', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>{message}</p>
           )}
 
+          {resetMessage && (
+            <p style={{ color: '#22c55e', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>{resetMessage}</p>
+          )}
+
           <button onClick={handleLogin} disabled={loading} style={{
             background: loading ? '#8C7B6B' : 'linear-gradient(135deg, #D4820A, #F0A500)',
             color: '#1A1410', border: 'none', borderRadius: '4px', padding: '14px',
@@ -72,6 +106,26 @@ export default function Login() {
           }}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={resetLoading}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#F0A500',
+                fontSize: '0.85rem',
+                fontFamily: "'DM Sans', sans-serif",
+                cursor: resetLoading ? 'not-allowed' : 'pointer',
+                textDecoration: 'underline',
+                padding: '4px 8px'
+              }}
+            >
+              {resetLoading ? 'Sending...' : 'Forgot password?'}
+            </button>
+          </div>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '24px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>

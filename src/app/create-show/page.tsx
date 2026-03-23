@@ -16,7 +16,7 @@ interface Show {
   show_description: string
   genre_preference: string
   host_id: string
-  musician_id?: string
+  artist_user_id?: string
   status: 'open' | 'booked' | 'cancelled'
   created_at: string
 }
@@ -144,7 +144,7 @@ export default function CreateShow() {
         show_description: formData.show_description,
         genre_preference: formData.genre_preference,
         host_id: user.id,
-        musician_id: selectedMusician?.id || null,
+        artist_user_id: selectedMusician?.id || null,
         status: 'open',
         created_at: new Date().toISOString()
       }
