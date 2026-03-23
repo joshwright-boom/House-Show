@@ -10,6 +10,8 @@ interface Profile {
   photo_url: string
   user_type: 'musician' | 'host'
   zip_code?: string
+  latitude?: number
+  longitude?: number
   availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
   tour_dates?: string
   spotify_url?: string
@@ -114,7 +116,7 @@ export default function Profile() {
     setSaveSuccess(false)
     
     try {
-      const profileData = {
+      let profileData = {
         id: user.id,
         name: formData.name,
         bio: formData.bio,
@@ -130,6 +132,28 @@ export default function Profile() {
         youtube_url: formData.youtube_url || null,
         website_url: formData.website_url || null,
         updated_at: new Date().toISOString()
+      }
+
+      // Convert zip code to coordinates if provided
+      if (formData.zip_code && formData.zip_code.length >= 5) {
+        try {
+          console.log('Converting zip code to coordinates:', formData.zip_code)
+          const response = await fetch(`https://api.zippopotam.us/us/${formData.zip_code}`)
+          const data = await response.json()
+          
+          if (data.post_code === '200' && data.lat && data.lng) {
+            profileData = {
+              ...profileData,
+              latitude: data.lat,
+              longitude: data.lng
+            } as any
+            console.log('Converted zip to coordinates:', { lat: data.lat, lng: data.lng })
+          } else {
+            console.log('Zip code lookup failed:', data)
+          }
+        } catch (error) {
+          console.error('Error converting zip code:', error)
+        }
       }
       
       console.log('Saving profile data:', profileData)
