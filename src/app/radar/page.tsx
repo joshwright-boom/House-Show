@@ -62,7 +62,7 @@ export default function RadarPage() {
     const script = document.createElement('script')
     script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'
     script.onload = () => {
-      const mapboxgl = (window as any).mapboxgl
+const mapboxgl = (window as unknown as Window & { mapboxgl: { accessToken: string; Map: new (config: object) => unknown; LngLat: new (lng: number, lat: number) => unknown } }).mapboxgl
       mapboxgl.accessToken = MAPBOX_TOKEN
 
       if (!mapContainer.current) return
@@ -136,7 +136,7 @@ export default function RadarPage() {
           el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
           el.addEventListener('click', () => setSelectedVenue(venue))
 
-          new (window as any).mapboxgl.Marker(el)
+new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(el)
             .setLngLat([venue.lng, venue.lat])
             .addTo(map)
         })
@@ -149,7 +149,7 @@ export default function RadarPage() {
           border: 3px solid #fff;
           box-shadow: 0 0 16px rgba(240,165,0,0.7);
         `
-        new (window as any).mapboxgl.Marker(userEl)
+new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(userEl)
           .setLngLat([userLocation.lng, userLocation.lat])
           .addTo(map)
 
