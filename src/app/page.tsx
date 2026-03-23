@@ -1,4 +1,43 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+
 export default function Home() {
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [musicianRevenue, setMusicianRevenue] = useState(0)
+  const [hostRevenue, setHostRevenue] = useState(0)
+  const [loadingRevenue, setLoadingRevenue] = useState(true)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser({ id: user.id, email: user.email })
+        await fetchRevenue(user.id)
+      } else {
+        setLoadingRevenue(false)
+      }
+    }
+    
+    checkUser()
+  }, [])
+
+  const fetchRevenue = async (userId: string) => {
+    try {
+      // Mock revenue data - replace with actual Supabase query
+      const mockMusicianRevenue = 1247.50
+      const mockHostRevenue = 534.75
+      
+      setMusicianRevenue(mockMusicianRevenue)
+      setHostRevenue(mockHostRevenue)
+    } catch (error) {
+      console.error('Error fetching revenue:', error)
+    } finally {
+      setLoadingRevenue(false)
+    }
+  }
+
   return (
     <main style={{ minHeight: '100vh', background: '#1A1410' }}>
 
@@ -56,7 +95,7 @@ export default function Home() {
           }}>I Want to Host</a>
         </div>
         <div style={{ display: 'flex', gap: '48px', marginTop: '80px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[{ num: '100mi', label: 'Venue Radar' }, { num: '70%', label: 'Goes to the Artist' }, { num: '0%', label: 'Platform Fee on Bookings' }].map((s) => (
+          {[{ num: '50%', label: 'GOES TO THE ARTIST' }, { num: '45%', label: 'GOES TO THE HOST' }, { num: '5%', label: 'PLATFORM FEE' }].map((s) => (
             <div key={s.label} style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontWeight: 700, color: '#F0A500' }}>{s.num}</div>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '4px' }}>{s.label}</div>
@@ -69,7 +108,7 @@ export default function Home() {
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', background: 'rgba(212,130,10,0.1)' }}>
         {[
           { role: 'Musicians', tagline: 'Play intimate shows. Keep the money.', features: ['Build a profile with your Spotify, YouTube & SoundCloud', 'Set your rate and availability', 'Get booked by hosts in your area', 'Sell tickets directly — 70% of every door goes to you', '100-mile venue radar shows every opportunity nearby'], cta: 'Create Artist Profile', href: '/auth/register?type=musician' },
-          { role: 'Hosts', tagline: 'Turn your space into a venue.', features: ['List your home, backyard, or small venue', 'Browse artists by genre, price, and availability', 'Handle tickets and RSVPs in one place', 'Keep 30% of every ticket sold at your show', 'Build a reputation as the best house show host in town'], cta: 'List Your Space', href: '/auth/register?type=host' },
+          { role: 'Hosts', tagline: 'Turn your space into a venue.', features: ['List your home, backyard, or small venue', 'Browse artists by genre, price, and availability', 'Handle tickets and RSVPs in one place', 'Keep 30% of every ticket sold at your show', 'Build a reputation as the best house show host in town'], cta: 'List Your Space', href: '/auth/register?role=host' },
         ].map((p) => (
           <div key={p.role} style={{ background: '#1A1410', padding: '64px 48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>For {p.role}</div>
@@ -105,6 +144,192 @@ export default function Home() {
             </div>
           </div>
         ))}
+      </section>
+
+      {/* REVENUE */}
+      <section id="revenue" style={{ padding: '100px 48px', maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px', textAlign: 'center' }}>Your Earnings</div>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', fontWeight: 700, color: '#F5F0E8', textAlign: 'center', marginBottom: '64px' }}>Revenue Dashboard</h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          {/* Musician Revenue Card */}
+          <div style={{
+            border: '1px solid rgba(212,130,10,0.2)',
+            borderRadius: '16px',
+            padding: '40px',
+            background: 'rgba(44,34,24,0.3)',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>🎸</div>
+            <h3 style={{ 
+              fontFamily: "'Playfair Display', serif", 
+              fontSize: '1.5rem', 
+              color: '#F5F0E8', 
+              marginBottom: '16px' 
+            }}>
+              Revenue as a Musician
+            </h3>
+            
+            {loadingRevenue ? (
+              <div style={{ color: '#8C7B6B' }}>Loading...</div>
+            ) : user ? (
+              <>
+                <div style={{ 
+                  fontFamily: "'Space Mono', monospace", 
+                  fontSize: '2.2rem', 
+                  color: '#F0A500', 
+                  fontWeight: 600, 
+                  marginBottom: '8px' 
+                }}>
+                  ${musicianRevenue.toFixed(2)}
+                </div>
+                <p style={{ 
+                  fontFamily: "'DM Sans', sans-serif", 
+                  color: '#8C7B6B', 
+                  fontSize: '0.9rem',
+                  marginBottom: '24px'
+                }}>
+                  Total earnings from performances
+                </p>
+                <a href="/dashboard" style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                  color: '#1A1410',
+                  padding: '12px 24px',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  textDecoration: 'none'
+                }}>
+                  View Details
+                </a>
+              </>
+            ) : (
+              <>
+                <div style={{ 
+                  fontFamily: "'Space Mono', monospace", 
+                  fontSize: '1.5rem', 
+                  color: '#8C7B6B', 
+                  fontWeight: 600, 
+                  marginBottom: '16px' 
+                }}>
+                  Sign in to view
+                </div>
+                <p style={{ 
+                  fontFamily: "'DM Sans', sans-serif", 
+                  color: '#8C7B6B', 
+                  fontSize: '0.9rem',
+                  marginBottom: '24px'
+                }}>
+                  Connect your account to see your earnings
+                </p>
+                <a href="/auth/login" style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                  color: '#1A1410',
+                  padding: '12px 24px',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  textDecoration: 'none'
+                }}>
+                  Sign In
+                </a>
+              </>
+            )}
+          </div>
+
+          {/* Host Revenue Card */}
+          <div style={{
+            border: '1px solid rgba(212,130,10,0.2)',
+            borderRadius: '16px',
+            padding: '40px',
+            background: 'rgba(44,34,24,0.3)',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>🏠</div>
+            <h3 style={{ 
+              fontFamily: "'Playfair Display', serif", 
+              fontSize: '1.5rem', 
+              color: '#F5F0E8', 
+              marginBottom: '16px' 
+            }}>
+              Revenue as a Host
+            </h3>
+            
+            {loadingRevenue ? (
+              <div style={{ color: '#8C7B6B' }}>Loading...</div>
+            ) : user ? (
+              <>
+                <div style={{ 
+                  fontFamily: "'Space Mono', monospace", 
+                  fontSize: '2.2rem', 
+                  color: '#F0A500', 
+                  fontWeight: 600, 
+                  marginBottom: '8px' 
+                }}>
+                  ${hostRevenue.toFixed(2)}
+                </div>
+                <p style={{ 
+                  fontFamily: "'DM Sans', sans-serif", 
+                  color: '#8C7B6B', 
+                  fontSize: '0.9rem',
+                  marginBottom: '24px'
+                }}>
+                  Total earnings from hosting shows
+                </p>
+                <a href="/dashboard" style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                  color: '#1A1410',
+                  padding: '12px 24px',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  textDecoration: 'none'
+                }}>
+                  View Details
+                </a>
+              </>
+            ) : (
+              <>
+                <div style={{ 
+                  fontFamily: "'Space Mono', monospace", 
+                  fontSize: '1.5rem', 
+                  color: '#8C7B6B', 
+                  fontWeight: 600, 
+                  marginBottom: '16px' 
+                }}>
+                  Sign in to view
+                </div>
+                <p style={{ 
+                  fontFamily: "'DM Sans', sans-serif", 
+                  color: '#8C7B6B', 
+                  fontSize: '0.9rem',
+                  marginBottom: '24px'
+                }}>
+                  Connect your account to see your earnings
+                </p>
+                <a href="/auth/login" style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                  color: '#1A1410',
+                  padding: '12px 24px',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  fontFamily: "'DM Sans', sans-serif",
+                  textDecoration: 'none'
+                }}>
+                  Sign In
+                </a>
+              </>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* FOOTER */}
