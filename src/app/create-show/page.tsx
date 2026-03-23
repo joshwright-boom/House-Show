@@ -29,7 +29,7 @@ interface Musician {
   bio: string
   photo_url?: string
   user_type: 'musician'
-  city?: string
+  zip_code?: string
   latitude?: number
   longitude?: number
   location_address?: string
@@ -107,22 +107,22 @@ export default function CreateShow() {
     try {
       const { data: hostProfile } = await supabase
         .from('profiles')
-        .select('city')
+        .select('zip_code')
         .eq('id', user!.id)
         .single()
 
-      console.log('Host profile city:', hostProfile?.city)
+      console.log('Host profile zip code:', hostProfile?.zip_code)
       
       let musicianQuery = supabase
         .from('profiles')
-        .select('id, name, bio, photo_url, user_type, city')
+        .select('id, name, bio, photo_url, user_type, zip_code')
         .eq('user_type', 'musician')
         .limit(10)
 
-      // If host has a city, prioritize musicians from same city
-      if (hostProfile?.city) {
-        musicianQuery = musicianQuery.ilike('city', `%${hostProfile.city}%`)
-        console.log('Searching musicians in city:', hostProfile.city)
+      // If host has a zip code, prioritize musicians from same zip code
+      if (hostProfile?.zip_code) {
+        musicianQuery = musicianQuery.ilike('zip_code', `%${hostProfile.zip_code}%`)
+        console.log('Searching musicians in zip code:', hostProfile.zip_code)
       } else {
         musicianQuery = musicianQuery.ilike('name', `%${query}%`)
         console.log('Searching musicians by name:', query)
@@ -167,12 +167,33 @@ export default function CreateShow() {
         // Get host profile with location
         const { data: hostProfile } = await supabase
           .from('profiles')
-          .select('latitude, longitude, location_address')
+          .select('zip_code')
           .eq('id', user.id)
           .single()
 
-        if (hostProfile?.latitude && hostProfile?.longitude) {
-          setHostLocation({ lat: hostProfile.latitude, lng: hostProfile.longitude })
+        if (hostProfile?.zip_code) {
+          // For zip codes, we'll use a simple lookup for major cities
+          // This is a simplified approach - in production you'd use a proper geocoding service
+          const cityLookup: { [key: string]: { lat: number; lng: number } } = {
+            '10001': { lat: 40.7128, lng: -74.0060 }, // New York
+            '90210': { lat: 41.8781, lng: -87.6298 }, // Chicago
+            '60601': { lat: 41.8781, lng: -87.6298 }, // Chicago (same as 90210)
+            '33101': { lat: 25.7617, lng: -80.1918 }, // Miami
+            '77001': { lat: 34.0522, lng: -118.2437 }, // Los Angeles
+            '75201': { lat: 29.7604, lng: -95.3698 }, // Houston
+            '85001': { lat: 33.4484, lng: -112.0740 }, // Phoenix
+            '98101': { lat: 29.7604, lng: -95.3698 }, // Phoenix (same as 85001)
+            '94101': { lat: 37.7749, lng: -122.4194 }, // San Francisco
+            '94102': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
+            '94103': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
+            '94104': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
+            '94105': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
+            '94106': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
+            '94107': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
+          }
+
+          const location = cityLookup[hostProfile.zip_code.slice(0, 5)] || { lat: 40.7128, lng: -74.0060 } // Default to NYC
+          setHostLocation(location)
           
           // Load nearby musicians (within 100 miles)
           const { data: musicians } = await supabase
@@ -188,8 +209,8 @@ export default function CreateShow() {
               if (!musician.latitude || !musician.longitude) return false
               
               const distance = calculateDistance(
-                hostProfile.latitude, 
-                hostProfile.longitude, 
+                location.lat, 
+                location.lng, 
                 musician.latitude, 
                 musician.longitude
               )
@@ -841,14 +862,14 @@ export default function CreateShow() {
                           }}>
                             {musician.name}
                           </div>
-                          {musician.city && (
+                          {musician.zip_code && (
                             <div style={{
                               fontFamily: "'DM Sans', sans-serif",
                               fontSize: '0.8rem',
                               color: '#8C7B6B',
                               marginTop: '2px'
                             }}>
-                              📍 {musician.city}
+                              📍 {musician.zip_code}
                             </div>
                           )}
                           {musician.bio && (

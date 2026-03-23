@@ -9,7 +9,7 @@ interface Profile {
   bio: string
   photo_url: string
   user_type: 'musician' | 'host'
-  city?: string
+  zip_code?: string
   availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
   tour_dates?: string
   spotify_url?: string
@@ -29,7 +29,7 @@ export default function Profile() {
     bio: '',
     photo_url: '',
     user_type: 'musician' as 'musician' | 'host',
-    city: '',
+    zip_code: '',
     availability_status: 'based_here' as 'based_here' | 'on_tour' | 'open_to_travel',
     tour_dates: '',
     spotify_url: '',
@@ -75,7 +75,7 @@ export default function Profile() {
           bio: profileData.bio || '',
           photo_url: profileData.photo_url || '',
           user_type: profileData.user_type || 'musician',
-          city: profileData.city || '',
+          zip_code: profileData.zip_code || '',
           availability_status: profileData.availability_status || 'based_here',
           tour_dates: profileData.tour_dates || '',
           spotify_url: profileData.spotify_url || '',
@@ -118,7 +118,7 @@ export default function Profile() {
         id: user.id,
         name: formData.name,
         bio: formData.bio,
-        city: formData.city,
+        zip_code: formData.zip_code,
         user_type: formData.user_type,
         availability_status: formData.availability_status,
         tour_dates: formData.tour_dates,
@@ -136,7 +136,7 @@ export default function Profile() {
         id: user.id,
         name: formData.name,
         bio: formData.bio,
-        city: formData.city,
+        zip_code: formData.zip_code,
         user_type: formData.user_type,
         availability_status: formData.availability_status,
         tour_dates: formData.tour_dates,
@@ -558,7 +558,7 @@ export default function Profile() {
               />
             </div>
 
-            {/* City/Location - For both Musicians and Hosts */}
+            {/* Zip Code/Location - For both Musicians and Hosts */}
             <div>
               <label style={{
                 display: 'block',
@@ -567,13 +567,14 @@ export default function Profile() {
                 color: '#F5F0E8',
                 marginBottom: '12px'
               }}>
-                City / Location
+                Zip Code
               </label>
               <input
                 type="text"
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-                placeholder="e.g., Tulsa, OK"
+                value={formData.zip_code}
+                onChange={(e) => handleInputChange('zip_code', e.target.value)}
+                placeholder="e.g., 74103"
+                maxLength={5}
                 style={{
                   width: '100%',
                   padding: '16px',
@@ -593,8 +594,8 @@ export default function Profile() {
                 margin: 0
               }}>
                 {formData.user_type === 'musician' 
-                  ? 'Your home base city - helps hosts find local musicians'
-                  : 'Your city - helps musicians find nearby shows'
+                  ? 'Your zip code - helps hosts find local musicians'
+                  : 'Your zip code - helps musicians find nearby shows'
                 }
               </p>
             </div>
