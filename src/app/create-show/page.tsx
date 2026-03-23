@@ -29,6 +29,7 @@ interface Musician {
   bio: string
   photo_url?: string
   user_type: 'musician'
+  city?: string
   latitude?: number
   longitude?: number
   location_address?: string
@@ -104,12 +105,30 @@ export default function CreateShow() {
 
     setSearchingMusicians(true)
     try {
-      const { data, error } = await supabase
+      const { data: hostProfile } = await supabase
         .from('profiles')
-        .select('id, name, bio, photo_url, user_type')
+        .select('city')
+        .eq('id', user!.id)
+        .single()
+
+      console.log('Host profile city:', hostProfile?.city)
+      
+      let musicianQuery = supabase
+        .from('profiles')
+        .select('id, name, bio, photo_url, user_type, city')
         .eq('user_type', 'musician')
-        .ilike('name', `%${query}%`)
         .limit(10)
+
+      // If host has a city, prioritize musicians from same city
+      if (hostProfile?.city) {
+        musicianQuery = musicianQuery.ilike('city', `%${hostProfile.city}%`)
+        console.log('Searching musicians in city:', hostProfile.city)
+      } else {
+        musicianQuery = musicianQuery.ilike('name', `%${query}%`)
+        console.log('Searching musicians by name:', query)
+      }
+
+      const { data, error } = await musicianQuery
 
       if (error) throw error
       setMusicianResults(data || [])
@@ -178,6 +197,9 @@ export default function CreateShow() {
             })
             
             setNearbyMusicians(nearby)
+          } else {
+            // No host location, show all musicians
+            setNearbyMusicians(musicians || [])
           }
         } else {
           setMapError(true)
@@ -819,6 +841,16 @@ export default function CreateShow() {
                           }}>
                             {musician.name}
                           </div>
+                          {musician.city && (
+                            <div style={{
+                              fontFamily: "'DM Sans', sans-serif",
+                              fontSize: '0.8rem',
+                              color: '#8C7B6B',
+                              marginTop: '2px'
+                            }}>
+                              📍 {musician.city}
+                            </div>
+                          )}
                           {musician.bio && (
                             <div style={{
                               fontFamily: "'DM Sans', sans-serif",

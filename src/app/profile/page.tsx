@@ -114,12 +114,33 @@ export default function Profile() {
     setSaveSuccess(false)
     
     try {
+      console.log('Saving profile data:', {
+        id: user.id,
+        name: formData.name,
+        bio: formData.bio,
+        city: formData.city,
+        user_type: formData.user_type,
+        availability_status: formData.availability_status,
+        tour_dates: formData.tour_dates,
+        photo_url: formData.photo_url,
+        spotify_url: formData.spotify_url || null,
+        soundcloud_url: formData.soundcloud_url || null,
+        instagram_url: formData.instagram_url || null,
+        facebook_url: formData.facebook_url || null,
+        youtube_url: formData.youtube_url || null,
+        website_url: formData.website_url || null,
+        updated_at: new Date().toISOString()
+      })
+      
       const profileData = {
         id: user.id,
         name: formData.name,
         bio: formData.bio,
-        photo_url: formData.photo_url,
+        city: formData.city,
         user_type: formData.user_type,
+        availability_status: formData.availability_status,
+        tour_dates: formData.tour_dates,
+        photo_url: formData.photo_url,
         spotify_url: formData.spotify_url || null,
         soundcloud_url: formData.soundcloud_url || null,
         instagram_url: formData.instagram_url || null,
