@@ -537,6 +537,47 @@ export default function Profile() {
               />
             </div>
 
+            {/* City/Location - For both Musicians and Hosts */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                City / Location
+              </label>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="e.g., Tulsa, OK"
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: 'DM Sans, sans-serif'
+                }}
+              />
+              <p style={{
+                color: '#8C7B6B',
+                fontSize: '0.8rem',
+                fontFamily: 'DM Sans, sans-serif',
+                marginTop: '8px',
+                margin: 0
+              }}>
+                {formData.user_type === 'musician' 
+                  ? 'Your home base city - helps hosts find local musicians'
+                  : 'Your city - helps musicians find nearby shows'
+                }
+              </p>
+            </div>
+
             {/* Photo Upload */}
             <div>
               <label style={{
@@ -661,35 +702,6 @@ export default function Profile() {
             {/* Location and Availability - Only for Musicians */}
             {formData.user_type === 'musician' && (
               <>
-                {/* City/Location */}
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontFamily: 'Playfair Display, serif',
-                    fontSize: '1.1rem',
-                    color: '#F5F0E8',
-                    marginBottom: '12px'
-                  }}>
-                    City / Location
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
-                    placeholder="e.g., Tulsa, OK"
-                    style={{
-                      width: '100%',
-                      padding: '16px',
-                      border: '1px solid rgba(212,130,10,0.2)',
-                      borderRadius: '8px',
-                      background: 'rgba(44,34,24,0.3)',
-                      color: '#F5F0E8',
-                      fontSize: '1rem',
-                      fontFamily: 'DM Sans, sans-serif'
-                    }}
-                  />
-                </div>
-
                 {/* Availability Status */}
                 <div>
                   <label style={{
