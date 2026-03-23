@@ -255,7 +255,7 @@ export default function BrowsePage() {
             color: '#F0A500',
             fontFamily: 'Playfair Display, serif'
           }}>
-            <a href="/" style={{
+            <a href="/dashboard" style={{
               textDecoration: 'none',
               color: 'inherit'
             }}>

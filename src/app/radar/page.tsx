@@ -175,7 +175,7 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
         padding: '20px 32px', borderBottom: '1px solid rgba(212,130,10,0.15)',
         background: 'rgba(26,20,16,0.98)', zIndex: 200, flexShrink: 0,
       }}>
-        <a href="/" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+        <a href="/dashboard" style={{ fontFamily: "Playfair Display, serif", fontSize: "1.4rem", color: "#F0A500" }}>HouseShow</a>
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />

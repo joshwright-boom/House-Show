@@ -75,21 +75,31 @@ export default function FindMusicians() {
         if (user) {
           setUser({ id: user.id, email: user.email })
           
-          // Get host profile with location
-          const { data: hostProfile } = await supabase
+          // Get user profile to check user type and location
+          const { data: userProfile } = await supabase
             .from('profiles')
-            .select('latitude, longitude, zip_code')
+            .select('user_type, latitude, longitude, zip_code')
             .eq('id', user.id)
             .single()
 
-          if (hostProfile?.latitude && hostProfile?.longitude) {
-            setHostLocation({ lat: hostProfile.latitude, lng: hostProfile.longitude })
+          // Check if user is a host
+          if (userProfile?.user_type !== 'host') {
+            window.location.href = '/dashboard'
+            return
+          }
+
+          if (userProfile?.latitude && userProfile?.longitude) {
+            setHostLocation({ lat: userProfile.latitude, lng: userProfile.longitude })
           } else {
             setMapError(true)
           }
+        } else {
+          // Redirect to login if not authenticated
+          window.location.href = '/auth/login'
         }
       } catch (error) {
         console.error('Error loading user:', error)
+        window.location.href = '/auth/login'
       } finally {
         setLoading(false)
       }
