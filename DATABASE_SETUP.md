@@ -31,11 +31,16 @@ Run the following SQL commands in your Supabase SQL Editor (Project → SQL Edit
 -- Copy contents from: supabase/migrations/004_add_profile_locations.sql
 ```
 
+### 5. Add Musician Location & Availability
+```sql
+-- Copy contents from: supabase/migrations/005_add_musician_location_availability.sql
+```
+
 ## Step 2: Verify Setup
 
 After running the migrations, verify everything is working:
 
-1. **Check Profiles Table**: In Supabase → Table Editor, you should see a `profiles` table with location fields (latitude, longitude, location_address)
+1. **Check Profiles Table**: In Supabase → Table Editor, you should see a `profiles` table with location fields (latitude, longitude, location_address, city, availability_status, tour_dates)
 2. **Check Shows Table**: In Supabase → Table Editor, you should see a `shows` table
 3. **Check Storage Bucket**: In Supabase → Storage, you should see an `avatars` bucket
 4. **Check RLS Policies**: In Supabase → Authentication → Policies, you should see policies for `profiles`, `shows`, and `storage.objects`
@@ -50,6 +55,7 @@ After running the migrations, verify everything is working:
    - Fill out profile information and save
    - Navigate away and back to verify persistence
    - Upload a profile photo
+   - For musicians: Test city, availability status, and tour dates fields
 
 ## Step 4: Test Show Creation
 

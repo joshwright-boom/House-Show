@@ -9,6 +9,9 @@ interface Profile {
   bio: string
   photo_url: string
   user_type: 'musician' | 'host'
+  city?: string
+  availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
+  tour_dates?: string
   spotify_url?: string
   soundcloud_url?: string
   instagram_url?: string
@@ -26,6 +29,9 @@ export default function Profile() {
     bio: '',
     photo_url: '',
     user_type: 'musician' as 'musician' | 'host',
+    city: '',
+    availability_status: 'based_here' as 'based_here' | 'on_tour' | 'open_to_travel',
+    tour_dates: '',
     spotify_url: '',
     soundcloud_url: '',
     instagram_url: '',
@@ -69,6 +75,9 @@ export default function Profile() {
           bio: profileData.bio || '',
           photo_url: profileData.photo_url || '',
           user_type: profileData.user_type || 'musician',
+          city: profileData.city || '',
+          availability_status: profileData.availability_status || 'based_here',
+          tour_dates: profileData.tour_dates || '',
           spotify_url: profileData.spotify_url || '',
           soundcloud_url: profileData.soundcloud_url || '',
           instagram_url: profileData.instagram_url || '',
@@ -648,6 +657,126 @@ export default function Profile() {
                 </p>
               </div>
             </div>
+
+            {/* Location and Availability - Only for Musicians */}
+            {formData.user_type === 'musician' && (
+              <>
+                {/* City/Location */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontFamily: 'Playfair Display, serif',
+                    fontSize: '1.1rem',
+                    color: '#F5F0E8',
+                    marginBottom: '12px'
+                  }}>
+                    City / Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    placeholder="e.g., Tulsa, OK"
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      border: '1px solid rgba(212,130,10,0.2)',
+                      borderRadius: '8px',
+                      background: 'rgba(44,34,24,0.3)',
+                      color: '#F5F0E8',
+                      fontSize: '1rem',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}
+                  />
+                </div>
+
+                {/* Availability Status */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontFamily: 'Playfair Display, serif',
+                    fontSize: '1.1rem',
+                    color: '#F5F0E8',
+                    marginBottom: '12px'
+                  }}>
+                    Availability Status
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {[
+                      { value: 'based_here', label: '🏠 Based here', desc: 'Home and available locally' },
+                      { value: 'on_tour', label: '🚌 On tour', desc: 'Currently touring' },
+                      { value: 'open_to_travel', label: '✈️ Open to travel', desc: 'Willing to go anywhere' }
+                    ].map((status) => (
+                      <button
+                        key={status.value}
+                        type="button"
+                        onClick={() => handleInputChange('availability_status', status.value)}
+                        style={{
+                          padding: '16px',
+                          border: formData.availability_status === status.value 
+                            ? '2px solid #F0A500' 
+                            : '1px solid rgba(212,130,10,0.2)',
+                          borderRadius: '8px',
+                          background: formData.availability_status === status.value
+                            ? 'rgba(240,165,0,0.1)'
+                            : 'rgba(44,34,24,0.3)',
+                          color: '#F5F0E8',
+                          fontSize: '1rem',
+                          fontFamily: 'DM Sans, sans-serif',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{status.label}</div>
+                        <div style={{ fontSize: '0.85rem', color: '#8C7B6B' }}>{status.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tour Dates - Only show when "On tour" is selected */}
+                {formData.availability_status === 'on_tour' && (
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontFamily: 'Playfair Display, serif',
+                      fontSize: '1.1rem',
+                      color: '#F5F0E8',
+                      marginBottom: '12px'
+                    }}>
+                      Tour Dates & Cities
+                    </label>
+                    <textarea
+                      value={formData.tour_dates}
+                      onChange={(e) => handleInputChange('tour_dates', e.target.value)}
+                      placeholder="Enter your tour dates and cities, one per line:&#10;Austin, TX - Apr 3-5&#10;Dallas, TX - Apr 7-8&#10;Houston, TX - Apr 10-12"
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '8px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '1rem',
+                        fontFamily: 'DM Sans, sans-serif',
+                        resize: 'vertical'
+                      }}
+                    />
+                    <p style={{
+                      color: '#8C7B6B',
+                      fontSize: '0.8rem',
+                      fontFamily: 'DM Sans, sans-serif',
+                      marginTop: '8px',
+                      margin: 0
+                    }}>
+                      Format: City, State - Date Range (one per line)
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Social Links - Only for Musicians */}
             {formData.user_type === 'musician' && (
