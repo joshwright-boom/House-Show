@@ -174,7 +174,7 @@ export default function Profile() {
       // Create a unique file name
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      const filePath = `${user.id}/${fileName}`
 
       // First, check if the avatars bucket exists, create it if it doesn't
       try {
