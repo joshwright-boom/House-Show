@@ -261,8 +261,8 @@ export default function FindMusicians() {
       setShowInviteForm(false)
       setSelectedMusician(null)
     } catch (error) {
-      console.error('Error sending booking request:', error)
-      alert('Failed to send booking request. Please try again.')
+      console.error('Booking request error:', JSON.stringify(error))
+      alert('Error: ' + JSON.stringify(error))
     }
   }
 
