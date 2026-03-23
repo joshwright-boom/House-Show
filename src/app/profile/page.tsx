@@ -120,23 +120,29 @@ export default function Profile() {
         updated_at: new Date().toISOString()
       }
       
-      if (profile) {
-        // Update existing profile
-        await supabase
-          .from('profiles')
-          .update(profileData)
-          .eq('id', user.id)
-      } else {
-        // Create new profile
-        await supabase
-          .from('profiles')
-          .insert(profileData)
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(profileData, {
+          onConflict: 'id'
+        })
+      
+      if (error) {
+        console.error('Error saving profile:', error)
+        alert('Failed to save profile. Please try again.')
+        return
       }
       
+      // Update local profile state
+      setProfile({
+        ...profileData,
+        created_at: profile?.created_at || new Date().toISOString()
+      } as Profile)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error) {
       console.error('Error saving profile:', error)
+      alert('Failed to save profile. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -170,6 +176,36 @@ export default function Profile() {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
+      // First, check if the avatars bucket exists, create it if it doesn't
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets()
+        const avatarsBucket = buckets?.find(b => b.name === 'avatars')
+        
+        if (!avatarsBucket) {
+          // Create the avatars bucket
+          const { error: createBucketError } = await supabase.storage.createBucket('avatars', {
+            public: true,
+            allowedMimeTypes: ['image/*'],
+            fileSizeLimit: 5242880 // 5MB
+          })
+          
+          if (createBucketError) {
+            console.error('Error creating bucket:', createBucketError)
+            throw new Error('Failed to create storage bucket for avatars')
+          }
+          
+          // Set up RLS policies for the bucket
+          const { error: policyError } = await supabase.rpc('create_avatars_policies')
+          if (policyError) {
+            console.warn('Could not set up bucket policies:', policyError)
+            // Continue anyway as the bucket might still work
+          }
+        }
+      } catch (bucketError) {
+        console.error('Error checking/creating bucket:', bucketError)
+        // Continue with upload attempt
+      }
+
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
@@ -179,7 +215,18 @@ export default function Profile() {
         })
 
       if (uploadError) {
-        throw uploadError
+        console.error('Upload error:', uploadError)
+        
+        // Provide more specific error messages
+        if (uploadError.message.includes('bucket not found')) {
+          throw new Error('Storage bucket not found. Please contact support.')
+        } else if (uploadError.message.includes('permission')) {
+          throw new Error('Permission denied. Please check your account settings.')
+        } else if (uploadError.message.includes('file size')) {
+          throw new Error('File too large. Please choose a smaller image.')
+        } else {
+          throw new Error(`Upload failed: ${uploadError.message}`)
+        }
       }
 
       // Get public URL
@@ -191,9 +238,26 @@ export default function Profile() {
       setFormData(prev => ({ ...prev, photo_url: publicUrl }))
       setPhotoPreview(publicUrl)
 
+      // Also update the profile immediately if it exists
+      if (profile) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ photo_url: publicUrl, updated_at: new Date().toISOString() })
+          .eq('id', user.id)
+          
+        if (updateError) {
+          console.error('Error updating profile photo:', updateError)
+          // Don't throw error here, the photo was uploaded successfully
+        } else {
+          // Update local profile state
+          setProfile(prev => prev ? { ...prev, photo_url: publicUrl } : null)
+        }
+      }
+
     } catch (error) {
       console.error('Error uploading photo:', error)
-      alert('Failed to upload photo. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload photo. Please try again.'
+      alert(errorMessage)
     } finally {
       setUploadingPhoto(false)
     }
