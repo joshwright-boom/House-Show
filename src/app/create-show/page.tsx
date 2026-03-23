@@ -158,42 +158,30 @@ export default function CreateShow() {
     setShowMusicianDropdown(false)
   }
 
-  // Load host location and nearby musicians
+  // Load venue location and nearby musicians
   useEffect(() => {
     if (!user) return
 
-    const loadHostLocationAndMusicians = async () => {
+    const loadVenueLocationAndMusicians = async () => {
       try {
-        // Get host profile with location
-        const { data: hostProfile } = await supabase
-          .from('profiles')
-          .select('zip_code')
-          .eq('id', user.id)
-          .single()
+        // Only load map when venue address is provided
+        if (!formData.venue_address || formData.venue_address.length < 5) {
+          setMapError(true)
+          return
+        }
 
-        if (hostProfile?.zip_code) {
-          // For zip codes, we'll use a simple lookup for major cities
-          // This is a simplified approach - in production you'd use a proper geocoding service
-          const cityLookup: { [key: string]: { lat: number; lng: number } } = {
-            '10001': { lat: 40.7128, lng: -74.0060 }, // New York
-            '90210': { lat: 41.8781, lng: -87.6298 }, // Chicago
-            '60601': { lat: 41.8781, lng: -87.6298 }, // Chicago (same as 90210)
-            '33101': { lat: 25.7617, lng: -80.1918 }, // Miami
-            '77001': { lat: 34.0522, lng: -118.2437 }, // Los Angeles
-            '75201': { lat: 29.7604, lng: -95.3698 }, // Houston
-            '85001': { lat: 33.4484, lng: -112.0740 }, // Phoenix
-            '98101': { lat: 29.7604, lng: -95.3698 }, // Phoenix (same as 85001)
-            '94101': { lat: 37.7749, lng: -122.4194 }, // San Francisco
-            '94102': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
-            '94103': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
-            '94104': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
-            '94105': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
-            '94106': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
-            '94107': { lat: 37.7749, lng: -122.4194 }, // San Francisco (same as 94101)
-          }
-
-          const location = cityLookup[hostProfile.zip_code.slice(0, 5)] || { lat: 40.7128, lng: -74.0060 } // Default to NYC
+        // Use Mapbox Geocoding API to convert venue address to coordinates
+        console.log('Geocoding venue address:', formData.venue_address)
+        const geocodeResponse = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(formData.venue_address)}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&country=us`
+        )
+        const geocodeData = await geocodeResponse.json()
+        
+        if (geocodeData.features && geocodeData.features.length > 0) {
+          const [lng, lat] = geocodeData.features[0].center
+          const location = { lat, lng }
           setHostLocation(location)
+          console.log('Geocoded venue location:', location)
           
           // Load nearby musicians (within 100 miles)
           const { data: musicians } = await supabase
@@ -218,11 +206,12 @@ export default function CreateShow() {
             })
             
             setNearbyMusicians(nearby)
+            console.log(`Found ${nearby.length} musicians within 100 miles`)
           } else {
-            // No host location, show all musicians
-            setNearbyMusicians(musicians || [])
+            setNearbyMusicians([])
           }
         } else {
+          console.log('Geocoding failed for address:', formData.venue_address)
           setMapError(true)
         }
       } catch (error) {
@@ -233,8 +222,8 @@ export default function CreateShow() {
       }
     }
 
-    loadHostLocationAndMusicians()
-  }, [user])
+    loadVenueLocationAndMusicians()
+  }, [user, formData.venue_address])
 
   // Calculate distance between two points (Haversine formula)
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
