@@ -43,10 +43,11 @@ export default function Dashboard() {
           </p>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {[
             { icon: '🎸', title: 'My Profile', desc: 'Build your artist or host page', href: '/profile' },
-            { icon: '📅', title: 'Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
+            { icon: '�', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' },
+            { icon: '��', title: 'Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
             { icon: '🗺️', title: 'Venue Radar', desc: 'Find venues near you', href: '/radar' },
           ].map((card) => (
             <a key={card.title} href={card.href} style={{
