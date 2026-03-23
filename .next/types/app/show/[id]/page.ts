@@ -1,4 +1,4 @@
-// File: /Users/editingmachine/Downloads/houseshow-final 2/src/app/show/[id]/page.tsx
+// File: /Users/editingmachine/Desktop/houseshow-final 2/src/app/show/[id]/page.tsx
 import * as entry from '../../../../../src/app/show/[id]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
