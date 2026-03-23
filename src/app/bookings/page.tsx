@@ -34,10 +34,27 @@ interface Show {
   created_at: string
 }
 
+interface BookingRequest {
+  id: string
+  host_id: string
+  musician_id: string
+  proposed_date: string
+  venue_address: string
+  ticket_price: number
+  host_split: number
+  musician_split: number
+  message: string
+  status: 'pending' | 'accepted' | 'declined' | 'countered'
+  created_at: string
+  host_name?: string
+  host_email?: string
+}
+
 export default function Bookings() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [availableShows, setAvailableShows] = useState<Show[]>([])
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
 
@@ -65,6 +82,7 @@ export default function Bookings() {
       await fetchBookings(user.id)
       if (profile?.user_type === 'musician') {
         await fetchAvailableShows()
+        await fetchBookingRequests(user.id)
       }
     }
     
@@ -108,6 +126,77 @@ export default function Bookings() {
       console.error('Error fetching bookings:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchBookingRequests = async (userId: string) => {
+    try {
+      // Fetch booking requests for this musician
+      const { data: requests, error } = await supabase
+        .from('booking_requests')
+        .select(`
+          *,
+          host_profile:profiles!host_id(name, email)
+        `)
+        .eq('musician_id', userId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching booking requests:', error)
+        return
+      }
+
+      // Transform data to include host name
+      const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
+        ...request,
+        host_name: request.host_profile?.name || 'Unknown Host',
+        host_email: request.host_profile?.email || ''
+      }))
+
+      setBookingRequests(transformedRequests)
+    } catch (error) {
+      console.error('Error fetching booking requests:', error)
+    }
+  }
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      // Refresh booking requests
+      if (user) {
+        await fetchBookingRequests(user.id)
+      }
+      alert('Booking request accepted!')
+    } catch (error) {
+      console.error('Error accepting request:', error)
+      alert('Failed to accept request. Please try again.')
+    }
+  }
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ status: 'declined' })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      // Refresh booking requests
+      if (user) {
+        await fetchBookingRequests(user.id)
+      }
+      alert('Booking request declined.')
+    } catch (error) {
+      console.error('Error declining request:', error)
+      alert('Failed to decline request. Please try again.')
     }
   }
 
@@ -369,6 +458,161 @@ export default function Bookings() {
     </div>
   )
 
+  const BookingRequestCard = ({ request }: { request: BookingRequest }) => (
+    <div style={{
+      border: '1px solid rgba(212,130,10,0.2)',
+      borderRadius: '12px',
+      padding: '24px',
+      background: 'rgba(44,34,24,0.3)',
+      marginBottom: '16px'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+        <div>
+          <h3 style={{ 
+            fontFamily: "'Playfair Display', serif", 
+            fontSize: '1.3rem', 
+            color: '#F5F0E8', 
+            marginBottom: '4px' 
+          }}>
+            Booking Request from {request.host_name}
+          </h3>
+          <p style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.95rem' 
+          }}>
+            📍 {request.venue_address}
+          </p>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ 
+            fontFamily: "'Space Mono', monospace", 
+            fontSize: '1.1rem', 
+            color: '#F0A500', 
+            fontWeight: 600 
+          }}>
+            ${request.ticket_price}
+          </div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.85rem' 
+          }}>
+            per ticket
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+        <div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.85rem', 
+            marginBottom: '4px' 
+          }}>
+            Proposed Date
+          </div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#F5F0E8', 
+            fontSize: '0.95rem' 
+          }}>
+            {formatDate(request.proposed_date)}
+          </div>
+        </div>
+        <div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.85rem', 
+            marginBottom: '4px' 
+          }}>
+            Revenue Split
+          </div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#F5F0E8', 
+            fontSize: '0.95rem' 
+          }}>
+            You: {request.musician_split}% • Host: {request.host_split}% • Platform: 5%
+          </div>
+        </div>
+      </div>
+
+      {request.message && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#8C7B6B', 
+            fontSize: '0.85rem', 
+            marginBottom: '4px' 
+          }}>
+            Message from Host
+          </div>
+          <div style={{ 
+            fontFamily: "'DM Sans', sans-serif", 
+            color: '#F5F0E8', 
+            fontSize: '0.95rem',
+            lineHeight: '1.5',
+            background: 'rgba(26,20,16,0.3)',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid rgba(212,130,10,0.1)'
+          }}>
+            {request.message}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button 
+          onClick={() => handleAcceptRequest(request.id)}
+          style={{
+            background: 'linear-gradient(135deg, #4CAF50, #66BB6A)',
+            color: '#1A1410',
+            padding: '10px 20px',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            fontFamily: "'DM Sans', sans-serif",
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          Accept
+        </button>
+        <button 
+          onClick={() => handleDeclineRequest(request.id)}
+          style={{
+            background: 'transparent',
+            color: '#D4820A',
+            padding: '10px 20px',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontFamily: "'DM Sans', sans-serif",
+            border: '1px solid rgba(212,130,10,0.2)',
+            cursor: 'pointer'
+          }}
+        >
+          Decline
+        </button>
+        <button style={{
+          background: 'transparent',
+          color: '#8C7B6B',
+          padding: '10px 20px',
+          borderRadius: '6px',
+          fontSize: '0.85rem',
+          fontFamily: "'DM Sans', sans-serif",
+          border: '1px solid rgba(140,123,107,0.2)',
+          cursor: 'pointer'
+        }}>
+          Counter Offer
+        </button>
+      </div>
+    </div>
+  )
+
   if (!user) {
     return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#8C7B6B' }}>Loading...</p>
@@ -468,6 +712,35 @@ export default function Bookings() {
             </div>
           ) : (
             <>
+              {/* Booking Requests (for musicians) */}
+              {user.user_type === 'musician' && bookingRequests.length > 0 && (
+                <section style={{ marginBottom: '64px' }}>
+                  <h2 style={{ 
+                    fontFamily: "'Playfair Display', serif", 
+                    fontSize: '1.8rem', 
+                    color: '#F5F0E8', 
+                    marginBottom: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    📨 Booking Requests
+                    <span style={{ 
+                      fontFamily: "'Space Mono', monospace", 
+                      fontSize: '0.8rem', 
+                      color: '#D4820A',
+                      background: 'rgba(212,130,10,0.1)',
+                      padding: '4px 12px',
+                      borderRadius: '20px'
+                    }}>
+                      {bookingRequests.length}
+                    </span>
+                  </h2>
+                  
+                  {bookingRequests.map(request => <BookingRequestCard key={request.id} request={request} />)}
+                </section>
+              )}
+
               {/* Available Shows (for musicians) */}
               {user.user_type === 'musician' && availableShows.length > 0 && (
                 <section style={{ marginBottom: '64px' }}>
