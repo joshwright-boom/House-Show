@@ -116,6 +116,47 @@ export default function FindMusicians() {
       try {
         setMapLoading(true)
         
+        // First, check for musicians with null coordinates but have zip codes
+        const { data: musiciansWithoutCoords } = await supabase
+          .from('profiles')
+          .select('id, zip_code')
+          .eq('user_type', 'musician')
+          .is('latitude', null)
+          .is('longitude', null)
+          .not('zip_code', 'is', null)
+
+        // Update musicians with missing coordinates
+        if (musiciansWithoutCoords && musiciansWithoutCoords.length > 0) {
+          console.log(`Updating coordinates for ${musiciansWithoutCoords.length} musicians`)
+          
+          for (const musician of musiciansWithoutCoords) {
+            if (musician.zip_code) {
+              try {
+                // Fetch coordinates from zippopotam.us API
+                const response = await fetch(`https://api.zippopotam.us/us/${musician.zip_code}`)
+                if (response.ok) {
+                  const data = await response.json()
+                  if (data && data.places && data.places.length > 0) {
+                    const place = data.places[0]
+                    const latitude = parseFloat(place.latitude)
+                    const longitude = parseFloat(place.longitude)
+                    
+                    // Update musician's coordinates in database
+                    await supabase
+                      .from('profiles')
+                      .update({ latitude, longitude })
+                      .eq('id', musician.id)
+                    
+                    console.log(`Updated coordinates for musician ${musician.id}`)
+                  }
+                }
+              } catch (error) {
+                console.error(`Error fetching coordinates for musician ${musician.id}:`, error)
+              }
+            }
+          }
+        }
+        
         // Load nearby musicians (within 100 miles)
         const { data: musicians } = await supabase
           .from('profiles')
@@ -181,6 +222,8 @@ export default function FindMusicians() {
         style: 'mapbox://styles/mapbox/dark-v11',
         center: [hostLocation.lng, hostLocation.lat],
         zoom: 10,
+        bearing: 0,
+        pitch: 0
       })
 
       mapRef.current = map
@@ -188,9 +231,17 @@ export default function FindMusicians() {
       const mapInstance = map as {
         on: (event: string, cb: () => void) => void
         getCanvas: () => HTMLElement
+        jumpTo: (options: { center: [number, number]; zoom: number }) => void
       }
 
+      // Ensure zoom is set after map loads
       mapInstance.on('load', () => {
+        // Set zoom to ensure it's at city level
+        mapInstance.jumpTo({
+          center: [hostLocation.lng, hostLocation.lat],
+          zoom: 10
+        })
+        
         // Add host location marker
         const hostEl = document.createElement('div')
         hostEl.style.cssText = `

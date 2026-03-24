@@ -4,16 +4,30 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
-  const [user, setUser] = useState<{ email?: string } | null>(null)
+  const [user, setUser] = useState<{ email?: string; user_type?: string } | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         window.location.href = '/auth/login'
-      } else {
-        setUser(data.user)
+        return
       }
-    })
+
+      // Get user profile to determine user type
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single()
+
+      setUser({ 
+        email: user.email,
+        user_type: profile?.user_type || 'musician'
+      })
+    }
+
+    loadUser()
   }, [])
 
   const handleSignOut = async () => {
@@ -46,10 +60,14 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {[
             { icon: '🎸', title: 'My Profile', desc: 'Build your artist or host page', href: '/profile' },
-            { icon: '�', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' },
-            { icon: '��', title: 'Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
+            ...(user?.user_type === 'host' ? [
+              { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' }
+            ] : [
+              { icon: '🏠', title: 'Find Hosts', desc: 'Discover hosts and venues near you', href: '/browse' }
+            ]),
+            { icon: '📅', title: 'Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
             { icon: '🗺️', title: 'Venue Radar', desc: 'Find venues near you', href: '/radar' },
-          ].map((card) => (
+          ].flat().map((card) => (
             <a key={card.title} href={card.href} style={{
               display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
               padding: '28px 24px', background: 'rgba(44,34,24,0.3)', cursor: 'pointer',
