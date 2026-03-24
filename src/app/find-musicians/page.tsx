@@ -158,12 +158,14 @@ export default function FindMusicians() {
         }
         
         // Load nearby musicians (within 500 miles) from all geocoded musician profiles
-        const { data: musicians } = await supabase
+        const { data: musicians, error: musiciansError } = await supabase
           .from('profiles')
           .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, tour_dates, zip_code')
           .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
+
+        console.log('Musicians query result:', { error: musiciansError, count: musicians?.length, data: musicians })
 
         if (musicians) {
           // Filter musicians within ~500 miles
