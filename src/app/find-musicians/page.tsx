@@ -158,16 +158,25 @@ export default function FindMusicians() {
           }
         }
         
-        // Load nearby musicians (within 100 miles)
-        const { data: musicians } = await supabase
+        // Load nearby musicians (within selected distance)
+        const { data: musicians, error: musiciansError } = await supabase
           .from('profiles')
           .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, tour_dates, zip_code')
           .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
 
-        if (musicians) {
-          // Filter musicians within ~100 miles
+        console.log('Musicians query result:', { musicians, musiciansError })
+        console.log('Host location:', hostLocation)
+        console.log('Max distance:', maxDistance)
+
+        if (musiciansError) {
+          console.error('Error fetching musicians:', musiciansError)
+          setNearbyMusicians([])
+        } else if (musicians) {
+          console.log(`Found ${musicians.length} total musicians`)
+          
+          // Filter musicians within selected distance
           const nearby = musicians.filter(musician => {
             if (!musician.latitude || !musician.longitude) return false
             
@@ -177,11 +186,16 @@ export default function FindMusicians() {
               musician.latitude, 
               musician.longitude
             )
+            console.log(`Musician ${musician.name} is ${distance.toFixed(2)}km away`)
             return distance <= maxDistance * 1.60934 // Convert miles to km
           })
           
           setNearbyMusicians(nearby)
           console.log(`Found ${nearby.length} musicians within ${maxDistance} miles`)
+          console.log('Nearby musicians:', nearby)
+        } else {
+          console.log('No musicians data returned')
+          setNearbyMusicians([])
         }
       } catch (error) {
         console.error('Error loading musicians:', error)
@@ -193,7 +207,7 @@ export default function FindMusicians() {
     loadNearbyMusicians()
   }, [user, hostLocation, maxDistance])
 
-  // Initialize map
+  // Initialize map - separate from data loading
   useEffect(() => {
     if (!hostLocation || !mapContainer.current || mapRef.current) return
 
@@ -201,6 +215,7 @@ export default function FindMusicians() {
     if (!MAPBOX_TOKEN) {
       console.error('Mapbox token not found')
       setMapError(true)
+      setMapLoading(false)
       return
     }
 
@@ -256,6 +271,9 @@ export default function FindMusicians() {
           .addTo(map)
 
         mapInstance.getCanvas().style.cursor = 'grab'
+        
+        // Map is now loaded
+        setMapLoading(false)
       })
     }
     document.body.appendChild(script)
