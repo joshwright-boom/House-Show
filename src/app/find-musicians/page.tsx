@@ -263,31 +263,38 @@ export default function FindMusicians() {
 
   // Add markers when musicians data changes
   useEffect(() => {
-    if (!mapRef.current || !hostLocation || nearbyMusicians.length === 0) return
+    if (!mapRef.current || !hostLocation) return
 
     const map = mapRef.current as any
 
-    // Add musician markers
-    nearbyMusicians.forEach(musician => {
-      if (!musician.latitude || !musician.longitude) return
+    // Remove existing musician markers if any
+    const existingMarkers = map.getContainer().querySelectorAll('.musician-marker')
+    existingMarkers.forEach((marker: Element) => marker.remove())
 
-      const musicianEl = document.createElement('div')
-      musicianEl.style.cssText = `
-        width: 12px; height: 12px; border-radius: 50%;
-        background: #22c55e;
-        border: 2px solid #16a34a;
-        cursor: pointer;
-        box-shadow: 0 0 8px rgba(34,197,94,0.5);
-        transition: transform 0.15s;
-      `
-      musicianEl.addEventListener('mouseenter', () => { musicianEl.style.transform = 'scale(1.5)' })
-      musicianEl.addEventListener('mouseleave', () => { musicianEl.style.transform = 'scale(1)' })
-      musicianEl.addEventListener('click', () => setSelectedMusician(musician))
+    // Add musician markers only if there are musicians
+    if (nearbyMusicians.length > 0) {
+      nearbyMusicians.forEach(musician => {
+        if (!musician.latitude || !musician.longitude) return
 
-      new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
-        .setLngLat([musician.longitude, musician.latitude])
-        .addTo(map)
-    })
+        const musicianEl = document.createElement('div')
+        musicianEl.className = 'musician-marker' // Add class for cleanup
+        musicianEl.style.cssText = `
+          width: 12px; height: 12px; border-radius: 50%;
+          background: #22c55e;
+          border: 2px solid #16a34a;
+          cursor: pointer;
+          box-shadow: 0 0 8px rgba(34,197,94,0.5);
+          transition: transform 0.15s;
+        `
+        musicianEl.addEventListener('mouseenter', () => { musicianEl.style.transform = 'scale(1.5)' })
+        musicianEl.addEventListener('mouseleave', () => { musicianEl.style.transform = 'scale(1)' })
+        musicianEl.addEventListener('click', () => setSelectedMusician(musician))
+
+        new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
+          .setLngLat([musician.longitude, musician.latitude])
+          .addTo(map)
+      })
+    }
   }, [hostLocation, nearbyMusicians])
 
   const handleInviteClick = (musician: Musician) => {
