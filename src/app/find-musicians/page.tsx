@@ -223,7 +223,7 @@ export default function FindMusicians() {
               musician.longitude
             )
             console.log(`Musician ${musician.name} is ${distance.toFixed(2)}km away`)
-            return distance <= maxDistance * 1.60934 // Convert miles to km
+            return true // temp: show all musicians // Convert miles to km
           })
           
           setNearbyMusicians(nearby)
