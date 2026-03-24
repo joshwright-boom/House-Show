@@ -164,27 +164,6 @@ const mapboxgl = (window as unknown as Window & { mapboxgl: { accessToken: strin
           paint: { 'line-color': '#D4820A', 'line-width': 1.5, 'line-opacity': 0.4, 'line-dasharray': [4, 4] }
         })
 
-        // Add musician markers
-        musicians.forEach((musician) => {
-          const el = document.createElement('div')
-          const isAvailable = musician.availability_status === 'based_here' || musician.availability_status === 'open_to_travel'
-          el.style.cssText = `
-            width: 14px; height: 14px; border-radius: 50%;
-            background: ${isAvailable ? '#22c55e' : '#D4820A'};
-            border: 2px solid ${isAvailable ? '#16a34a' : '#92400e'};
-            cursor: pointer;
-            box-shadow: 0 0 10px ${isAvailable ? 'rgba(34,197,94,0.5)' : 'rgba(212,130,10,0.5)'};
-            transition: transform 0.15s;
-          `
-          el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.8)' })
-          el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
-          el.addEventListener('click', () => setSelectedMusician(musician))
-
-new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(el)
-            .setLngLat([musician.longitude, musician.latitude])
-            .addTo(map)
-        })
-
         // User location dot
         const userEl = document.createElement('div')
         userEl.style.cssText = `
@@ -206,6 +185,47 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
       document.head.removeChild(script)
       document.head.removeChild(link)
     }
+  }, [userLocation])
+
+  // Add markers when musicians data changes
+  useEffect(() => {
+    if (!mapRef.current || !userLocation || musicians.length === 0) return
+
+    const mapInstance = mapRef.current as {
+      addLayer: (config: object) => void
+      removeLayer: (id: string) => void
+      addSource: (id: string, config: object) => void
+      removeSource: (id: string) => void
+    }
+
+    // Remove existing musician markers if any
+    try {
+      mapInstance.removeLayer('musician-markers')
+      mapInstance.removeSource('musician-markers')
+    } catch (e) {
+      // Layers might not exist yet, that's fine
+    }
+
+    // Add musician markers
+    musicians.forEach((musician) => {
+      const el = document.createElement('div')
+      const isAvailable = musician.availability_status === 'based_here' || musician.availability_status === 'open_to_travel'
+      el.style.cssText = `
+        width: 14px; height: 14px; border-radius: 50%;
+        background: ${isAvailable ? '#22c55e' : '#D4820A'};
+        border: 2px solid ${isAvailable ? '#16a34a' : '#92400e'};
+        cursor: pointer;
+        box-shadow: 0 0 10px ${isAvailable ? 'rgba(34,197,94,0.5)' : 'rgba(212,130,10,0.5)'};
+        transition: transform 0.15s;
+      `
+      el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.8)' })
+      el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
+      el.addEventListener('click', () => setSelectedMusician(musician))
+
+new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(el)
+        .setLngLat([musician.longitude, musician.latitude])
+        .addTo(mapRef.current as any)
+    })
   }, [userLocation, musicians])
 
   const availableCount = musicians.filter(m => m.availability_status === 'based_here' || m.availability_status === 'open_to_travel').length
