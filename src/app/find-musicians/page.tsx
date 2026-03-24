@@ -157,7 +157,7 @@ export default function FindMusicians() {
           }
         }
         
-        // Load nearby musicians (within 100 miles) from all geocoded musician profiles
+        // Load nearby musicians (within 500 miles) from all geocoded musician profiles
         const { data: musicians } = await supabase
           .from('profiles')
           .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, tour_dates, zip_code')
@@ -166,7 +166,7 @@ export default function FindMusicians() {
           .not('longitude', 'is', null)
 
         if (musicians) {
-          // Filter musicians within ~100 miles
+          // Filter musicians within ~500 miles
           const nearby = musicians.filter(musician => {
             if (!musician.latitude || !musician.longitude) return false
             
@@ -177,11 +177,11 @@ export default function FindMusicians() {
               musician.longitude
             )
             console.log(`Musician ${musician.name} is ${distance.toFixed(2)}km away`)
-            return distance <= 100 * 1.60934 // Convert miles to km (100 miles default)
+            return distance <= 500 * 1.60934 // Convert miles to km (500 miles default)
           })
           
           setNearbyMusicians(nearby)
-          console.log(`Found ${nearby.length} musicians within 100 miles`)
+          console.log(`Found ${nearby.length} musicians within 500 miles`)
         }
       } catch (error) {
         console.error('Error loading musicians:', error)
