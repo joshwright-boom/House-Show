@@ -73,7 +73,7 @@ export default function RadarPage() {
           .not('longitude', 'is', null)
 
         if (musicians) {
-          // Filter musicians within ~100 miles
+          // Filter musicians within ~100 miles (include current user even at 0 distance)
           const nearby = musicians.filter(musician => {
             if (!musician.latitude || !musician.longitude) return false
             
@@ -83,7 +83,8 @@ export default function RadarPage() {
               musician.latitude, 
               musician.longitude
             )
-            return distance <= 160.934 // 100 miles in km
+            // Include musicians within 100 miles, and always include those very close (current user)
+            return distance <= 160.934 || distance < 0.01 // 0.01km = ~10 meters tolerance
           })
           
           setMusicians(nearby)
