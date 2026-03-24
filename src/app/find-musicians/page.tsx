@@ -41,6 +41,7 @@ export default function FindMusicians() {
   const [mapError, setMapError] = useState(false)
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
   const [showInviteForm, setShowInviteForm] = useState(false)
+  const [maxDistance, setMaxDistance] = useState(100) // Default 100 miles
   
   // Invite form state
   const [inviteForm, setInviteForm] = useState({
@@ -176,11 +177,11 @@ export default function FindMusicians() {
               musician.latitude, 
               musician.longitude
             )
-            return distance <= 160.934 // 100 miles in km
+            return distance <= maxDistance * 1.60934 // Convert miles to km
           })
           
           setNearbyMusicians(nearby)
-          console.log(`Found ${nearby.length} musicians within 100 miles`)
+          console.log(`Found ${nearby.length} musicians within ${maxDistance} miles`)
         }
       } catch (error) {
         console.error('Error loading musicians:', error)
@@ -190,7 +191,7 @@ export default function FindMusicians() {
     }
 
     loadNearbyMusicians()
-  }, [user, hostLocation])
+  }, [user, hostLocation, maxDistance])
 
   // Initialize map
   useEffect(() => {
@@ -448,14 +449,28 @@ export default function FindMusicians() {
               Your Location
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#4CAF50',
-                border: '2px solid #fff'
-              }} />
-              Musicians (100 miles)
+              <label htmlFor="distance-filter" style={{ fontSize: '0.85rem' }}>
+                Within:
+              </label>
+              <select
+                id="distance-filter"
+                value={maxDistance}
+                onChange={(e) => setMaxDistance(Number(e.target.value))}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(212,130,10,0.3)',
+                  background: '#2A1F1A',
+                  color: '#F5F0E8',
+                  fontSize: '0.85rem'
+                }}
+              >
+                <option value={25}>25 miles</option>
+                <option value={50}>50 miles</option>
+                <option value={100}>100 miles</option>
+                <option value={200}>200 miles</option>
+                <option value={500}>500 miles</option>
+              </select>
             </div>
           </div>
         </div>
