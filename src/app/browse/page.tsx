@@ -1,94 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
-// Mock data for musicians (fallback)
-const mockMusicians = [
-  {
-    id: 1,
-    stageName: "The Midnight Souls",
-    genre: "Indie Rock",
-    rate: 500,
-    city: "Nashville, TN",
-    image: "🎸"
-  },
-  {
-    id: 2,
-    stageName: "Jazz Quartet",
-    genre: "Jazz",
-    rate: 750,
-    city: "New Orleans, LA",
-    image: "🎺"
-  },
-  {
-    id: 3,
-    stageName: "Acoustic Dreams",
-    genre: "Folk",
-    rate: 300,
-    city: "Austin, TX",
-    image: "🎻"
-  },
-  {
-    id: 4,
-    stageName: "Electronic Pulse",
-    genre: "Electronic",
-    rate: 600,
-    city: "Los Angeles, CA",
-    image: "🎹"
-  },
-  {
-    id: 5,
-    stageName: "Blues Brothers",
-    genre: "Blues",
-    rate: 400,
-    city: "Chicago, IL",
-    image: "🎵"
-  }
-]
-
-// Mock data for venues (fallback)
-const mockVenues = [
-  {
-    id: 1,
-    name: "The Blue Note",
-    capacity: 150,
-    city: "Nashville, TN",
-    type: "Indoor",
-    image: "🏛️"
-  },
-  {
-    id: 2,
-    name: "Riverside Amphitheater",
-    capacity: 2000,
-    city: "New Orleans, LA",
-    type: "Outdoor",
-    image: "🎪"
-  },
-  {
-    id: 3,
-    name: "The Underground",
-    capacity: 80,
-    city: "Austin, TX",
-    type: "Indoor",
-    image: "🎭"
-  },
-  {
-    id: 4,
-    name: "Sunset Plaza",
-    capacity: 500,
-    city: "Los Angeles, CA",
-    type: "Outdoor",
-    image: "🌅"
-  },
-  {
-    id: 5,
-    name: "Jazz Club",
-    capacity: 120,
-    city: "Chicago, IL",
-    type: "Indoor",
-    image: "🎷"
-  }
-]
+import { supabase } from '@/lib/supabase'
 
 // Helper function to get emoji for genre
 const getGenreEmoji = (genre: string) => {
@@ -125,10 +38,8 @@ const getVenueEmoji = (type: string) => {
 }
 
 export default function BrowsePage() {
-  const [activeTab, setActiveTab] = useState<'musicians' | 'venues'>('musicians')
   const [searchTerm, setSearchTerm] = useState('')
-  const [musicians, setMusicians] = useState(mockMusicians)
-  const [venues, setVenues] = useState(mockVenues)
+  const [musicians, setMusicians] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -139,43 +50,32 @@ export default function BrowsePage() {
         setLoading(true)
         setError(null)
 
-        // Fetch artist profiles
-        const musiciansResponse = await fetch('/api/artists')
-        if (musiciansResponse.ok) {
-          const artistsData = await musiciansResponse.json()
-          if (artistsData.length > 0) {
-            const formattedArtists = artistsData.map((artist: any) => ({
-              id: artist.id,
-              stageName: artist.stage_name || artist.name || 'Unknown Artist',
-              genre: artist.genre || 'Other',
-              rate: artist.rate_per_show || artist.rate || 0,
-              city: artist.city || 'Unknown Location',
-              image: getGenreEmoji(artist.genre || 'other')
-            }))
-            setMusicians(formattedArtists)
-          }
+        // Fetch musicians from Supabase
+        const { data: musiciansData, error: musiciansError } = await supabase
+          .from('profiles')
+          .select('id, name, bio, photo_url, user_type, zip_code, availability_status, location_address')
+          .eq('user_type', 'musician')
+
+        if (musiciansError) {
+          console.error('Error fetching musicians:', musiciansError)
+        } else if (musiciansData) {
+          const formattedMusicians = musiciansData.map((musician: any) => ({
+            id: musician.id,
+            stageName: musician.name || 'Unknown Artist',
+            genre: musician.bio ? 'Other' : 'Other', // Extract genre from bio if needed
+            rate: 0, // Rate not available in profiles table
+            city: musician.location_address?.split(',')[0] || musician.zip_code || 'Unknown Location',
+            image: getGenreEmoji('other'),
+            bio: musician.bio,
+            photo_url: musician.photo_url,
+            availability_status: musician.availability_status
+          }))
+          setMusicians(formattedMusicians)
         }
 
-        // Fetch venues
-        const venuesResponse = await fetch('/api/venues')
-        if (venuesResponse.ok) {
-          const venuesData = await venuesResponse.json()
-          if (venuesData.length > 0) {
-            const formattedVenues = venuesData.map((venue: any) => ({
-              id: venue.id,
-              name: venue.name || 'Unknown Venue',
-              capacity: venue.capacity || 0,
-              city: venue.city || 'Unknown Location',
-              type: venue.venue_type || venue.type || 'Indoor',
-              image: getVenueEmoji(venue.venue_type || venue.type || 'indoor')
-            }))
-            setVenues(formattedVenues)
-          }
-        }
       } catch (err) {
         console.error('Error fetching data:', err)
-        setError('Failed to load data. Showing sample data.')
-        // Keep mock data as fallback
+        setError('Failed to load musicians.')
       } finally {
         setLoading(false)
       }
@@ -186,23 +86,13 @@ export default function BrowsePage() {
 
   const filteredMusicians = musicians.filter(musician =>
     musician.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    musician.genre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    musician.stageName.toLowerCase().includes(searchTerm.toLowerCase())
+    musician.stageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (musician.bio && musician.bio.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
-  const filteredVenues = venues.filter(venue =>
-    venue.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    venue.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const handleBookMusician = (musicianId: number) => {
+  const handleBookMusician = (musicianId: string) => {
     console.log('Request to book musician:', musicianId)
     // Navigate to booking form or open modal
-  }
-
-  const handleRequestVenue = (venueId: number) => {
-    console.log('Request venue:', venueId)
-    // Navigate to venue request form or open modal
   }
 
   return (
@@ -352,53 +242,6 @@ export default function BrowsePage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginBottom: '48px'
-        }}>
-          <div style={{
-            display: 'flex',
-            backgroundColor: 'rgba(212,130,10,0.05)',
-            borderRadius: '12px',
-            padding: '4px'
-          }}>
-            <button
-              onClick={() => setActiveTab('musicians')}
-              style={{
-                padding: '12px 32px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                backgroundColor: activeTab === 'musicians' ? '#D4820A' : 'transparent',
-                color: activeTab === 'musicians' ? '#1A1410' : '#F5F0E8',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Find Musicians
-            </button>
-            <button
-              onClick={() => setActiveTab('venues')}
-              style={{
-                padding: '12px 32px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                backgroundColor: activeTab === 'venues' ? '#D4820A' : 'transparent',
-                color: activeTab === 'venues' ? '#1A1410' : '#F5F0E8',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Find Venues
-            </button>
-          </div>
-        </div>
-
         {/* Loading State */}
         {loading && (
           <div style={{
@@ -432,14 +275,12 @@ export default function BrowsePage() {
 
         {/* Content Grid */}
         {!loading && (
-          <>
-            {activeTab === 'musicians' && (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: '32px'
-              }}>
-                {filteredMusicians.map(musician => (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '32px'
+          }}>
+            {filteredMusicians.map(musician => (
               <div key={musician.id} style={{
                 backgroundColor: '#2A1F1A',
                 borderRadius: '16px',
@@ -523,130 +364,34 @@ export default function BrowsePage() {
                 </button>
               </div>
             ))}
-              </div>
-            )}
+          </div>
+        )}
 
-            {activeTab === 'venues' && (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: '32px'
-              }}>
-                {filteredVenues.map(venue => (
-              <div key={venue.id} style={{
-                backgroundColor: '#2A1F1A',
-                borderRadius: '16px',
-                padding: '32px',
-                border: '1px solid rgba(212,130,10,0.1)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(212,130,10,0.3)'
-                e.currentTarget.style.transform = 'translateY(-4px)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(212,130,10,0.1)'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}>
-                <div style={{
-                  fontSize: '48px',
-                  marginBottom: '16px',
-                  textAlign: 'center'
-                }}>
-                  {venue.image}
-                </div>
-                
-                <h3 style={{
-                  fontSize: '24px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#F5F0E8',
-                  fontFamily: 'Playfair Display, serif',
-                  textAlign: 'center'
-                }}>
-                  {venue.name}
-                </h3>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '20px',
-                  fontSize: '14px',
-                  color: '#8C7B6B'
-                }}>
-                  <span>📍 {venue.city}</span>
-                  <span>{venue.type}</span>
-                </div>
-                
-                <div style={{
-                  textAlign: 'center',
-                  marginBottom: '20px',
-                  fontSize: '16px',
-                  color: '#F0A500',
-                  fontWeight: '500'
-                }}>
-                  Capacity: {venue.capacity} guests
-                </div>
-                
-                <button
-                  onClick={() => handleRequestVenue(venue.id)}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    backgroundColor: '#D4820A',
-                    color: '#1A1410',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#F0A500'
-                    e.currentTarget.style.transform = 'scale(1.02)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#D4820A'
-                    e.currentTarget.style.transform = 'scale(1)'
-                  }}
-                >
-                  Request This Space
-                </button>
-              </div>
-            ))}
-              </div>
-            )}
-
-            {/* No Results */}
-            {((activeTab === 'musicians' && filteredMusicians.length === 0) ||
-              (activeTab === 'venues' && filteredVenues.length === 0)) && (
-              <div style={{
-                textAlign: 'center',
-                padding: '80px 20px',
-                color: '#8C7B6B'
-              }}>
-                <div style={{
-                  fontSize: '48px',
-                  marginBottom: '16px'
-                }}>
-                  🔍
-                </div>
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#F5F0E8'
-                }}>
-                  No results found
-                </h3>
-                <p>
-                  Try adjusting your search terms or browse all {activeTab === 'musicians' ? 'musicians' : 'venues'}.
-                </p>
-              </div>
-            )}
-          </>
+        {/* No Results */}
+        {filteredMusicians.length === 0 && !loading && (
+          <div style={{
+            textAlign: 'center',
+            padding: '80px 20px',
+            color: '#8C7B6B'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px'
+            }}>
+              🔍
+            </div>
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: '#F5F0E8'
+            }}>
+              No results found
+            </h3>
+            <p>
+              Try adjusting your search terms or browse all musicians.
+            </p>
+          </div>
         )}
       </div>
     </>
