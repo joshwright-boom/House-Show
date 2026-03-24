@@ -57,23 +57,6 @@ export default function Dashboard() {
       }
 
       try {
-        const { data: musicianProfiles, error: musicianProfilesError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('user_id', user.id)
-
-        if (musicianProfilesError) {
-          console.error('Error loading musician profiles:', musicianProfilesError)
-          return
-        }
-
-        const musicianProfileIds = (musicianProfiles || []).map(profile => profile.id)
-
-        if (musicianProfileIds.length === 0) {
-          setBookingRequests([])
-          return
-        }
-
         const { data: requests, error } = await supabase
           .from('booking_requests')
           .select(`
@@ -87,7 +70,7 @@ export default function Dashboard() {
             status,
             host_profile:profiles!host_id(name)
           `)
-          .in('musician_id', musicianProfileIds)
+          .eq('musician_id', user.id)
           .in('status', ['pending', 'accepted', 'declined'])
           .order('created_at', { ascending: false })
 
