@@ -41,7 +41,6 @@ export default function FindMusicians() {
   const [mapError, setMapError] = useState(false)
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
   const [showInviteForm, setShowInviteForm] = useState(false)
-  const [maxDistance, setMaxDistance] = useState(100) // Default 100 miles
   
   // Invite form state
   const [inviteForm, setInviteForm] = useState({
@@ -79,63 +78,28 @@ export default function FindMusicians() {
           // Get user profile to check user type and location
           const { data: userProfile } = await supabase
             .from('profiles')
-            .select('user_type, latitude, longitude, zip_code, location_address')
+            .select('user_type, latitude, longitude, zip_code')
             .eq('id', user.id)
             .single()
 
-          console.log('User profile:', userProfile)
-
-          // Allow both hosts and musicians to use this page
-          if (!userProfile) {
-            console.error('No user profile found')
-            window.location.href = '/profile'
+          // Check if user is a host
+          if (userProfile?.user_type !== 'host') {
+            window.location.href = '/dashboard'
             return
           }
 
-          // Try to get location from profile first
           if (userProfile?.latitude && userProfile?.longitude) {
             setHostLocation({ lat: userProfile.latitude, lng: userProfile.longitude })
-            console.log('Using profile location:', { lat: userProfile.latitude, lng: userProfile.longitude })
-          } else if (userProfile?.zip_code) {
-            // Fallback to zip code geocoding
-            console.log('Using zip code for location:', userProfile.zip_code)
-            try {
-              const response = await fetch(`https://api.zippopotam.us/us/${userProfile.zip_code}`)
-              if (response.ok) {
-                const data = await response.json()
-                if (data && data.places && data.places.length > 0) {
-                  const location = data.places[0]
-                  const lat = parseFloat(location.latitude)
-                  const lng = parseFloat(location.longitude)
-                  setHostLocation({ lat, lng })
-                  console.log('Geocoded location from zip:', { lat, lng })
-                } else {
-                  throw new Error('No location data for zip code')
-                }
-              } else {
-                throw new Error('Zip code API failed')
-              }
-            } catch (error) {
-              console.error('Error geocoding zip code:', error)
-              // Fallback to default location (Tulsa)
-              setHostLocation({ lat: 36.1539, lng: -95.9928 })
-              console.log('Using fallback location: Tulsa, OK')
-            }
           } else {
-            // Final fallback to default location
-            setHostLocation({ lat: 36.1539, lng: -95.9928 })
-            console.log('Using default location: Tulsa, OK')
+            setMapError(true)
           }
         } else {
           // Redirect to login if not authenticated
-          console.log('No user found, redirecting to login')
           window.location.href = '/auth/login'
         }
       } catch (error) {
         console.error('Error loading user:', error)
-        // Don't redirect on error, try to continue with default location
-        setHostLocation({ lat: 36.1539, lng: -95.9928 })
-        console.log('Error loading user, using default location: Tulsa, OK')
+        window.location.href = '/auth/login'
       } finally {
         setLoading(false)
       }
@@ -151,8 +115,6 @@ export default function FindMusicians() {
     const loadNearbyMusicians = async () => {
       try {
         setMapLoading(true)
-        console.log('Starting musician search for user:', user.id)
-        console.log('Search location:', hostLocation)
         
         // First, check for musicians with null coordinates but have zip codes
         const { data: musiciansWithoutCoords } = await supabase
@@ -179,6 +141,7 @@ export default function FindMusicians() {
                     const latitude = parseFloat(place.latitude)
                     const longitude = parseFloat(place.longitude)
                     
+                    // Update musician's coordinates in database
                     await supabase
                       .from('profiles')
                       .update({ latitude, longitude })
@@ -194,25 +157,16 @@ export default function FindMusicians() {
           }
         }
         
-        // Load nearby musicians (within selected distance)
-        const { data: musicians, error: musiciansError } = await supabase
+        // Load nearby musicians (within 100 miles)
+        const { data: musicians } = await supabase
           .from('profiles')
           .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, tour_dates, zip_code')
           .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
 
-        console.log('Musicians query result:', { musicians, musiciansError })
-        console.log('Host location:', hostLocation)
-        console.log('Max distance:', maxDistance)
-
-        if (musiciansError) {
-          console.error('Error fetching musicians:', musiciansError)
-          setNearbyMusicians([])
-        } else if (musicians) {
-          console.log(`Found ${musicians.length} total musicians`)
-          
-          // Filter musicians within selected distance
+        if (musicians) {
+          // Filter musicians within ~100 miles
           const nearby = musicians.filter(musician => {
             if (!musician.latitude || !musician.longitude) return false
             
@@ -222,29 +176,23 @@ export default function FindMusicians() {
               musician.latitude, 
               musician.longitude
             )
-            console.log(`Musician ${musician.name} is ${distance.toFixed(2)}km away`)
-            return true // temp: show all musicians // Convert miles to km
+            return distance <= 160.934 // 100 miles in km
           })
           
           setNearbyMusicians(nearby)
-          console.log(`Found ${nearby.length} musicians within ${maxDistance} miles`)
-          console.log('Nearby musicians:', nearby)
-        } else {
-          console.log('No musicians data returned')
-          setNearbyMusicians([])
+          console.log(`Found ${nearby.length} musicians within 100 miles`)
         }
       } catch (error) {
         console.error('Error loading musicians:', error)
-        setNearbyMusicians([])
       } finally {
         setMapLoading(false)
       }
     }
 
     loadNearbyMusicians()
-  }, [user, hostLocation, maxDistance])
+  }, [user, hostLocation])
 
-  // Initialize map - separate from data loading
+  // Initialize map
   useEffect(() => {
     if (!hostLocation || !mapContainer.current || mapRef.current) return
 
@@ -252,7 +200,6 @@ export default function FindMusicians() {
     if (!MAPBOX_TOKEN) {
       console.error('Mapbox token not found')
       setMapError(true)
-      setMapLoading(false)
       return
     }
 
@@ -307,49 +254,31 @@ export default function FindMusicians() {
           .setLngLat([hostLocation.lng, hostLocation.lat])
           .addTo(map)
 
-        mapInstance.getCanvas().style.cursor = 'grab'
-        
-        // Map is now loaded
-        setMapLoading(false)
+        // Add musician markers
+        nearbyMusicians.forEach(musician => {
+          if (!musician.latitude || !musician.longitude) return
+
+          const musicianEl = document.createElement('div')
+          musicianEl.style.cssText = `
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #4CAF50;
+            border: 2px solid #fff;
+            box-shadow: 0 0 12px rgba(76,175,80,0.7);
+            cursor: pointer;
+          `
+          
+          const marker = new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
+            .setLngLat([musician.longitude, musician.latitude])
+            .addTo(map)
+
+          // Add click handler
+          musicianEl.addEventListener('click', () => {
+            setSelectedMusician(musician)
+          })
+        })
       })
     }
     document.body.appendChild(script)
-  }, [hostLocation])
-
-  // Add markers when musicians data changes
-  useEffect(() => {
-    if (!mapRef.current || !hostLocation) return
-
-    const map = mapRef.current as any
-
-    // Remove existing musician markers if any
-    const existingMarkers = map.getContainer().querySelectorAll('.musician-marker')
-    existingMarkers.forEach((marker: Element) => marker.remove())
-
-    // Add musician markers only if there are musicians
-    if (nearbyMusicians.length > 0) {
-      nearbyMusicians.forEach(musician => {
-        if (!musician.latitude || !musician.longitude) return
-
-        const musicianEl = document.createElement('div')
-        musicianEl.className = 'musician-marker' // Add class for cleanup
-        musicianEl.style.cssText = `
-          width: 12px; height: 12px; border-radius: 50%;
-          background: #22c55e;
-          border: 2px solid #16a34a;
-          cursor: pointer;
-          box-shadow: 0 0 8px rgba(34,197,94,0.5);
-          transition: transform 0.15s;
-        `
-        musicianEl.addEventListener('mouseenter', () => { musicianEl.style.transform = 'scale(1.5)' })
-        musicianEl.addEventListener('mouseleave', () => { musicianEl.style.transform = 'scale(1)' })
-        musicianEl.addEventListener('click', () => setSelectedMusician(musician))
-
-        new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
-          .setLngLat([musician.longitude, musician.latitude])
-          .addTo(map)
-      })
-    }
   }, [hostLocation, nearbyMusicians])
 
   const handleInviteClick = (musician: Musician) => {
@@ -511,28 +440,14 @@ export default function FindMusicians() {
               Your Location
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label htmlFor="distance-filter" style={{ fontSize: '0.85rem' }}>
-                Within:
-              </label>
-              <select
-                id="distance-filter"
-                value={maxDistance}
-                onChange={(e) => setMaxDistance(Number(e.target.value))}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(212,130,10,0.3)',
-                  background: '#2A1F1A',
-                  color: '#F5F0E8',
-                  fontSize: '0.85rem'
-                }}
-              >
-                <option value={25}>25 miles</option>
-                <option value={50}>50 miles</option>
-                <option value={100}>100 miles</option>
-                <option value={200}>200 miles</option>
-                <option value={500}>500 miles</option>
-              </select>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: '#4CAF50',
+                border: '2px solid #fff'
+              }} />
+              Musicians (100 miles)
             </div>
           </div>
         </div>
