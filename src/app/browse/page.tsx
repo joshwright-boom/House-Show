@@ -92,7 +92,8 @@ export default function BrowsePage() {
 
   const handleBookMusician = (musicianId: string) => {
     console.log('Request to book musician:', musicianId)
-    // Navigate to booking form or open modal
+    // Navigate to booking form with musician ID
+    window.location.href = `/book-show?musician_id=${musicianId}`
   }
 
   return (
