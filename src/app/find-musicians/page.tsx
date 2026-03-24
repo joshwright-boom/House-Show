@@ -79,28 +79,63 @@ export default function FindMusicians() {
           // Get user profile to check user type and location
           const { data: userProfile } = await supabase
             .from('profiles')
-            .select('user_type, latitude, longitude, zip_code')
+            .select('user_type, latitude, longitude, zip_code, location_address')
             .eq('id', user.id)
             .single()
 
-          // Check if user is a host
-          if (userProfile?.user_type !== 'host') {
-            window.location.href = '/dashboard'
+          console.log('User profile:', userProfile)
+
+          // Allow both hosts and musicians to use this page
+          if (!userProfile) {
+            console.error('No user profile found')
+            window.location.href = '/profile'
             return
           }
 
+          // Try to get location from profile first
           if (userProfile?.latitude && userProfile?.longitude) {
             setHostLocation({ lat: userProfile.latitude, lng: userProfile.longitude })
+            console.log('Using profile location:', { lat: userProfile.latitude, lng: userProfile.longitude })
+          } else if (userProfile?.zip_code) {
+            // Fallback to zip code geocoding
+            console.log('Using zip code for location:', userProfile.zip_code)
+            try {
+              const response = await fetch(`https://api.zippopotam.us/us/${userProfile.zip_code}`)
+              if (response.ok) {
+                const data = await response.json()
+                if (data && data.places && data.places.length > 0) {
+                  const location = data.places[0]
+                  const lat = parseFloat(location.latitude)
+                  const lng = parseFloat(location.longitude)
+                  setHostLocation({ lat, lng })
+                  console.log('Geocoded location from zip:', { lat, lng })
+                } else {
+                  throw new Error('No location data for zip code')
+                }
+              } else {
+                throw new Error('Zip code API failed')
+              }
+            } catch (error) {
+              console.error('Error geocoding zip code:', error)
+              // Fallback to default location (Tulsa)
+              setHostLocation({ lat: 36.1539, lng: -95.9928 })
+              console.log('Using fallback location: Tulsa, OK')
+            }
           } else {
-            setMapError(true)
+            // Final fallback to default location
+            setHostLocation({ lat: 36.1539, lng: -95.9928 })
+            console.log('Using default location: Tulsa, OK')
           }
         } else {
           // Redirect to login if not authenticated
+          console.log('No user found, redirecting to login')
           window.location.href = '/auth/login'
         }
       } catch (error) {
         console.error('Error loading user:', error)
-        window.location.href = '/auth/login'
+        // Don't redirect on error, try to continue with default location
+        setHostLocation({ lat: 36.1539, lng: -95.9928 })
+        console.log('Error loading user, using default location: Tulsa, OK')
       } finally {
         setLoading(false)
       }
@@ -116,6 +151,8 @@ export default function FindMusicians() {
     const loadNearbyMusicians = async () => {
       try {
         setMapLoading(true)
+        console.log('Starting musician search for user:', user.id)
+        console.log('Search location:', hostLocation)
         
         // First, check for musicians with null coordinates but have zip codes
         const { data: musiciansWithoutCoords } = await supabase
@@ -142,7 +179,6 @@ export default function FindMusicians() {
                     const latitude = parseFloat(place.latitude)
                     const longitude = parseFloat(place.longitude)
                     
-                    // Update musician's coordinates in database
                     await supabase
                       .from('profiles')
                       .update({ latitude, longitude })
@@ -165,6 +201,7 @@ export default function FindMusicians() {
           .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
+          .neq('id', user.id) // Exclude current user
 
         console.log('Musicians query result:', { musicians, musiciansError })
         console.log('Host location:', hostLocation)
@@ -199,6 +236,7 @@ export default function FindMusicians() {
         }
       } catch (error) {
         console.error('Error loading musicians:', error)
+        setNearbyMusicians([])
       } finally {
         setMapLoading(false)
       }
