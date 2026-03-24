@@ -254,31 +254,39 @@ export default function FindMusicians() {
           .setLngLat([hostLocation.lng, hostLocation.lat])
           .addTo(map)
 
-        // Add musician markers
-        nearbyMusicians.forEach(musician => {
-          if (!musician.latitude || !musician.longitude) return
-
-          const musicianEl = document.createElement('div')
-          musicianEl.style.cssText = `
-            width: 12px; height: 12px; border-radius: 50%;
-            background: #4CAF50;
-            border: 2px solid #fff;
-            box-shadow: 0 0 12px rgba(76,175,80,0.7);
-            cursor: pointer;
-          `
-          
-          const marker = new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
-            .setLngLat([musician.longitude, musician.latitude])
-            .addTo(map)
-
-          // Add click handler
-          musicianEl.addEventListener('click', () => {
-            setSelectedMusician(musician)
-          })
-        })
+        mapInstance.getCanvas().style.cursor = 'grab'
       })
     }
     document.body.appendChild(script)
+  }, [hostLocation])
+
+  // Add markers when musicians data changes
+  useEffect(() => {
+    if (!mapRef.current || !hostLocation || nearbyMusicians.length === 0) return
+
+    const map = mapRef.current as any
+
+    // Add musician markers
+    nearbyMusicians.forEach(musician => {
+      if (!musician.latitude || !musician.longitude) return
+
+      const musicianEl = document.createElement('div')
+      musicianEl.style.cssText = `
+        width: 12px; height: 12px; border-radius: 50%;
+        background: #22c55e;
+        border: 2px solid #16a34a;
+        cursor: pointer;
+        box-shadow: 0 0 8px rgba(34,197,94,0.5);
+        transition: transform 0.15s;
+      `
+      musicianEl.addEventListener('mouseenter', () => { musicianEl.style.transform = 'scale(1.5)' })
+      musicianEl.addEventListener('mouseleave', () => { musicianEl.style.transform = 'scale(1)' })
+      musicianEl.addEventListener('click', () => setSelectedMusician(musician))
+
+      new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
+        .setLngLat([musician.longitude, musician.latitude])
+        .addTo(map)
+    })
   }, [hostLocation, nearbyMusicians])
 
   const handleInviteClick = (musician: Musician) => {
