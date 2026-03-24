@@ -157,13 +157,13 @@ export default function FindMusicians() {
           }
         }
         
-        // Load nearby musicians (within 100 miles)
+        // Load nearby musicians (within 100 miles) - show ALL profiles with musician data
         const { data: musicians } = await supabase
           .from('profiles')
           .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, tour_dates, zip_code')
-          .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
+          .or('name.not.is.null,and(bio.not.is.null)') // Show profiles that have musician data (name or bio)
           .neq('id', user.id) // Exclude current user
 
         if (musicians) {
