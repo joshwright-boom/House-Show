@@ -90,7 +90,7 @@ export default function FindMusicians() {
 
           if (userProfile?.latitude && userProfile?.longitude) {
             setHostLocation({ lat: userProfile.latitude, lng: userProfile.longitude })
-          } else {
+                } else {
             setMapError(true)
           }
         } else {
@@ -164,6 +164,7 @@ export default function FindMusicians() {
           .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
+          .neq('id', user.id) // Exclude current user
 
         if (musicians) {
           // Filter musicians within ~100 miles
@@ -176,7 +177,8 @@ export default function FindMusicians() {
               musician.latitude, 
               musician.longitude
             )
-            return distance <= 160.934 // 100 miles in km
+            console.log(`Musician ${musician.name} is ${distance.toFixed(2)}km away`)
+            return distance <= 100 * 1.60934 // Convert miles to km (100 miles default)
           })
           
           setNearbyMusicians(nearby)
@@ -255,21 +257,21 @@ export default function FindMusicians() {
           .addTo(map)
 
         // Add musician markers
-        nearbyMusicians.forEach(musician => {
-          if (!musician.latitude || !musician.longitude) return
+      nearbyMusicians.forEach(musician => {
+        if (!musician.latitude || !musician.longitude) return
 
-          const musicianEl = document.createElement('div')
-          musicianEl.style.cssText = `
-            width: 12px; height: 12px; border-radius: 50%;
+        const musicianEl = document.createElement('div')
+        musicianEl.style.cssText = `
+          width: 12px; height: 12px; border-radius: 50%;
             background: #4CAF50;
             border: 2px solid #fff;
             box-shadow: 0 0 12px rgba(76,175,80,0.7);
-            cursor: pointer;
-          `
-          
+          cursor: pointer;
+        `
+
           const marker = new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
-            .setLngLat([musician.longitude, musician.latitude])
-            .addTo(map)
+          .setLngLat([musician.longitude, musician.latitude])
+          .addTo(map)
 
           // Add click handler
           musicianEl.addEventListener('click', () => {

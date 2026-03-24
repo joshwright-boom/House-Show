@@ -63,7 +63,7 @@ export default function Dashboard() {
             ...(user?.user_type === 'host' ? [
               { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' }
             ] : [
-              { icon: '🏠', title: 'Find Musicians', desc: 'Discover musicians near you', href: '/browse' }
+              { icon: '🏠', title: 'Find Hosts', desc: 'Discover hosts and venues near you', href: '/browse' }
             ]),
             { icon: '📅', title: 'Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
             { icon: '🗺️', title: 'Venue Radar', desc: 'Find venues near you', href: '/radar' },

@@ -3,531 +3,483 @@
 import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { loadStripe } from '@stripe/stripe-js'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
-
-interface Show {
-  id: string
-  show_name: string
-  venue_name: string
-  venue_address: string
-  date: string
-  time: string
-  ticket_price: number
-  max_capacity: number
-  show_description: string
-  genre_preference: string
-  host_id: string
-  status: 'open' | 'booked' | 'cancelled'
-  created_at: string
-}
-
-interface Booking {
-  id: string
-  show_id: string
+interface BookingRequest {
   musician_id: string
   host_id: string
-  tickets_purchased: number
-  total_amount: number
-  status: 'pending' | 'confirmed' | 'cancelled'
-  created_at: string
+  proposed_date: string
+  proposed_time: string
+  venue_address: string
+  offer_amount: number
+  message: string
+  status: 'pending'
+}
+
+interface Musician {
+  id: string
+  name: string
+  bio: string
+  photo_url?: string
 }
 
 function BookShowContent() {
-  const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
-  const [show, setShow] = useState<Show | null>(null)
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [musician, setMusician] = useState<Musician | null>(null)
   const [loading, setLoading] = useState(true)
-  const [bookingLoading, setBookingLoading] = useState(false)
-  const [ticketQuantity, setTicketQuantity] = useState(1)
-  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
   const router = useRouter()
   const searchParams = useSearchParams()
-  const showId = searchParams.get('id')
+  const musicianId = searchParams.get('musician_id')
+
+  const [formData, setFormData] = useState({
+    proposed_date: '',
+    proposed_time: '',
+    venue_address: '',
+    offer_amount: '',
+    message: ''
+  })
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
+    const loadData = async () => {
+      try {
+        // Check user authentication
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.push('/auth/login')
+          return
+        }
+        
+        setUser({ id: user.id, email: user.email })
+
+        // Check if user is a host
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.user_type !== 'host') {
+          setError('Only hosts can send booking requests')
+          setLoading(false)
+          return
+        }
+
+        // Load musician details
+        if (musicianId) {
+          const { data: musicianData, error } = await supabase
+            .from('profiles')
+            .select('id, name, bio, photo_url')
+            .eq('id', musicianId)
+            .eq('user_type', 'musician')
+            .single()
+          
+          if (error) {
+            console.error('Error loading musician:', error)
+            setError('Musician not found')
+          } else if (musicianData) {
+            setMusician(musicianData)
+          }
+        } else {
+          setError('No musician specified')
+        }
+        
+      } catch (error) {
+        console.error('Error loading data:', error)
+        setError('Failed to load data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadData()
+  }, [musicianId, router])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!user || !musician) return
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      // Validate form
+      if (!formData.proposed_date || !formData.proposed_time || !formData.venue_address || !formData.offer_amount) {
+        setError('Please fill in all required fields')
         return
       }
-      
-      setUser({ id: user.id, email: user.email, user_type: user.user_metadata?.role })
-      
-      // Load show details
-      if (showId) {
-        const { data: showData, error } = await supabase
-          .from('shows')
-          .select('*')
-          .eq('id', showId)
-          .single()
-        
-        if (error) {
-          console.error('Error loading show:', error)
-        } else if (showData) {
-          setShow(showData)
-        }
-      }
-      
-      setLoading(false)
-    }
-    
-    checkUser()
-  }, [showId])
 
-  const handleBookShow = async () => {
-    if (!user || !show) return
-    
-    setBookingLoading(true)
-    
-    try {
-      // Create payment intent
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: show.ticket_price * ticketQuantity,
-          bookingId: `booking-${Date.now()}`,
-          musicianId: user.id,
-          hostId: show.host_id,
-        }),
-      })
-      
-      const { clientSecret, paymentIntentId } = await response.json()
-      
-      const stripe = await stripePromise
-      
-      if (stripe) {
-        const { error } = await stripe.confirmPayment({
-          clientSecret,
-          elements: undefined,
-          confirmParams: {
-            return_url: `${window.location.origin}/book-show?id=${showId}&success=true`,
-          },
-          redirect: 'always',
-        })
-        
-        if (error) {
-          console.error('Payment failed:', error)
-          alert('Payment failed. Please try again.')
-        } else {
-          // Payment successful - create booking record
-          const bookingData = {
-            show_id: show.id,
-            musician_id: user.id,
-            host_id: show.host_id,
-            tickets_purchased: ticketQuantity,
-            total_amount: show.ticket_price * ticketQuantity,
-            status: 'confirmed',
-            created_at: new Date().toISOString()
-          }
-          
-          const { error: bookingError } = await supabase
-            .from('bookings')
-            .insert(bookingData)
-          
-          if (bookingError) {
-            console.error('Error creating booking:', bookingError)
-          } else {
-            // Update show status to booked
-            await supabase
-              .from('shows')
-              .update({ status: 'booked' })
-              .eq('id', show.id)
-            
-            setShowConfirmation(true)
-          }
-        }
+      const bookingRequest: BookingRequest = {
+        musician_id: musician.id,
+        host_id: user.id,
+        proposed_date: formData.proposed_date,
+        proposed_time: formData.proposed_time,
+        venue_address: formData.venue_address,
+        offer_amount: parseFloat(formData.offer_amount),
+        message: formData.message,
+        status: 'pending'
       }
+
+      // Insert booking request
+      const { error: insertError } = await supabase
+        .from('booking_requests')
+        .insert([bookingRequest])
+
+      if (insertError) {
+        console.error('Error creating booking request:', insertError)
+        setError('Failed to send booking request')
+        return
+      }
+
+      setSuccess(true)
+      
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        router.push('/dashboard?message=Booking request sent successfully!')
+      }, 2000)
+
     } catch (error) {
-      console.error('Error booking show:', error)
-      alert('Error booking show. Please try again.')
+      console.error('Error submitting booking request:', error)
+      setError('An unexpected error occurred')
     } finally {
-      setBookingLoading(false)
+      setSubmitting(false)
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })
-  }
-
-  const calculateTotal = () => {
-    return show ? show.ticket_price * ticketQuantity : 0
-  }
-
-  const calculatePlatformFee = () => {
-    const total = calculateTotal()
-    return total * 0.05 // 5% platform fee
-  }
-
-  const calculateMusicianShare = () => {
-    const total = calculateTotal()
-    const platformFee = calculatePlatformFee()
-    const remaining = total - platformFee
-    return remaining * 0.70 // 70% of remaining
-  }
-
-  const calculateHostShare = () => {
-    const total = calculateTotal()
-    const platformFee = calculatePlatformFee()
-    const musicianShare = calculateMusicianShare()
-    return total - platformFee - musicianShare
   }
 
   if (loading) {
-    return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#8C7B6B' }}>Loading show details...</p>
-    </div>
+    return (
+      <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#8C7B6B', fontSize: '1.2rem' }}>Loading...</div>
+      </main>
+    )
   }
 
-  if (!show) {
-    return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#8C7B6B' }}>Show not found</p>
-    </div>
+  if (error && !musician) {
+    return (
+      <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', padding: '20px' }}>
+        <div style={{ color: '#FCA5A5', fontSize: '1.2rem', marginBottom: '20px', textAlign: 'center' }}>
+          {error}
+        </div>
+        <button
+          onClick={() => router.push('/dashboard')}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '8px',
+            backgroundColor: '#D4820A',
+            color: '#1A1410',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          Back to Dashboard
+        </button>
+      </main>
+    )
   }
 
-  if (showConfirmation) {
-    return <>
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
-        
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          background: #1A1410;
-          color: #F5F0E8;
-          font-family: 'DM Sans', sans-serif;
-        }
-      `}</style>
-      
-      <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
-          <a href="/dashboard" style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
-          <a href="/bookings" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Back to Bookings</a>
-        </nav>
-
-        <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '24px' }}>🎉</div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2.5rem', color: '#F5F0E8', marginBottom: '16px' }}>
-            Booking Confirmed!
-          </h1>
-          <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '1rem', marginBottom: '32px' }}>
-            You have successfully booked {ticketQuantity} ticket{ticketQuantity > 1 ? 's' : ''} for {show.show_name}. 
-            Check your email for confirmation details.
-          </p>
-          
-          <div style={{
-            border: '1px solid rgba(212,130,10,0.2)',
-            borderRadius: '12px',
-            padding: '24px',
-            background: 'rgba(44,34,24,0.3)',
-            marginBottom: '32px'
-          }}>
-            <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.3rem', color: '#F5F0E8', marginBottom: '16px' }}>
-              Booking Details
-            </h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B' }}>Show:</span>
-              <span style={{ color: '#F5F0E8' }}>{show.show_name}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B' }}>Date:</span>
-              <span style={{ color: '#F5F0E8' }}>{formatDate(show.date)} at {show.time}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B' }}>Venue:</span>
-              <span style={{ color: '#F5F0E8' }}>{show.venue_name}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B' }}>Tickets:</span>
-              <span style={{ color: '#F5F0E8' }}>{ticketQuantity}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Ticket Price:</span>
-              <span style={{ color: '#F5F0E8' }}>${show.ticket_price} × {ticketQuantity}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Platform Fee:</span>
-              <span style={{ color: '#F5F0E8' }}>${calculatePlatformFee().toFixed(2)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Musician Share:</span>
-              <span style={{ color: '#F5F0E8' }}>${calculateMusicianShare().toFixed(2)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Host Share:</span>
-              <span style={{ color: '#F5F0E8' }}>${calculateHostShare().toFixed(2)}</span>
-            </div>
-            <div style={{ borderTop: '1px solid rgba(212,130,10,0.1)', paddingTop: '16px', marginTop: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Space Mono, monospace', fontSize: '1.1rem', color: '#F0A500', fontWeight: 600 }}>
-                <span>Total:</span>
-                <span>${calculateTotal().toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-          
-          <button
-            onClick={() => router.push('/bookings')}
-            style={{
-              background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-              color: '#1A1410',
-              padding: '16px 32px',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              fontWeight: 600,
-              fontFamily: 'DM Sans, sans-serif',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            Back to My Bookings
-          </button>
+  if (success) {
+    return (
+      <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', padding: '20px' }}>
+        <div style={{ color: '#22c55e', fontSize: '2rem', marginBottom: '20px' }}>✅</div>
+        <div style={{ color: '#22c55e', fontSize: '1.5rem', marginBottom: '10px', textAlign: 'center' }}>
+          Booking Request Sent!
+        </div>
+        <div style={{ color: '#8C7B6B', fontSize: '1rem', textAlign: 'center', marginBottom: '20px' }}>
+          Your booking request has been sent to {musician?.name}. They will review it and respond soon.
+        </div>
+        <div style={{ color: '#8C7B6B', fontSize: '0.9rem', textAlign: 'center' }}>
+          Redirecting to dashboard...
         </div>
       </main>
-    </>
+    )
   }
 
   return (
-    <>
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
-        
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          background: #1A1410;
-          color: '#F5F0E8';
-          font-family: 'DM Sans', sans-serif;
-        }
-      `}</style>
-      
-      <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
-          <a href="/dashboard" style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
-          <a href="/bookings" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Back to Bookings</a>
-        </nav>
+    <main style={{ minHeight: '100vh', background: '#1A1410', padding: '20px' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <h1 style={{ 
+          color: '#F5F0E8', 
+          marginBottom: '32px', 
+          fontSize: '2.5rem', 
+          fontWeight: '700',
+          textAlign: 'center'
+        }}>
+          Send Booking Request
+        </h1>
 
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ fontFamily: 'Space Mono, monospace', fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
-            Book Show
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-            {/* Show Details */}
-            <div>
-              <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2rem', color: '#F5F0E8', marginBottom: '16px' }}>
-                {show.show_name}
-              </h1>
-              <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '1rem', marginBottom: '24px' }}>
-                {show.show_description}
-              </p>
-              
-              <div style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '24px', background: 'rgba(44,34,24,0.3)' }}>
-                <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.3rem', color: '#F5F0E8', marginBottom: '16px' }}>
-                  Show Details
-                </h3>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                  <div>
-                    <h4 style={{ 
-                      fontFamily: 'Playfair Display, serif', 
-                      fontSize: '1.1rem', 
-                      color: '#F5F0E8', 
-                      marginBottom: '8px' 
-                    }}>
-                      📍 Venue
-                    </h4>
-                    <p style={{ 
-                      fontFamily: 'DM Sans, sans-serif', 
-                      color: '#8C7B6B', 
-                      fontSize: '0.95rem',
-                      marginBottom: '8px'
-                    }}>
-                      {show.venue_name}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 style={{ 
-                      fontFamily: 'Playfair Display, serif', 
-                      fontSize: '1.1rem', 
-                      color: '#F5F0E8', 
-                      marginBottom: '8px' 
-                    }}>
-                      📅 Date
-                    </h4>
-                    <p style={{ 
-                      fontFamily: 'DM Sans, sans-serif', 
-                      color: '#8C7B6B', 
-                      fontSize: '0.95rem',
-                      marginBottom: '8px'
-                    }}>
-                      {formatDate(show.date)} at {show.time}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                  <div>
-                    <h4 style={{ 
-                      fontFamily: 'Playfair Display, serif', 
-                      fontSize: '1.1rem', 
-                      color: '#F5F0E8', 
-                      marginBottom: '8px' 
-                    }}>
-                      📍 Address
-                    </h4>
-                    <p style={{ 
-                      fontFamily: 'DM Sans, sans-serif', 
-                      color: '#8C7B6B', 
-                      fontSize: '0.95rem',
-                      marginBottom: '8px'
-                    }}>
-                      {show.venue_address}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ 
-                    fontFamily: 'Space Mono, monospace', 
-                    fontSize: '1.1rem', 
-                    color: '#F0A500', 
-                    fontWeight: 600 
-                  }}>
-                    ${show.ticket_price}
-                  </div>
-                  <div style={{ 
-                    fontFamily: 'DM Sans, sans-serif', 
-                    color: '#8C7B6B', 
-                    fontSize: '0.85rem' 
-                  }}>
-                    per ticket
-                  </div>
-                </div>
+        {musician && (
+          <div style={{
+            background: 'rgba(26,20,16,0.8)',
+            border: '1px solid rgba(212,130,10,0.2)',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '24px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: '#2A1F1A',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem'
+              }}>
+                🎵
               </div>
-              
-              {/* Booking Form */}
-              <div style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '24px', background: 'rgba(44,34,24,0.3)' }}>
-                <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.3rem', color: '#F5F0E8', marginBottom: '16px' }}>
-                  Book This Show
-                </h3>
-                
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                    Number of Tickets
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={show.max_capacity}
-                    value={ticketQuantity}
-                    onChange={(e) => setTicketQuantity(parseInt(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid rgba(212,130,10,0.3)',
-                      borderRadius: '4px',
-                      background: 'rgba(26,20,16,0.8)',
-                      color: '#F5F0E8',
-                      fontSize: '1rem'
-                    }}
-                  />
-                </div>
-
-                <div style={{ borderTop: '1px solid rgba(212,130,10,0.1)', paddingTop: '16px', marginTop: '16px' }}>
-                  <h4 style={{ 
-                    fontFamily: 'Playfair Display, serif', 
-                    fontSize: '1.1rem', 
-                    color: '#F5F0E8', 
-                    marginBottom: '8px' 
-                  }}>
-                    Revenue Breakdown
-                  </h4>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Ticket Price:</span>
-                    <span style={{ color: '#F5F0E8' }}>${show.ticket_price} × {ticketQuantity}</span>
-                  </div>
-                  
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Platform Fee (5%):</span>
-                    <span style={{ color: '#D4820A' }}>${calculatePlatformFee().toFixed(2)}</span>
-                  </div>
-                  
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Musician Share (70%):</span>
-                    <span style={{ color: '#F0A500' }}>${calculateMusicianShare().toFixed(2)}</span>
-                  </div>
-                  
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#8C7B6B', fontSize: '0.85rem' }}>Host Share (30%):</span>
-                    <span style={{ color: '#F0A500' }}>${calculateHostShare().toFixed(2)}</span>
-                  </div>
-                  
-
-                  <div style={{ 
-                    borderTop: '1px solid rgba(212,130,10,0.1)', 
-                    paddingTop: '16px',
-                    display: 'flex',
-                    justifyContent: 'space-between'
-                  }}>
-                    <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', color: '#F5F0E8' }}>Total:</span>
-                    <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '1.3rem', color: '#F0A500', fontWeight: 600 }}>${calculateTotal().toFixed(2)}</span>
-                  </div>
-
-                  <button
-                    onClick={handleBookShow}
-                    disabled={bookingLoading || ticketQuantity > show.max_capacity}
-                    style={{
-                      width: '100%',
-                      background: bookingLoading || ticketQuantity > show.max_capacity ? '#8C7B6B' : 'linear-gradient(135deg, #D4820A, #F0A500)',
-                      color: '#1A1410',
-                      padding: '16px',
-                      borderRadius: '8px',
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      fontFamily: 'DM Sans, sans-serif',
-                      border: 'none',
-                      cursor: bookingLoading || ticketQuantity > show.max_capacity ? 'not-allowed' : 'pointer',
-                      opacity: bookingLoading || ticketQuantity > show.max_capacity ? 0.7 : 1
-                    }}
-                  >
-                    {bookingLoading ? 'Processing...' : 'Book Now'}
-                  </button>
-                </div>
+              <div>
+                <h2 style={{ color: '#F5F0E8', marginBottom: '4px', fontSize: '1.3rem' }}>
+                  {musician.name}
+                </h2>
+                <p style={{ color: '#8C7B6B', fontSize: '0.9rem', margin: 0 }}>
+                  {musician.bio || 'Musician'}
+                </p>
               </div>
             </div>
           </div>
-        </div>
-      </main>
-    </>
+        )}
+
+        {error && (
+          <div style={{
+            background: 'rgba(252,165,165,0.1)',
+            border: '1px solid rgba(252,165,165,0.3)',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '24px',
+            color: '#FCA5A5',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{
+          background: 'rgba(26,20,16,0.8)',
+          border: '1px solid rgba(212,130,10,0.2)',
+          borderRadius: '12px',
+          padding: '32px'
+        }}>
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ 
+              display: 'block', 
+              color: '#F5F0E8', 
+              marginBottom: '8px',
+              fontSize: '0.9rem',
+              fontWeight: '600'
+            }}>
+              Proposed Date *
+            </label>
+            <input
+              type="date"
+              name="proposed_date"
+              value={formData.proposed_date}
+              onChange={handleInputChange}
+              required
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.3)',
+                background: '#2A1F1A',
+                color: '#F5F0E8',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ 
+              display: 'block', 
+              color: '#F5F0E8', 
+              marginBottom: '8px',
+              fontSize: '0.9rem',
+              fontWeight: '600'
+            }}>
+              Proposed Time *
+            </label>
+            <input
+              type="time"
+              name="proposed_time"
+              value={formData.proposed_time}
+              onChange={handleInputChange}
+              required
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.3)',
+                background: '#2A1F1A',
+                color: '#F5F0E8',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ 
+              display: 'block', 
+              color: '#F5F0E8', 
+              marginBottom: '8px',
+              fontSize: '0.9rem',
+              fontWeight: '600'
+            }}>
+              Venue Address *
+            </label>
+            <input
+              type="text"
+              name="venue_address"
+              value={formData.venue_address}
+              onChange={handleInputChange}
+              placeholder="Enter the venue address"
+              required
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.3)',
+                background: '#2A1F1A',
+                color: '#F5F0E8',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ 
+              display: 'block', 
+              color: '#F5F0E8', 
+              marginBottom: '8px',
+              fontSize: '0.9rem',
+              fontWeight: '600'
+            }}>
+              Offer Amount ($) *
+            </label>
+            <input
+              type="number"
+              name="offer_amount"
+              value={formData.offer_amount}
+              onChange={handleInputChange}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              required
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.3)',
+                background: '#2A1F1A',
+                color: '#F5F0E8',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '32px' }}>
+            <label style={{ 
+              display: 'block', 
+              color: '#F5F0E8', 
+              marginBottom: '8px',
+              fontSize: '0.9rem',
+              fontWeight: '600'
+            }}>
+              Message to Musician
+            </label>
+            <textarea
+              name="message"
+              value={formData.message}
+              onChange={handleInputChange}
+              placeholder="Add any additional details about the event..."
+              rows={4}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.3)',
+                background: '#2A1F1A',
+                color: '#F5F0E8',
+                fontSize: '1rem',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                flex: 1,
+                padding: '14px',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                backgroundColor: submitting ? '#666' : '#D4820A',
+                color: '#1A1410',
+                border: 'none',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!submitting) e.currentTarget.style.backgroundColor = '#F0A500'
+              }}
+              onMouseLeave={(e) => {
+                if (!submitting) e.currentTarget.style.backgroundColor = '#D4820A'
+              }}
+            >
+              {submitting ? 'Sending...' : 'Send Booking Request'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard')}
+              style={{
+                padding: '14px 24px',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                backgroundColor: 'transparent',
+                color: '#F5F0E8',
+                border: '1px solid rgba(212,130,10,0.3)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
   )
 }
 
 export default function BookShow() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#8C7B6B', fontSize: '1.2rem' }}>Loading...</div>
+      </main>
+    }>
       <BookShowContent />
     </Suspense>
   )
