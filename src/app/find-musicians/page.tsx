@@ -201,7 +201,6 @@ export default function FindMusicians() {
           .eq('user_type', 'musician')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
-          .neq('id', user.id) // Exclude current user
 
         console.log('Musicians query result:', { musicians, musiciansError })
         console.log('Host location:', hostLocation)
