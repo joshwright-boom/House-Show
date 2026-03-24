@@ -3,10 +3,25 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
+interface BookingRequest {
+  id: string
+  host_id: string
+  musician_id: string
+  proposed_date: string
+  venue_address: string
+  offer_amount: number
+  message: string
+  status: 'pending' | 'accepted' | 'declined'
+  host_name: string
+}
+
 export default function Dashboard() {
-  const [user, setUser] = useState<{ email?: string; user_type?: string; active_mode?: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; email?: string; user_type?: string; active_mode?: string } | null>(null)
   const [activeMode, setActiveMode] = useState<'musician' | 'host'>('musician')
   const [switchingMode, setSwitchingMode] = useState(false)
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
+  const [requestsLoading, setRequestsLoading] = useState(true)
+  const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null)
 
   useEffect(() => {
     const loadUser = async () => {
@@ -24,6 +39,7 @@ export default function Dashboard() {
         .single()
 
       setUser({ 
+        id: user.id,
         email: user.email,
         user_type: profile?.user_type || 'musician',
         active_mode: profile?.active_mode || 'musician'
@@ -32,6 +48,59 @@ export default function Dashboard() {
 
     loadUser()
   }, [])
+
+  useEffect(() => {
+    const loadBookingRequests = async () => {
+      if (!user?.id) {
+        setRequestsLoading(false)
+        return
+      }
+
+      try {
+        const { data: requests, error } = await supabase
+          .from('booking_requests')
+          .select(`
+            id,
+            host_id,
+            musician_id,
+            proposed_date,
+            venue_address,
+            offer_amount,
+            message,
+            status,
+            host_profile:profiles!host_id(name)
+          `)
+          .eq('musician_id', user.id)
+          .in('status', ['pending', 'accepted', 'declined'])
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Error loading booking requests:', error)
+          return
+        }
+
+        const transformedRequests: BookingRequest[] = (requests || []).map((request: any) => ({
+          id: request.id,
+          host_id: request.host_id,
+          musician_id: request.musician_id,
+          proposed_date: request.proposed_date,
+          venue_address: request.venue_address,
+          offer_amount: request.offer_amount,
+          message: request.message,
+          status: request.status,
+          host_name: request.host_profile?.name || 'Unknown Host',
+        }))
+
+        setBookingRequests(transformedRequests)
+      } catch (error) {
+        console.error('Error loading booking requests:', error)
+      } finally {
+        setRequestsLoading(false)
+      }
+    }
+
+    loadBookingRequests()
+  }, [user?.id])
 
   useEffect(() => {
     const loadActiveMode = async () => {
@@ -83,6 +152,36 @@ export default function Dashboard() {
       setSwitchingMode(false)
     }
   }
+
+  const updateBookingRequestStatus = async (requestId: string, status: 'accepted' | 'declined') => {
+    try {
+      setUpdatingRequestId(requestId)
+
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ status })
+        .eq('id', requestId)
+
+      if (error) {
+        console.error(`Error updating booking request to ${status}:`, error)
+        return
+      }
+
+      setBookingRequests(prev =>
+        prev.map(request => request.id === requestId ? { ...request, status } : request)
+      )
+    } catch (error) {
+      console.error(`Error updating booking request to ${status}:`, error)
+    } finally {
+      setUpdatingRequestId(null)
+    }
+  }
+
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  })
 
   return (
     <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
@@ -178,6 +277,134 @@ export default function Dashboard() {
             </a>
           ))}
         </div>
+
+        {activeMode === 'musician' && (
+          <section style={{ marginTop: '48px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+              Incoming Booking Requests
+            </div>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {requestsLoading ? (
+                <div style={{
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  background: 'rgba(44,34,24,0.3)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#8C7B6B'
+                }}>
+                  Loading requests...
+                </div>
+              ) : bookingRequests.length === 0 ? (
+                <div style={{
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  background: 'rgba(44,34,24,0.3)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#8C7B6B'
+                }}>
+                  No booking requests yet.
+                </div>
+              ) : bookingRequests.map((request) => (
+                <div
+                  key={request.id}
+                  style={{
+                    border: '1px solid rgba(212,130,10,0.2)',
+                    borderRadius: '8px',
+                    padding: '24px',
+                    background: 'rgba(44,34,24,0.3)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
+                    <div>
+                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                        {request.host_name}
+                      </h3>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
+                        Venue: {request.venue_address}
+                      </p>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
+                        Proposed Date: {formatDate(request.proposed_date)}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1rem', color: '#F0A500', marginBottom: '8px' }}>
+                        ${request.offer_amount}
+                      </div>
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '6px 10px',
+                        borderRadius: '999px',
+                        border: '1px solid rgba(212,130,10,0.3)',
+                        color: '#F5F0E8',
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: '0.8rem',
+                        textTransform: 'capitalize'
+                      }}>
+                        {request.status}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem', marginBottom: '6px' }}>
+                      Message
+                    </div>
+                    <div style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      color: '#F5F0E8',
+                      fontSize: '0.95rem',
+                      lineHeight: '1.5',
+                      background: 'rgba(26,20,16,0.35)',
+                      borderRadius: '8px',
+                      padding: '12px'
+                    }}>
+                      {request.message || 'No message provided.'}
+                    </div>
+                  </div>
+
+                  {request.status === 'pending' && (
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={() => updateBookingRequestStatus(request.id, 'accepted')}
+                        disabled={updatingRequestId === request.id}
+                        style={{
+                          background: '#D4820A',
+                          color: '#1A1410',
+                          border: '1px solid #D4820A',
+                          borderRadius: '6px',
+                          padding: '10px 16px',
+                          cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => updateBookingRequestStatus(request.id, 'declined')}
+                        disabled={updatingRequestId === request.id}
+                        style={{
+                          background: 'transparent',
+                          color: '#F5F0E8',
+                          border: '1px solid rgba(212,130,10,0.3)',
+                          borderRadius: '6px',
+                          padding: '10px 16px',
+                          cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   )
