@@ -1,27 +1,44 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
-// Sample venues to show on the map
-const SAMPLE_VENUES = [
-  { id: 1, name: 'The Backyard Sessions', lat: 0, lng: 0, offsetLat: 0.18, offsetLng: -0.22, capacity: 40, type: 'Backyard', status: 'available', host: 'Marcus T.' },
-  { id: 2, name: 'Loft on 5th', lat: 0, lng: 0, offsetLat: -0.31, offsetLng: 0.41, capacity: 25, type: 'Loft', status: 'booked', host: 'Sarah K.' },
-  { id: 3, name: 'The Living Room Stage', lat: 0, lng: 0, offsetLat: 0.52, offsetLng: 0.19, capacity: 20, type: 'Living Room', status: 'available', host: 'Devon R.' },
-  { id: 4, name: 'Rooftop Collective', lat: 0, lng: 0, offsetLat: -0.44, offsetLng: -0.38, capacity: 60, type: 'Rooftop', status: 'available', host: 'Priya M.' },
-  { id: 5, name: 'Garden House', lat: 0, lng: 0, offsetLat: 0.71, offsetLng: -0.55, capacity: 35, type: 'Garden', status: 'booked', host: 'James W.' },
-  { id: 6, name: 'The Warehouse Spot', lat: 0, lng: 0, offsetLat: -0.62, offsetLng: 0.68, capacity: 80, type: 'Warehouse', status: 'available', host: 'Nadia C.' },
-]
+interface Musician {
+  id: string
+  name: string
+  bio: string
+  photo_url?: string
+  user_type: 'musician'
+  latitude: number
+  longitude: number
+  location_address?: string
+  availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
+  tour_dates?: string
+  zip_code?: string
+}
 
 export default function RadarPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [selectedVenue, setSelectedVenue] = useState<typeof SAMPLE_VENUES[0] | null>(null)
+  const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
   const [loading, setLoading] = useState(true)
   const [locationError, setLocationError] = useState(false)
-  const [venues, setVenues] = useState(SAMPLE_VENUES)
+  const [musicians, setMusicians] = useState<Musician[]>([])
+
+  // Calculate distance between two points (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371 // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
 
   useEffect(() => {
     // Get user location
@@ -45,13 +62,39 @@ export default function RadarPage() {
   useEffect(() => {
     if (!userLocation) return
 
-    // Place venues relative to user location
-    const placed = SAMPLE_VENUES.map(v => ({
-      ...v,
-      lat: userLocation.lat + v.offsetLat,
-      lng: userLocation.lng + v.offsetLng,
-    }))
-    setVenues(placed)
+    // Load nearby musicians from Supabase
+    const loadNearbyMusicians = async () => {
+      try {
+        const { data: musicians } = await supabase
+          .from('profiles')
+          .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, tour_dates, zip_code')
+          .eq('user_type', 'musician')
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+
+        if (musicians) {
+          // Filter musicians within ~100 miles
+          const nearby = musicians.filter(musician => {
+            if (!musician.latitude || !musician.longitude) return false
+            
+            const distance = calculateDistance(
+              userLocation.lat, 
+              userLocation.lng, 
+              musician.latitude, 
+              musician.longitude
+            )
+            return distance <= 160.934 // 100 miles in km
+          })
+          
+          setMusicians(nearby)
+          console.log(`Found ${nearby.length} musicians within 100 miles`)
+        }
+      } catch (error) {
+        console.error('Error loading musicians:', error)
+      }
+    }
+
+    loadNearbyMusicians()
 
     // Dynamically load Mapbox GL JS
     const link = document.createElement('link')
@@ -121,23 +164,24 @@ const mapboxgl = (window as unknown as Window & { mapboxgl: { accessToken: strin
           paint: { 'line-color': '#D4820A', 'line-width': 1.5, 'line-opacity': 0.4, 'line-dasharray': [4, 4] }
         })
 
-        // Add venue markers
-        placed.forEach((venue) => {
+        // Add musician markers
+        musicians.forEach((musician) => {
           const el = document.createElement('div')
+          const isAvailable = musician.availability_status === 'based_here' || musician.availability_status === 'open_to_travel'
           el.style.cssText = `
             width: 14px; height: 14px; border-radius: 50%;
-            background: ${venue.status === 'available' ? '#22c55e' : '#D4820A'};
-            border: 2px solid ${venue.status === 'available' ? '#16a34a' : '#92400e'};
+            background: ${isAvailable ? '#22c55e' : '#D4820A'};
+            border: 2px solid ${isAvailable ? '#16a34a' : '#92400e'};
             cursor: pointer;
-            box-shadow: 0 0 10px ${venue.status === 'available' ? 'rgba(34,197,94,0.5)' : 'rgba(212,130,10,0.5)'};
+            box-shadow: 0 0 10px ${isAvailable ? 'rgba(34,197,94,0.5)' : 'rgba(212,130,10,0.5)'};
             transition: transform 0.15s;
           `
           el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.8)' })
           el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
-          el.addEventListener('click', () => setSelectedVenue(venue))
+          el.addEventListener('click', () => setSelectedMusician(musician))
 
 new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(el)
-            .setLngLat([venue.lng, venue.lat])
+            .setLngLat([musician.longitude, musician.latitude])
             .addTo(map)
         })
 
@@ -162,9 +206,9 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
       document.head.removeChild(script)
       document.head.removeChild(link)
     }
-  }, [userLocation])
+  }, [userLocation, musicians])
 
-  const availableCount = venues.filter(v => v.status === 'available').length
+  const availableCount = musicians.filter(m => m.availability_status === 'based_here' || m.availability_status === 'open_to_travel').length
 
   return (
     <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', flexDirection: 'column' }}>
@@ -180,7 +224,7 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#8C7B6B', letterSpacing: '1px' }}>
-              {availableCount} VENUES AVAILABLE
+              {availableCount} MUSICIANS AVAILABLE
             </span>
           </div>
           <a href="/dashboard" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>Dashboard</a>
@@ -197,7 +241,7 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
         }}>
           <div style={{ padding: '24px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Venue Radar
+              Musician Radar
             </div>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#F5F0E8', marginBottom: '4px' }}>
               100-Mile Radius
@@ -211,7 +255,7 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
 
           {/* Legend */}
           <div style={{ padding: '0 24px 16px', display: 'flex', gap: '16px' }}>
-            {[{ color: '#22c55e', label: 'Available' }, { color: '#D4820A', label: 'Booked' }, { color: '#F0A500', label: 'You' }].map(l => (
+            {[{ color: '#22c55e', label: 'Available' }, { color: '#D4820A', label: 'On Tour' }, { color: '#F0A500', label: 'You' }].map(l => (
               <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.color, boxShadow: `0 0 6px ${l.color}80` }} />
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '1px' }}>{l.label}</span>
@@ -221,32 +265,37 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
 
           <div style={{ height: '1px', background: 'rgba(212,130,10,0.1)', margin: '0 24px 16px' }} />
 
-          {/* Venue list */}
-          {venues.map((venue) => (
+          {/* Musician list */}
+          {musicians.map((musician) => {
+            const isAvailable = musician.availability_status === 'based_here' || musician.availability_status === 'open_to_travel'
+            return (
             <div
-              key={venue.id}
-              onClick={() => setSelectedVenue(selectedVenue?.id === venue.id ? null : venue)}
+              key={musician.id}
+              onClick={() => setSelectedMusician(selectedMusician?.id === musician.id ? null : musician)}
               style={{
                 padding: '16px 24px',
                 borderBottom: '1px solid rgba(212,130,10,0.08)',
                 cursor: 'pointer',
-                background: selectedVenue?.id === venue.id ? 'rgba(212,130,10,0.08)' : 'transparent',
+                background: selectedMusician?.id === musician.id ? 'rgba(212,130,10,0.08)' : 'transparent',
                 transition: 'background 0.15s',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#F5F0E8', fontWeight: 500 }}>{venue.name}</span>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#F5F0E8', fontWeight: 500 }}>{musician.name}</span>
                 <div style={{
                   width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, marginTop: '5px',
-                  background: venue.status === 'available' ? '#22c55e' : '#D4820A',
+                  background: isAvailable ? '#22c55e' : '#D4820A',
                 }} />
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '1px' }}>{venue.type.toUpperCase()}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '1px' }}>{venue.capacity} CAP</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '1px' }}>{musician.availability_status?.replace('_', ' ').toUpperCase()}</span>
+                {musician.location_address && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '1px' }}>{musician.location_address.split(',')[0]}</span>
+                )}
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* MAP */}
@@ -257,18 +306,18 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10,
             }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#F0A500', marginBottom: '12px' }}>
-                Scanning your area...
+                Finding musicians...
               </div>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#8C7B6B', letterSpacing: '2px' }}>
-                LOADING VENUE RADAR
+                LOADING MUSICIAN RADAR
               </div>
             </div>
           )}
 
           <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-          {/* Selected venue card */}
-          {selectedVenue && (
+          {/* Selected musician card */}
+          {selectedMusician && (
             <div style={{
               position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)',
               background: '#2C2218', border: '1px solid rgba(212,130,10,0.3)',
@@ -277,31 +326,36 @@ new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) =
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <div>
-                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '4px' }}>{selectedVenue.name}</h3>
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '4px' }}>{selectedMusician.name}</h3>
                   <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#8C7B6B', letterSpacing: '2px' }}>
-                    {selectedVenue.type.toUpperCase()} · {selectedVenue.capacity} CAPACITY
+                    {selectedMusician.availability_status?.replace('_', ' ').toUpperCase()} · {selectedMusician.location_address?.split(',')[0] || 'LOCATION UNKNOWN'}
                   </span>
                 </div>
                 <div style={{
-                  background: selectedVenue.status === 'available' ? 'rgba(34,197,94,0.15)' : 'rgba(212,130,10,0.15)',
-                  border: `1px solid ${selectedVenue.status === 'available' ? 'rgba(34,197,94,0.4)' : 'rgba(212,130,10,0.4)'}`,
-                  color: selectedVenue.status === 'available' ? '#22c55e' : '#D4820A',
+                  background: selectedMusician.availability_status === 'based_here' || selectedMusician.availability_status === 'open_to_travel' ? 'rgba(34,197,94,0.15)' : 'rgba(212,130,10,0.15)',
+                  border: `1px solid ${selectedMusician.availability_status === 'based_here' || selectedMusician.availability_status === 'open_to_travel' ? 'rgba(34,197,94,0.4)' : 'rgba(212,130,10,0.4)'}`,
+                  color: selectedMusician.availability_status === 'based_here' || selectedMusician.availability_status === 'open_to_travel' ? '#22c55e' : '#D4820A',
                   padding: '4px 10px', borderRadius: '4px',
                   fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', letterSpacing: '1px',
                 }}>
-                  {selectedVenue.status.toUpperCase()}
+                  {selectedMusician.availability_status === 'based_here' || selectedMusician.availability_status === 'open_to_travel' ? 'AVAILABLE' : 'ON TOUR'}
                 </div>
               </div>
+              {selectedMusician.bio && (
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B', marginBottom: '12px', lineHeight: '1.4' }}>
+                  {selectedMusician.bio.length > 100 ? `${selectedMusician.bio.substring(0, 100)}...` : selectedMusician.bio}
+                </p>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>
-                  Hosted by {selectedVenue.host}
+                  {selectedMusician.location_address || 'Location not set'}
                 </span>
-                {selectedVenue.status === 'available' && (
-                  <a href="/auth/register" style={{
+                {(selectedMusician.availability_status === 'based_here' || selectedMusician.availability_status === 'open_to_travel') && (
+                  <a href={`/find-musicians?contact=${selectedMusician.id}`} style={{
                     background: 'linear-gradient(135deg, #D4820A, #F0A500)', color: '#1A1410',
                     padding: '8px 18px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600,
                     fontFamily: "'DM Sans', sans-serif", display: 'inline-block',
-                  }}>Request Booking</a>
+                  }}>Contact Musician</a>
                 )}
               </div>
             </div>
