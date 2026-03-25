@@ -35,8 +35,20 @@ interface Musician {
   location_address?: string
 }
 
+interface BookingRequestDraft {
+  id: string
+  host_id: string
+  musician_id: string
+  proposed_date: string
+  venue_address: string
+  ticket_price: number
+  message: string
+}
+
 function CreateShowContent() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [userRole, setUserRole] = useState<'host' | 'musician' | null>(null)
+  const [requestDraft, setRequestDraft] = useState<BookingRequestDraft | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
   const [musicianSearch, setMusicianSearch] = useState('')
@@ -83,11 +95,15 @@ function CreateShowContent() {
         .eq('id', user.id)
         .single()
       
-      if (profile?.user_type !== 'host') {
+      if (profile?.user_type !== 'host' && !requestId) {
         router.push('/dashboard')
         return
       }
       
+      if (profile?.user_type === 'host' || profile?.user_type === 'musician') {
+        setUserRole(profile.user_type)
+      }
+
       setUser({ id: user.id, email: user.email })
     }
     
@@ -100,15 +116,21 @@ function CreateShowContent() {
 
       const { data: request, error } = await supabase
         .from('booking_requests')
-        .select('id, musician_id, proposed_date, venue_address, ticket_price, message')
+        .select('id, host_id, musician_id, proposed_date, venue_address, ticket_price, message')
         .eq('id', requestId)
-        .eq('host_id', user.id)
         .single()
 
       if (error || !request) {
         console.error('Error loading booking request draft:', error)
         return
       }
+
+      if (request.host_id !== user.id && request.musician_id !== user.id) {
+        console.error('Current user is not part of this booking request')
+        return
+      }
+
+      setRequestDraft(request as BookingRequestDraft)
 
       const { data: musician } = await supabase
         .from('profiles')
@@ -127,7 +149,9 @@ function CreateShowContent() {
         venue_name: prev.venue_name || request.venue_address,
         venue_address: request.venue_address,
         date: request.proposed_date,
+        time: prev.time || '19:00',
         ticket_price: String(request.ticket_price ?? ''),
+        max_capacity: prev.max_capacity || '40',
         show_description: request.message || prev.show_description
       }))
     }
@@ -360,6 +384,11 @@ function CreateShowContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+
+    if (userRole !== 'host') {
+      alert('The host account needs to publish this show. Please switch to the host account to create the ticket page.')
+      return
+    }
     
     setLoading(true)
     
@@ -374,8 +403,8 @@ function CreateShowContent() {
         max_capacity: parseInt(formData.max_capacity),
         show_description: formData.show_description,
         genre_preference: formData.genre_preference,
-        host_id: user.id,
-        artist_user_id: selectedMusician?.id || null,
+        host_id: requestDraft?.host_id || user.id,
+        artist_user_id: requestDraft?.musician_id || selectedMusician?.id || null,
         status: 'open',
         created_at: new Date().toISOString()
       }
@@ -389,14 +418,14 @@ function CreateShowContent() {
       
       if (error) {
         console.error('Error creating show:', error)
-        alert('Error creating show. Please try again.')
+        alert(`Error creating show: ${error.message || 'Please try again.'}`)
         return
       }
       
       router.push(createdShow ? `/show/${createdShow.id}` : '/bookings')
     } catch (error) {
       console.error('Error creating show:', error)
-      alert('Error creating show. Please try again.')
+      alert(`Error creating show: ${error instanceof Error ? error.message : 'Please try again.'}`)
     } finally {
       setLoading(false)
     }
@@ -442,6 +471,22 @@ function CreateShowContent() {
           <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '48px' }}>
             Create a listing for your house show and connect with talented musicians in your area.
           </p>
+
+          {requestDraft && (
+            <div style={{
+              marginBottom: '32px',
+              padding: '16px 18px',
+              borderRadius: '10px',
+              border: '1px solid rgba(212,130,10,0.2)',
+              background: 'rgba(44,34,24,0.35)',
+              color: '#F5F0E8',
+              lineHeight: '1.6'
+            }}>
+              {userRole === 'host'
+                ? 'This show is being created from an accepted invitation. Review the details and publish the ticket page.'
+                : 'This invitation is accepted. Share this link with the host account to publish the ticket page and start selling tickets.'}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             {/* Show Name */}

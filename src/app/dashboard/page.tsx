@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
   const [hostRequests, setHostRequests] = useState<BookingRequest[]>([])
   const [hostShows, setHostShows] = useState<HostShow[]>([])
+  const [musicianShows, setMusicianShows] = useState<HostShow[]>([])
   const [requestsLoading, setRequestsLoading] = useState(true)
   const [hostRequestsLoading, setHostRequestsLoading] = useState(true)
   const [requestsError, setRequestsError] = useState<string | null>(null)
@@ -155,6 +156,30 @@ export default function Dashboard() {
   }, [user?.id])
 
   useEffect(() => {
+    const loadMusicianShows = async () => {
+      if (!user?.id) return
+
+      try {
+        const { data: shows, error } = await supabase
+          .from('shows')
+          .select('id, host_id, artist_user_id, date, venue_address')
+          .eq('artist_user_id', user.id)
+
+        if (error) {
+          console.error('Error loading musician shows:', error)
+          return
+        }
+
+        setMusicianShows(shows || [])
+      } catch (error) {
+        console.error('Error loading musician shows:', error)
+      }
+    }
+
+    loadMusicianShows()
+  }, [user?.id])
+
+  useEffect(() => {
     const loadActiveMode = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -245,6 +270,19 @@ export default function Dashboard() {
 
   const getHostTicketingHref = (request: BookingRequest) => {
     const matchingShow = findHostShowForRequest(request)
+    return matchingShow ? `/show/${matchingShow.id}` : `/create-show?requestId=${request.id}`
+  }
+
+  const findMusicianShowForRequest = (request: BookingRequest) =>
+    musicianShows.find(show =>
+      show.host_id === request.host_id &&
+      show.artist_user_id === user?.id &&
+      show.date === request.proposed_date &&
+      show.venue_address === request.venue_address
+    )
+
+  const getMusicianTicketingHref = (request: BookingRequest) => {
+    const matchingShow = findMusicianShowForRequest(request)
     return matchingShow ? `/show/${matchingShow.id}` : `/create-show?requestId=${request.id}`
   }
 
@@ -491,7 +529,7 @@ export default function Dashboard() {
                   {request.status === 'accepted' && (
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <a
-                        href="/bookings"
+                        href={getMusicianTicketingHref(request)}
                         style={{
                           display: 'inline-block',
                           background: '#D4820A',
@@ -504,7 +542,7 @@ export default function Dashboard() {
                           fontWeight: '600'
                         }}
                       >
-                        Open Ticketing
+                        {findMusicianShowForRequest(request) ? 'Open Ticketing' : 'Create Show Link'}
                       </a>
                     </div>
                   )}
