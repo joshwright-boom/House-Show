@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
       venue_address: formData?.venue_address,
       show_date: normalizedDate,
       show_time: formData?.time,
+      ticket_price: parseFloat(formData?.ticket_price),
       status: 'on_sale',
       artist_user_id: user.id,
       host_user_id: user.id,
