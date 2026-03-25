@@ -38,6 +38,18 @@ interface Musician {
 const getShowDateValue = (show: Record<string, any>) =>
   show.date || show.show_date || show.event_date || show.scheduled_date || ''
 
+const getMissingColumnName = (message?: string | null) => {
+  if (!message) return null
+
+  const match = message.match(/'([^']+)'/)
+  return match?.[1] || null
+}
+
+const omitKey = <T extends Record<string, any>>(object: T, key: string) => {
+  const { [key]: _removed, ...rest } = object
+  return rest
+}
+
 interface BookingRequestDraft {
   id: string
   host_id: string
@@ -398,26 +410,42 @@ function CreateShowContent() {
     setSubmitError(null)
     
     try {
-      const baseShowData = {
+      const commonShowData = {
         show_name: formData.show_name,
         venue_name: formData.venue_name,
         venue_address: formData.venue_address,
-        time: formData.time,
         ticket_price: parseFloat(formData.ticket_price),
-        max_capacity: parseInt(formData.max_capacity),
         show_description: formData.show_description,
         genre_preference: formData.genre_preference,
         host_id: requestDraft?.host_id || user.id,
-        artist_user_id: requestDraft?.musician_id || selectedMusician?.id || null,
         status: 'open',
         created_at: new Date().toISOString()
       }
 
-      const showPayloads = [
-        { ...baseShowData, date: formData.date },
-        { ...baseShowData, show_date: formData.date },
-        { ...baseShowData, event_date: formData.date }
+      const datePayloads = [
+        { ...commonShowData, show_date: formData.date },
+        { ...commonShowData, event_date: formData.date },
+        { ...commonShowData, scheduled_date: formData.date },
+        { ...commonShowData, date: formData.date }
       ]
+
+      const timePayloads = datePayloads.flatMap(payload => [
+        { ...payload, time: formData.time },
+        { ...payload, show_time: formData.time }
+      ])
+
+      const capacityPayloads = timePayloads.flatMap(payload => [
+        { ...payload, max_capacity: parseInt(formData.max_capacity) },
+        { ...payload, capacity: parseInt(formData.max_capacity) }
+      ])
+
+      const artistPayloads = capacityPayloads.flatMap(payload => [
+        { ...payload, artist_user_id: requestDraft?.musician_id || selectedMusician?.id || null },
+        { ...payload, artist_id: requestDraft?.musician_id || selectedMusician?.id || null },
+        { ...payload, musician_id: requestDraft?.musician_id || selectedMusician?.id || null }
+      ])
+
+      const showPayloads = artistPayloads
 
       let insertError: { message?: string } | null = null
 
@@ -433,8 +461,24 @@ function CreateShowContent() {
 
         insertError = error
 
-        if (!error.message?.includes('column')) {
+        const missingColumn = getMissingColumnName(error.message)
+
+        if (!error.message?.includes('column') || !missingColumn) {
           break
+        }
+
+        if (missingColumn in payload) {
+          const retryPayload = omitKey(payload, missingColumn)
+          const { error: retryError } = await supabase
+            .from('shows')
+            .insert(retryPayload as any)
+
+          if (!retryError) {
+            insertError = null
+            break
+          }
+
+          insertError = retryError
         }
       }
       
@@ -448,8 +492,8 @@ function CreateShowContent() {
       const { data: createdShow, error: lookupError } = await supabase
         .from('shows')
         .select('*')
-        .eq('host_id', baseShowData.host_id)
-        .eq('venue_address', baseShowData.venue_address)
+        .eq('host_id', commonShowData.host_id)
+        .eq('venue_address', commonShowData.venue_address)
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
