@@ -6,13 +6,14 @@ import { supabase } from '@/lib/supabase'
 interface BookingRequest {
   id: string
   host_id: string
-  musician_id: string
+  created_at: string
   proposed_date: string
   venue_address: string
-  offer_amount: number
+  ticket_price: number | null
+  host_revenue_percent: number | null
+  musician_revenue_percent: number | null
   message: string
   status: 'pending' | 'accepted' | 'declined'
-  host_name: string
 }
 
 export default function Dashboard() {
@@ -59,39 +60,12 @@ export default function Dashboard() {
       try {
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select(`
-            id,
-            host_id,
-            musician_id,
-            proposed_date,
-            venue_address,
-            offer_amount,
-            message,
-            status,
-            host_profile:profiles!host_id(name)
-          `)
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_revenue_percent, musician_revenue_percent, message, status, host_id')
           .eq('musician_id', user.id)
-          .in('status', ['pending', 'accepted', 'declined'])
           .order('created_at', { ascending: false })
 
-        if (error) {
-          console.error('Error loading booking requests:', error)
-          return
-        }
-
-        const transformedRequests: BookingRequest[] = (requests || []).map((request: any) => ({
-          id: request.id,
-          host_id: request.host_id,
-          musician_id: request.musician_id,
-          proposed_date: request.proposed_date,
-          venue_address: request.venue_address,
-          offer_amount: request.offer_amount,
-          message: request.message,
-          status: request.status,
-          host_name: request.host_profile?.name || 'Unknown Host',
-        }))
-
-        setBookingRequests(transformedRequests)
+        if (error) console.error('Booking requests error:', error)
+        setBookingRequests(requests || [])
       } catch (error) {
         console.error('Error loading booking requests:', error)
       } finally {
@@ -319,7 +293,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        {request.host_name}
+                        {request.host_id}
                       </h3>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
                         Venue: {request.venue_address}
@@ -330,7 +304,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1rem', color: '#F0A500', marginBottom: '8px' }}>
-                        ${request.offer_amount}
+                        ${request.ticket_price ?? 0}
                       </div>
                       <div style={{
                         display: 'inline-block',
