@@ -40,6 +40,7 @@ interface BookingRequest {
   host_id: string
   musician_id: string
   proposed_date: string
+  show_date?: string
   venue_address: string
   ticket_price: number
   host_split: number
@@ -58,8 +59,14 @@ const getShowDateValue = (show: Record<string, any>) =>
 const getShowArtistId = (show: Record<string, any>) =>
   show.artist_user_id || show.artist_id || show.musician_id || null
 
+const getShowHostId = (show: Record<string, any>) =>
+  show.host_user_id || show.host_id || null
+
 const getShowCapacity = (show: Record<string, any>) =>
   show.max_capacity || show.capacity || 0
+
+const getRequestDateValue = (request: BookingRequest) =>
+  request.show_date || request.proposed_date || ''
 
 export default function Bookings() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
@@ -108,7 +115,7 @@ export default function Bookings() {
       const { data: shows, error } = await supabase
         .from('shows')
         .select('*')
-        .or(`host_id.eq.${userId},artist_user_id.eq.${userId},artist_id.eq.${userId},musician_id.eq.${userId}`)
+        .or(`host_user_id.eq.${userId},host_id.eq.${userId},artist_user_id.eq.${userId},artist_id.eq.${userId},musician_id.eq.${userId}`)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -144,7 +151,7 @@ export default function Bookings() {
           status,
           created_at: show.created_at,
           musician_id: getShowArtistId(show),
-          host_id: show.host_id
+          host_id: getShowHostId(show)
         }
       })
 
@@ -254,7 +261,7 @@ export default function Bookings() {
       const { data: shows, error } = await supabase
         .from('shows')
         .select('*')
-        .eq('status', 'open')
+        .in('status', ['open', 'on_sale'])
         .order('created_at', { ascending: false })
       
       if (error) {
@@ -271,7 +278,7 @@ export default function Bookings() {
         time: show.time,
         price: show.ticket_price,
         total_tickets: getShowCapacity(show),
-        host_id: show.host_id,
+        host_id: getShowHostId(show),
         status: 'available',
         created_at: show.created_at
       }))
@@ -293,7 +300,7 @@ export default function Bookings() {
     bookings.find(show =>
       show.host_id === request.host_id &&
       show.musician_id === request.musician_id &&
-      show.date === request.proposed_date &&
+      show.date === getRequestDateValue(request) &&
       show.venue_address === request.venue_address
     )
 

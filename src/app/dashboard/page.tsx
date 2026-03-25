@@ -9,6 +9,7 @@ interface BookingRequest {
   musician_id?: string
   created_at: string
   proposed_date: string
+  show_date?: string
   venue_address: string
   ticket_price: number | null
   host_split: number | null
@@ -30,6 +31,12 @@ const getShowDateValue = (show: Record<string, any>) =>
 
 const getShowArtistId = (show: Record<string, any>) =>
   show.artist_user_id || show.artist_id || show.musician_id || null
+
+const getShowHostId = (show: Record<string, any>) =>
+  show.host_user_id || show.host_id || null
+
+const getRequestDateValue = (request: BookingRequest) =>
+  request.show_date || request.proposed_date || ''
 
 export default function Dashboard() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string; active_mode?: string } | null>(null)
@@ -145,7 +152,7 @@ export default function Dashboard() {
         const { data: shows, error } = await supabase
           .from('shows')
           .select('*')
-          .eq('host_id', user.id)
+          .or(`host_user_id.eq.${user.id},host_id.eq.${user.id},artist_user_id.eq.${user.id},artist_id.eq.${user.id},musician_id.eq.${user.id}`)
 
         if (error) {
           console.error('Error loading host shows:', error)
@@ -154,7 +161,7 @@ export default function Dashboard() {
 
         setHostShows((shows || []).map((show: any) => ({
           id: show.id,
-          host_id: show.host_id,
+          host_id: getShowHostId(show),
           artist_user_id: getShowArtistId(show),
           date: getShowDateValue(show),
           venue_address: show.venue_address
@@ -184,7 +191,7 @@ export default function Dashboard() {
 
         setMusicianShows((shows || []).map((show: any) => ({
           id: show.id,
-          host_id: show.host_id,
+          host_id: getShowHostId(show),
           artist_user_id: getShowArtistId(show),
           date: getShowDateValue(show),
           venue_address: show.venue_address
@@ -282,7 +289,7 @@ export default function Dashboard() {
     hostShows.find(show =>
       show.host_id === request.host_id &&
       show.artist_user_id === request.musician_id &&
-      show.date === request.proposed_date &&
+      show.date === getRequestDateValue(request) &&
       show.venue_address === request.venue_address
     )
 
@@ -295,7 +302,7 @@ export default function Dashboard() {
     musicianShows.find(show =>
       show.host_id === request.host_id &&
       show.artist_user_id === user?.id &&
-      show.date === request.proposed_date &&
+      show.date === getRequestDateValue(request) &&
       show.venue_address === request.venue_address
     )
 
