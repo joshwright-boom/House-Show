@@ -119,6 +119,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Show date is missing. Please choose a date before publishing.' }, { status: 400 })
     }
 
+    let bookingId: string | null = null
+
+    if (requestDraft?.id) {
+      const bookingLookupColumns = ['booking_request_id', 'request_id', 'id']
+
+      for (const column of bookingLookupColumns) {
+        const { data: bookingRecord, error: bookingLookupError } = await dbSupabase
+          .from('bookings')
+          .select('id')
+          .eq(column, requestDraft.id)
+          .limit(1)
+          .maybeSingle()
+
+        if (!bookingLookupError && bookingRecord?.id) {
+          bookingId = bookingRecord.id
+          break
+        }
+      }
+    }
+
     const showInsertPayload = {
       artist_name: (artist_name || formData?.artist_name || '').trim(),
       venue_name: formData?.venue_name,
@@ -130,7 +150,7 @@ export async function POST(request: NextRequest) {
       artist_user_id: user.id,
       host_user_id: user.id,
       slug: buildShowSlug(formData?.show_name),
-      booking_id: requestDraft?.id || null
+      booking_id: bookingId
     }
 
     if (!showInsertPayload.artist_name) {
