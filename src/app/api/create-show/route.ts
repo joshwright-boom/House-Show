@@ -122,13 +122,14 @@ export async function POST(request: NextRequest) {
       host_id: string
       musician_id: string
       proposed_date?: string
+      show_date?: string
       status?: string
     } | null = null
 
     if (requestId) {
       const { data: bookingRequest, error: requestError } = await dbSupabase
         .from('booking_requests')
-        .select('id, host_id, musician_id, proposed_date, status')
+        .select('id, host_id, musician_id, proposed_date, show_date, status')
         .eq('id', requestId)
         .single()
 
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     const musicianId = requestDraft?.musician_id || selectedMusicianId || null
     const maxCapacity = Number.parseInt(formData?.max_capacity || '0', 10)
-    const normalizedDate = normalizeDateForInsert(formData?.date || requestDraft?.proposed_date || null)
+    const normalizedDate = normalizeDateForInsert(formData?.date || requestDraft?.show_date || requestDraft?.proposed_date || null)
 
     if (!normalizedDate) {
       return NextResponse.json({ error: 'Show date is missing. Please choose a date before publishing.' }, { status: 400 })

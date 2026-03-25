@@ -23,6 +23,7 @@ interface BookingRequest {
   host_id: string
   musician_id: string
   proposed_date: string
+  show_date?: string
   venue_address: string
   ticket_price: number
   host_split: number
@@ -334,6 +335,7 @@ export default function FindMusicians() {
         host_id: user.id,
         musician_id: selectedMusician.id,
         proposed_date: inviteForm.proposed_date,
+        show_date: inviteForm.proposed_date,
         venue_address: inviteForm.venue_address,
         ticket_price: parseFloat(inviteForm.ticket_price),
         host_split: parseFloat(inviteForm.host_split),

@@ -60,6 +60,7 @@ interface BookingRequestDraft {
   host_id: string
   musician_id: string
   proposed_date: string
+  show_date?: string
   venue_address: string
   ticket_price: number
   message: string
@@ -154,7 +155,7 @@ function CreateShowContent() {
 
       const { data: request, error } = await supabase
         .from('booking_requests')
-        .select('id, host_id, musician_id, proposed_date, venue_address, ticket_price, message')
+        .select('id, host_id, musician_id, proposed_date, show_date, venue_address, ticket_price, message')
         .eq('id', requestId)
         .single()
 
@@ -186,7 +187,7 @@ function CreateShowContent() {
         show_name: musician?.name ? `${musician.name} Live at HouseShow` : prev.show_name,
         venue_name: prev.venue_name || request.venue_address,
         venue_address: request.venue_address,
-        date: normalizeDateForInput(request.proposed_date),
+        date: normalizeDateForInput(request.show_date || request.proposed_date),
         time: prev.time || '19:00',
         ticket_price: String(request.ticket_price ?? ''),
         max_capacity: prev.max_capacity || '40',

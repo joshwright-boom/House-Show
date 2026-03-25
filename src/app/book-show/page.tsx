@@ -8,6 +8,7 @@ interface BookingRequest {
   musician_id: string
   host_id: string
   proposed_date: string
+  show_date: string
   proposed_time: string
   venue_address: string
   offer_amount: number
@@ -124,6 +125,7 @@ function BookShowContent() {
         musician_id: musician.id,
         host_id: user.id,
         proposed_date: formData.proposed_date,
+        show_date: formData.proposed_date,
         proposed_time: formData.proposed_time,
         venue_address: formData.venue_address,
         offer_amount: parseFloat(formData.offer_amount),
