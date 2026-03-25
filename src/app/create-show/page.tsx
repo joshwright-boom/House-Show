@@ -38,49 +38,6 @@ interface Musician {
 const getShowDateValue = (show: Record<string, any>) =>
   show.date || show.show_date || show.event_date || show.scheduled_date || ''
 
-const getMissingColumnName = (message?: string | null) => {
-  if (!message) return null
-
-  const match = message.match(/'([^']+)'/)
-  return match?.[1] || null
-}
-
-const omitKey = <T extends Record<string, any>>(object: T, key: string) => {
-  const { [key]: _removed, ...rest } = object
-  return rest
-}
-
-const insertShowWithFallback = async (initialPayload: Record<string, any>) => {
-  let payload = { ...initialPayload }
-  let attempts = 0
-
-  while (attempts < 12) {
-    const { error } = await supabase
-      .from('shows')
-      .insert(payload as any)
-
-    if (!error) {
-      return { error: null }
-    }
-
-    const missingColumn = getMissingColumnName(error.message)
-    const isMissingColumnError = error.message?.includes('column') && missingColumn
-
-    if (!isMissingColumnError || !missingColumn || !(missingColumn in payload)) {
-      return { error }
-    }
-
-    payload = omitKey(payload, missingColumn)
-    attempts += 1
-  }
-
-  return {
-    error: {
-      message: 'Show creation failed after removing unsupported show columns.'
-    }
-  }
-}
-
 interface BookingRequestDraft {
   id: string
   host_id: string
@@ -441,76 +398,33 @@ function CreateShowContent() {
     setSubmitError(null)
     
     try {
-      const commonShowData = {
-        show_name: formData.show_name,
-        venue_name: formData.venue_name,
-        venue_address: formData.venue_address,
-        ticket_price: parseFloat(formData.ticket_price),
-        show_description: formData.show_description,
-        genre_preference: formData.genre_preference,
-        host_id: user.id,
-        status: 'open',
-        created_at: new Date().toISOString()
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+
+      if (!accessToken) {
+        throw new Error('Your session expired. Please sign in again and retry.')
       }
 
-      const datePayloads = [
-        { ...commonShowData, show_date: formData.date },
-        { ...commonShowData, event_date: formData.date },
-        { ...commonShowData, scheduled_date: formData.date },
-        { ...commonShowData, date: formData.date }
-      ]
+      const response = await fetch('/api/create-show', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          requestId,
+          formData,
+          selectedMusicianId: selectedMusician?.id || null
+        })
+      })
 
-      const timePayloads = datePayloads.flatMap(payload => [
-        { ...payload, time: formData.time },
-        { ...payload, show_time: formData.time }
-      ])
+      const result = await response.json()
 
-      const capacityPayloads = timePayloads.flatMap(payload => [
-        { ...payload, max_capacity: parseInt(formData.max_capacity) },
-        { ...payload, capacity: parseInt(formData.max_capacity) }
-      ])
-
-      const artistPayloads = capacityPayloads.flatMap(payload => [
-        { ...payload, artist_user_id: requestDraft?.musician_id || selectedMusician?.id || null },
-        { ...payload, artist_id: requestDraft?.musician_id || selectedMusician?.id || null },
-        { ...payload, musician_id: requestDraft?.musician_id || selectedMusician?.id || null }
-      ])
-
-      const showPayloads = artistPayloads
-
-      let insertError: { message?: string } | null = null
-
-      for (const payload of showPayloads) {
-        const { error } = await insertShowWithFallback(payload)
-        if (!error) {
-          insertError = null
-          break
-        }
-
-        insertError = error
-      }
-      
-      if (insertError) {
-        console.error('Error creating show:', insertError)
-        setSubmitError(insertError.message || 'Please try again.')
-        alert(`Error creating show: ${insertError.message || 'Please try again.'}`)
-        return
+      if (!response.ok) {
+        throw new Error(result.error || 'Please try again.')
       }
 
-      const { data: createdShow, error: lookupError } = await supabase
-        .from('shows')
-        .select('*')
-        .eq('host_id', commonShowData.host_id)
-        .eq('venue_address', commonShowData.venue_address)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (lookupError) {
-        console.error('Error finding created show:', lookupError)
-      }
-      
-      router.push(createdShow?.id ? `/show/${createdShow.id}` : '/bookings')
+      router.push(result.showId ? `/show/${result.showId}` : '/bookings')
     } catch (error) {
       console.error('Error creating show:', error)
       setSubmitError(error instanceof Error ? error.message : 'Please try again.')
