@@ -24,6 +24,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null)
   const [ticketQuantity, setTicketQuantity] = useState(1)
   const [copied, setCopied] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
 
   useEffect(() => {
     const loadShow = async () => {
@@ -72,6 +73,53 @@ export default function ShowPage({ params }: { params: { id: string } }) {
     window.setTimeout(() => setCopied(false), 2000)
   }
 
+  const shareText = show
+    ? `Come to ${show.show_name} on ${formatDate(show.date)} at ${show.venue_name}. Get tickets here: ${showUrl}`
+    : ''
+
+  const shareOnX = () => {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank')
+  }
+
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(showUrl)}`, '_blank')
+  }
+
+  const shareByEmail = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent(show?.show_name || 'HouseShow')}&body=${encodeURIComponent(shareText)}`
+  }
+
+  const startCheckout = async () => {
+    if (!show) return
+
+    try {
+      setCheckoutLoading(true)
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          showId: show.id,
+          showName: show.show_name,
+          ticketPrice: show.ticket_price,
+          quantity: ticketQuantity
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || 'Unable to start checkout')
+      }
+
+      window.location.href = data.url
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Unable to start checkout')
+    } finally {
+      setCheckoutLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5F0E8' }}>
@@ -116,7 +164,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             <p style={{ color: '#F5F0E8', lineHeight: '1.7', fontSize: '1rem', marginBottom: '24px' }}>
               {show.show_description}
             </p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
               <button
                 onClick={copyLink}
                 style={{
@@ -131,6 +179,32 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               >
                 {copied ? 'Link Copied' : 'Copy Show Link'}
               </button>
+              <button
+                onClick={shareOnX}
+                style={{
+                  background: 'transparent',
+                  color: '#F5F0E8',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '12px 18px',
+                  cursor: 'pointer'
+                }}
+              >
+                Share on X
+              </button>
+              <button
+                onClick={shareOnFacebook}
+                style={{
+                  background: 'transparent',
+                  color: '#F5F0E8',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '12px 18px',
+                  cursor: 'pointer'
+                }}
+              >
+                Share on Facebook
+              </button>
               <a
                 href={`sms:?body=${encodeURIComponent(`Come to ${show.show_name} on ${formatDate(show.date)} at ${show.venue_name}. ${showUrl}`)}`}
                 style={{
@@ -144,6 +218,22 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               >
                 Share by Text
               </a>
+              <button
+                onClick={shareByEmail}
+                style={{
+                  background: 'transparent',
+                  color: '#F5F0E8',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '12px 18px',
+                  cursor: 'pointer'
+                }}
+              >
+                Share by Email
+              </button>
+            </div>
+            <div style={{ color: '#8C7B6B', lineHeight: '1.6' }}>
+              Use these buttons to promote the show across text, email, X, and Facebook with the same ticket link.
             </div>
           </section>
 
@@ -179,7 +269,8 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               <span style={{ color: '#F0A500', fontWeight: 700 }}>${totalPrice.toFixed(2)}</span>
             </div>
             <button
-              onClick={() => alert('Stripe checkout is the next step to wire to this live show page.')}
+              onClick={startCheckout}
+              disabled={checkoutLoading}
               style={{
                 width: '100%',
                 background: 'linear-gradient(135deg, #D4820A, #F0A500)',
@@ -188,10 +279,11 @@ export default function ShowPage({ params }: { params: { id: string } }) {
                 borderRadius: '8px',
                 padding: '14px 18px',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: checkoutLoading ? 'not-allowed' : 'pointer',
+                opacity: checkoutLoading ? 0.7 : 1
               }}
             >
-              Continue to Checkout
+              {checkoutLoading ? 'Opening Checkout...' : 'Continue to Checkout'}
             </button>
           </aside>
         </div>

@@ -441,6 +441,27 @@ export default function Dashboard() {
                       </button>
                     </div>
                   )}
+
+                  {request.status === 'accepted' && (
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <a
+                        href="/bookings"
+                        style={{
+                          display: 'inline-block',
+                          background: '#D4820A',
+                          color: '#1A1410',
+                          border: '1px solid #D4820A',
+                          borderRadius: '6px',
+                          padding: '10px 16px',
+                          textDecoration: 'none',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Open Ticketing
+                      </a>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -541,6 +562,27 @@ export default function Dashboard() {
                   {request.message && (
                     <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
                       Original message: <span style={{ color: '#F5F0E8' }}>{request.message}</span>
+                    </div>
+                  )}
+
+                  {request.status === 'accepted' && (
+                    <div style={{ marginTop: '16px' }}>
+                      <a
+                        href="/bookings"
+                        style={{
+                          display: 'inline-block',
+                          background: '#D4820A',
+                          color: '#1A1410',
+                          border: '1px solid #D4820A',
+                          borderRadius: '6px',
+                          padding: '10px 16px',
+                          textDecoration: 'none',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Create or Share Ticket Page
+                      </a>
                     </div>
                   )}
                 </div>
