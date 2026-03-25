@@ -64,6 +64,7 @@ export default function Dashboard() {
           .eq('musician_id', user.id)
           .order('created_at', { ascending: false })
 
+        console.log('BOOKING DEBUG:', { userId: user.id, requests, error })
         if (error) console.error('Booking requests error:', error)
         setBookingRequests(requests || [])
       } catch (error) {
