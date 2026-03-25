@@ -57,6 +57,9 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   }, [params.id])
 
   const totalPrice = show ? Number(show.ticket_price) * ticketQuantity : 0
+  const mapsUrl = show
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(show.venue_address)}`
+    : ''
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('en-US', {
@@ -159,7 +162,16 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             <div style={{ color: '#8C7B6B', fontSize: '1rem', marginBottom: '24px', lineHeight: '1.7' }}>
               <div>{formatDate(show.date)} at {show.time}</div>
               <div>{show.venue_name}</div>
-              <div>{show.venue_address}</div>
+              <div>
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#F0A500', textDecoration: 'none' }}
+                >
+                  {show.venue_address}
+                </a>
+              </div>
             </div>
             <p style={{ color: '#F5F0E8', lineHeight: '1.7', fontSize: '1rem', marginBottom: '24px' }}>
               {show.show_description}
@@ -205,6 +217,21 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               >
                 Share on Facebook
               </button>
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-block',
+                  color: '#F5F0E8',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '12px 18px'
+                }}
+              >
+                Open in Maps
+              </a>
               <a
                 href={`sms:?body=${encodeURIComponent(`Come to ${show.show_name} on ${formatDate(show.date)} at ${show.venue_name}. ${showUrl}`)}`}
                 style={{

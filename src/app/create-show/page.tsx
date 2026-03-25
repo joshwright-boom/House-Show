@@ -50,6 +50,7 @@ function CreateShowContent() {
   const [userRole, setUserRole] = useState<'host' | 'musician' | null>(null)
   const [requestDraft, setRequestDraft] = useState<BookingRequestDraft | null>(null)
   const [loading, setLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
   const [musicianSearch, setMusicianSearch] = useState('')
   const [musicianResults, setMusicianResults] = useState<Musician[]>([])
@@ -391,6 +392,7 @@ function CreateShowContent() {
     }
     
     setLoading(true)
+    setSubmitError(null)
     
     try {
       const showData = {
@@ -410,21 +412,35 @@ function CreateShowContent() {
       }
       
       // Save to Supabase
-      const { data: createdShow, error } = await supabase
+      const { error } = await supabase
         .from('shows')
         .insert(showData)
-        .select('id')
-        .single()
       
       if (error) {
         console.error('Error creating show:', error)
+        setSubmitError(error.message || 'Please try again.')
         alert(`Error creating show: ${error.message || 'Please try again.'}`)
         return
       }
+
+      const { data: createdShow, error: lookupError } = await supabase
+        .from('shows')
+        .select('id')
+        .eq('host_id', showData.host_id)
+        .eq('date', showData.date)
+        .eq('venue_address', showData.venue_address)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (lookupError) {
+        console.error('Error finding created show:', lookupError)
+      }
       
-      router.push(createdShow ? `/show/${createdShow.id}` : '/bookings')
+      router.push(createdShow?.id ? `/show/${createdShow.id}` : '/bookings')
     } catch (error) {
       console.error('Error creating show:', error)
+      setSubmitError(error instanceof Error ? error.message : 'Please try again.')
       alert(`Error creating show: ${error instanceof Error ? error.message : 'Please try again.'}`)
     } finally {
       setLoading(false)
@@ -485,6 +501,20 @@ function CreateShowContent() {
               {userRole === 'host'
                 ? 'This show is being created from an accepted invitation. Review the details and publish the ticket page.'
                 : 'This invitation is accepted. Share this link with the host account to publish the ticket page and start selling tickets.'}
+            </div>
+          )}
+
+          {submitError && (
+            <div style={{
+              marginBottom: '24px',
+              padding: '14px 16px',
+              borderRadius: '10px',
+              border: '1px solid rgba(180,70,70,0.4)',
+              background: 'rgba(100,25,25,0.22)',
+              color: '#F5B5B5',
+              lineHeight: '1.5'
+            }}>
+              Error creating show: {submitError}
             </div>
           )}
 
