@@ -413,97 +413,6 @@ export default function FindMusicians() {
           Find Musicians
         </h1>
 
-        {/* Map Section */}
-        <div style={{
-          background: 'rgba(26,20,16,0.5)',
-          border: '1px solid rgba(212,130,10,0.2)',
-          borderRadius: '12px',
-          padding: '24px',
-          marginBottom: '32px'
-        }}>
-          <h2 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: '1.5rem',
-            marginBottom: '16px'
-          }}>
-            Musicians Near You
-          </h2>
-          
-          <div style={{
-            background: 'rgba(26,20,16,0.5)',
-            border: '1px solid rgba(212,130,10,0.2)',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '16px'
-          }}>
-            {mapLoading ? (
-              <div style={{
-                height: '400px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#8C7B6B',
-                fontFamily: "'DM Sans', sans-serif"
-              }}>
-                Loading map...
-              </div>
-            ) : mapError ? (
-              <div style={{
-                height: '400px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#8C7B6B',
-                fontFamily: "'DM Sans', sans-serif"
-              }}>
-                <div style={{ marginBottom: '16px' }}>Location not available</div>
-                <div style={{ fontSize: '0.9rem', textAlign: 'center' }}>
-                  Please set your location in your profile to see nearby musicians
-                </div>
-              </div>
-            ) : (
-              <div
-                ref={mapContainer}
-                style={{
-                  height: '400px',
-                  borderRadius: '8px',
-                  overflow: 'hidden'
-                }}
-              />
-            )}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            alignItems: 'center',
-            fontSize: '0.9rem',
-            color: '#8C7B6B'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#F0A500',
-                border: '2px solid #fff'
-              }} />
-              Your Location
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#4CAF50',
-                border: '2px solid #fff'
-              }} />
-              Musicians (100 miles)
-            </div>
-          </div>
-        </div>
-
         {/* Musicians List */}
         <div style={{
           background: 'rgba(26,20,16,0.5)',
@@ -640,6 +549,97 @@ export default function FindMusicians() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Map Section */}
+        <div style={{
+          background: 'rgba(26,20,16,0.5)',
+          border: '1px solid rgba(212,130,10,0.2)',
+          borderRadius: '12px',
+          padding: '24px',
+          marginTop: '32px'
+        }}>
+          <h2 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: '1.5rem',
+            marginBottom: '16px'
+          }}>
+            Musicians Near You
+          </h2>
+          
+          <div style={{
+            background: 'rgba(26,20,16,0.5)',
+            border: '1px solid rgba(212,130,10,0.2)',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '16px'
+          }}>
+            {mapLoading ? (
+              <div style={{
+                height: '400px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#8C7B6B',
+                fontFamily: "'DM Sans', sans-serif"
+              }}>
+                Loading map...
+              </div>
+            ) : mapError ? (
+              <div style={{
+                height: '400px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#8C7B6B',
+                fontFamily: "'DM Sans', sans-serif"
+              }}>
+                <div style={{ marginBottom: '16px' }}>Location not available</div>
+                <div style={{ fontSize: '0.9rem', textAlign: 'center' }}>
+                  Please set your location in your profile to see nearby musicians
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={mapContainer}
+                style={{
+                  height: '400px',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}
+              />
+            )}
+          </div>
+
+          <div style={{
+            display: 'flex',
+            gap: '24px',
+            alignItems: 'center',
+            fontSize: '0.9rem',
+            color: '#8C7B6B'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: '#F0A500',
+                border: '2px solid #fff'
+              }} />
+              Your Location
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: '#4CAF50',
+                border: '2px solid #fff'
+              }} />
+              Musicians (100 miles)
+            </div>
+          </div>
         </div>
       </div>
 
