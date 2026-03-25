@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     let requestDraft: {
       id: string
-      host_id: string
+      host_user_id: string
       musician_id: string
       proposed_date?: string
       show_date?: string
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (requestId) {
       const { data: bookingRequest, error: requestError } = await dbSupabase
         .from('booking_requests')
-        .select('id, host_id, musician_id, proposed_date, show_date, status')
+        .select('id, host_user_id, musician_id, proposed_date, show_date, status')
         .eq('id', requestId)
         .single()
 
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: requestError?.message || 'Booking request not found.' }, { status: 404 })
       }
 
-      if (bookingRequest.host_id !== user.id) {
+      if (bookingRequest.host_user_id !== user.id) {
         return NextResponse.json({ error: 'Only the host who sent this invitation can create the show.' }, { status: 403 })
       }
 
@@ -162,7 +162,6 @@ export async function POST(request: NextRequest) {
       ticket_price: Number.parseFloat(formData?.ticket_price || '0'),
       show_description: formData?.show_description || '',
       genre_preference: formData?.genre_preference || 'Any',
-      host_id: user.id,
       host_user_id: user.id,
       status: 'on_sale',
       slug: buildShowSlug(formData?.show_name),
@@ -198,7 +197,7 @@ export async function POST(request: NextRequest) {
       const withSessionUsers = { ...payload, artist_user_id: user.id, host_user_id: user.id }
       return [
         { ...withSessionUsers },
-        { ...withSessionUsers, artist_id: musicianId },
+        { ...withSessionUsers, artist_user_id: musicianId },
         { ...withSessionUsers, musician_id: musicianId }
       ]
     })
@@ -235,7 +234,7 @@ export async function POST(request: NextRequest) {
     const { data: createdShow, error: lookupError } = await dbSupabase
       .from('shows')
       .select('*')
-      .eq('host_id', user.id)
+      .eq('host_user_id', user.id)
       .eq('venue_address', commonShowData.venue_address)
       .order('created_at', { ascending: false })
       .limit(1)
