@@ -431,7 +431,8 @@ function CreateShowContent() {
         body: JSON.stringify({
           requestId,
           formData,
-          selectedMusicianId: selectedMusician?.id || null
+          selectedMusicianId: selectedMusician?.id || null,
+          artist_name: selectedMusician?.name || null
         })
       })
 

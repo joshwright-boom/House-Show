@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { requestId, formData, selectedMusicianId } = body || {}
+    const { requestId, formData, selectedMusicianId, artist_name } = body || {}
 
     const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
 
     const commonShowData = {
       show_name: formData?.show_name,
+      artist_name: artist_name || null,
       venue_name: formData?.venue_name,
       venue_address: formData?.venue_address,
       ticket_price: Number.parseFloat(formData?.ticket_price || '0'),
