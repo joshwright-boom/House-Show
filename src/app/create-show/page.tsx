@@ -109,6 +109,23 @@ function CreateShowContent() {
       }
 
       setUser({ id: user.id, email: user.email })
+
+      if (profile?.user_type === 'host') {
+        const { data: hostProfile } = await supabase
+          .from('host_profiles')
+          .select('venue_name, address, capacity')
+          .eq('id', user.id)
+          .single()
+
+        if (hostProfile) {
+          setFormData(prev => ({
+            ...prev,
+            venue_name: prev.venue_name || hostProfile.venue_name || '',
+            venue_address: prev.venue_address || hostProfile.address || '',
+            max_capacity: prev.max_capacity || (hostProfile.capacity ? String(hostProfile.capacity) : '')
+          }))
+        }
+      }
     }
     
     checkUser()

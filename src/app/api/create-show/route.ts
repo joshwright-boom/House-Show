@@ -48,9 +48,9 @@ const insertShowWithFallback = async (adminSupabase: any, initialPayload: Record
 
 export async function POST(request: NextRequest) {
   try {
-    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || serviceRoleKey === 'your_service_role_key_here') {
+    if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json(
-        { error: 'Supabase service role key is not configured on the server.' },
+        { error: 'Supabase environment variables are not configured on the server.' },
         { status: 500 }
       )
     }
@@ -81,9 +81,12 @@ export async function POST(request: NextRequest) {
 
     const user = authData.user
 
-    const adminSupabase = createClient(supabaseUrl, serviceRoleKey)
+    const hasServiceRole = !!serviceRoleKey && serviceRoleKey !== 'your_service_role_key_here'
+    const dbSupabase = hasServiceRole
+      ? createClient(supabaseUrl, serviceRoleKey)
+      : authSupabase
 
-    const { data: profile, error: profileError } = await adminSupabase
+    const { data: profile, error: profileError } = await dbSupabase
       .from('profiles')
       .select('id, user_type')
       .eq('id', user.id)
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
     } | null = null
 
     if (requestId) {
-      const { data: bookingRequest, error: requestError } = await adminSupabase
+      const { data: bookingRequest, error: requestError } = await dbSupabase
         .from('booking_requests')
         .select('id, host_id, musician_id, status')
         .eq('id', requestId)
@@ -163,7 +166,7 @@ export async function POST(request: NextRequest) {
     let insertError: { message?: string } | null = null
 
     for (const payload of showPayloads) {
-      const { error } = await insertShowWithFallback(adminSupabase, payload)
+      const { error } = await insertShowWithFallback(dbSupabase, payload)
 
       if (!error) {
         insertError = null
@@ -174,10 +177,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (insertError) {
+      if (!hasServiceRole && insertError.message?.includes('row-level security')) {
+        return NextResponse.json(
+          {
+            error:
+              'Show creation is blocked because the Supabase server key is missing in Vercel and the live shows table is rejecting browser-auth inserts. Add SUPABASE_SERVICE_ROLE_KEY in Vercel to finish this flow.'
+          },
+          { status: 500 }
+        )
+      }
+
       return NextResponse.json({ error: insertError.message || 'Unable to create show.' }, { status: 400 })
     }
 
-    const { data: createdShow, error: lookupError } = await adminSupabase
+    const { data: createdShow, error: lookupError } = await dbSupabase
       .from('shows')
       .select('*')
       .eq('host_id', user.id)
