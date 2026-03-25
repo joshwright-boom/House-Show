@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       show_description: formData?.show_description || '',
       genre_preference: formData?.genre_preference || 'Any',
       host_id: user.id,
-      status: 'open',
+      status: 'draft',
       created_at: new Date().toISOString()
     }
 
