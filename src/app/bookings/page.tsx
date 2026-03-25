@@ -8,8 +8,9 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
 interface Booking {
   id: string
-  artist_name: string
+  show_name: string
   venue_name: string
+  venue_address?: string
   date: string
   time: string
   price: number
@@ -48,6 +49,7 @@ interface BookingRequest {
   created_at: string
   host_name?: string
   host_email?: string
+  musician_name?: string
 }
 
 export default function Bookings() {
@@ -55,6 +57,7 @@ export default function Bookings() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [availableShows, setAvailableShows] = useState<Show[]>([])
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
+  const [hostRequests, setHostRequests] = useState<BookingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
 
@@ -83,6 +86,8 @@ export default function Bookings() {
       if (profile?.user_type === 'musician') {
         await fetchAvailableShows()
         await fetchBookingRequests(user.id)
+      } else {
+        await fetchHostRequests(user.id)
       }
     }
     
@@ -91,37 +96,49 @@ export default function Bookings() {
 
   const fetchBookings = async (userId: string) => {
     try {
-      // Mock data for now - replace with actual Supabase query
-      const mockBookings: Booking[] = [
-        {
-          id: '1',
-          artist_name: 'The Midnight Jazz',
-          venue_name: 'Sarah\'s Living Room',
-          date: '2024-03-20',
-          time: '8:00 PM',
-          price: 25,
-          tickets_sold: 15,
-          total_tickets: 20,
-          status: 'upcoming',
-          created_at: '2024-02-15T10:00:00Z',
-          musician_id: userId,
-          host_id: 'host-123'
-        },
-        {
-          id: '2',
-          artist_name: 'Acoustic Dreams',
-          venue_name: 'Mike\'s Basement',
-          date: '2024-01-15',
-          time: '7:30 PM',
-          price: 20,
-          tickets_sold: 18,
-          total_tickets: 25,
-          status: 'past',
-          created_at: '2024-01-10T14:30:00Z'
+      const { data: shows, error } = await supabase
+        .from('shows')
+        .select('id, show_name, venue_name, venue_address, date, time, ticket_price, max_capacity, status, created_at, host_id, artist_user_id')
+        .or(`host_id.eq.${userId},artist_user_id.eq.${userId}`)
+        .order('date', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching bookings:', error)
+        return
+      }
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const transformedBookings: Booking[] = (shows || []).map(show => {
+        const showDate = new Date(show.date)
+        showDate.setHours(0, 0, 0, 0)
+
+        const status: Booking['status'] =
+          show.status === 'cancelled'
+            ? 'cancelled'
+            : showDate < today
+              ? 'past'
+              : 'upcoming'
+
+        return {
+          id: show.id,
+          show_name: show.show_name,
+          venue_name: show.venue_name,
+          venue_address: show.venue_address,
+          date: show.date,
+          time: show.time,
+          price: show.ticket_price,
+          tickets_sold: 0,
+          total_tickets: show.max_capacity,
+          status,
+          created_at: show.created_at,
+          musician_id: show.artist_user_id,
+          host_id: show.host_id
         }
-      ]
-      
-      setBookings(mockBookings)
+      })
+
+      setBookings(transformedBookings)
     } catch (error) {
       console.error('Error fetching bookings:', error)
     } finally {
@@ -134,10 +151,7 @@ export default function Bookings() {
       // Fetch booking requests for this musician
       const { data: requests, error } = await supabase
         .from('booking_requests')
-        .select(`
-          *,
-          host_profile:profiles!host_id(name, email)
-        `)
+        .select('*')
         .eq('musician_id', userId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -150,13 +164,37 @@ export default function Bookings() {
       // Transform data to include host name
       const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
         ...request,
-        host_name: request.host_profile?.name || 'Unknown Host',
-        host_email: request.host_profile?.email || ''
+        host_name: 'Host',
+        host_email: ''
       }))
 
       setBookingRequests(transformedRequests)
     } catch (error) {
       console.error('Error fetching booking requests:', error)
+    }
+  }
+
+  const fetchHostRequests = async (userId: string) => {
+    try {
+      const { data: requests, error } = await supabase
+        .from('booking_requests')
+        .select('*, musician_profile:profiles!musician_id(name)')
+        .eq('host_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching host booking requests:', error)
+        return
+      }
+
+      const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
+        ...request,
+        musician_name: request.musician_profile?.[0]?.name || 'Musician'
+      }))
+
+      setHostRequests(transformedRequests)
+    } catch (error) {
+      console.error('Error fetching host booking requests:', error)
     }
   }
 
@@ -173,7 +211,7 @@ export default function Bookings() {
       if (user) {
         await fetchBookingRequests(user.id)
       }
-      alert('Booking request accepted!')
+      alert('Booking request accepted! The host can now create the ticket page for this show.')
     } catch (error) {
       console.error('Error accepting request:', error)
       alert('Failed to accept request. Please try again.')
@@ -239,6 +277,16 @@ export default function Bookings() {
     window.location.href = `/book-show?id=${show.id}`
   }
 
+  const getShowHref = (showId: string) => `/show/${showId}`
+
+  const findMatchingShow = (request: BookingRequest) =>
+    bookings.find(show =>
+      show.host_id === request.host_id &&
+      show.musician_id === request.musician_id &&
+      show.date === request.proposed_date &&
+      show.venue_address === request.venue_address
+    )
+
   const upcomingShows = bookings.filter(booking => booking.status === 'upcoming')
   const pastShows = bookings.filter(booking => booking.status === 'past')
 
@@ -268,7 +316,7 @@ export default function Bookings() {
             color: '#F5F0E8', 
             marginBottom: '4px' 
           }}>
-            {booking.artist_name}
+            {booking.show_name}
           </h3>
           <p style={{ 
             fontFamily: "'DM Sans', sans-serif", 
@@ -354,7 +402,8 @@ export default function Bookings() {
       </div>
 
       <div style={{ display: 'flex', gap: '12px' }}>
-        <button style={{
+        <a href={getShowHref(booking.id)} style={{
+          display: 'inline-block',
           background: 'linear-gradient(135deg, #D4820A, #F0A500)',
           color: '#1A1410',
           padding: '10px 20px',
@@ -362,11 +411,10 @@ export default function Bookings() {
           fontSize: '0.85rem',
           fontWeight: 600,
           fontFamily: "'DM Sans', sans-serif",
-          border: 'none',
-          cursor: 'pointer'
+          textDecoration: 'none'
         }}>
           View Details
-        </button>
+        </a>
         <button style={{
           background: 'transparent',
           color: '#8C7B6B',
@@ -565,6 +613,18 @@ export default function Bookings() {
         </div>
       )}
 
+      <div style={{
+        marginBottom: '16px',
+        padding: '12px 14px',
+        borderRadius: '8px',
+        background: 'rgba(212,130,10,0.08)',
+        border: '1px solid rgba(212,130,10,0.16)',
+        color: '#F5F0E8',
+        fontSize: '0.9rem'
+      }}>
+        Accepting this invitation sends the host a confirmation through HouseShow so they can publish the ticket page.
+      </div>
+
       <div style={{ display: 'flex', gap: '12px' }}>
         <button 
           onClick={() => handleAcceptRequest(request.id)}
@@ -612,6 +672,97 @@ export default function Bookings() {
       </div>
     </div>
   )
+
+  const HostRequestCard = ({ request }: { request: BookingRequest }) => {
+    const matchingShow = findMatchingShow(request)
+    const ticketHref = matchingShow ? getShowHref(matchingShow.id) : `/create-show?requestId=${request.id}`
+
+    return (
+      <div style={{
+        border: '1px solid rgba(212,130,10,0.2)',
+        borderRadius: '12px',
+        padding: '24px',
+        background: 'rgba(44,34,24,0.3)',
+        marginBottom: '16px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+          <div>
+            <h3 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.3rem',
+              color: '#F5F0E8',
+              marginBottom: '4px'
+            }}>
+              Invite for {request.musician_name || 'Musician'}
+            </h3>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              color: '#8C7B6B',
+              fontSize: '0.95rem'
+            }}>
+              📍 {request.venue_address}
+            </p>
+          </div>
+          <div style={{
+            padding: '6px 12px',
+            borderRadius: '999px',
+            border: '1px solid rgba(212,130,10,0.3)',
+            color: '#F5F0E8',
+            textTransform: 'capitalize'
+          }}>
+            {request.status}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '16px', color: '#F5F0E8' }}>
+          {request.status === 'accepted'
+            ? 'Musician accepted. Publish the ticket page so both of you can share the show link.'
+            : request.status === 'declined'
+              ? 'This invitation was declined.'
+              : 'Waiting for the musician to respond.'}
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {request.status === 'accepted' && (
+            <a
+              href={ticketHref}
+              style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                color: '#1A1410',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                textDecoration: 'none'
+              }}
+            >
+              {matchingShow ? 'View Ticket Page' : 'Create Ticket Page'}
+            </a>
+          )}
+          {matchingShow && (
+            <a
+              href={ticketHref}
+              style={{
+                display: 'inline-block',
+                background: 'transparent',
+                color: '#F5F0E8',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontFamily: "'DM Sans', sans-serif",
+                border: '1px solid rgba(212,130,10,0.2)',
+                textDecoration: 'none'
+              }}
+            >
+              Share Show Link
+            </a>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   if (!user) {
     return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -767,6 +918,34 @@ export default function Bookings() {
                   </h2>
                   
                   {availableShows.map(show => <ShowCard key={show.id} show={show} />)}
+                </section>
+              )}
+
+              {user.user_type === 'host' && hostRequests.length > 0 && (
+                <section style={{ marginBottom: '64px' }}>
+                  <h2 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: '1.8rem',
+                    color: '#F5F0E8',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    📨 Sent Invitations
+                    <span style={{
+                      fontFamily: "'Space Mono', monospace",
+                      fontSize: '0.8rem',
+                      color: '#D4820A',
+                      background: 'rgba(212,130,10,0.1)',
+                      padding: '4px 12px',
+                      borderRadius: '20px'
+                    }}>
+                      {hostRequests.length}
+                    </span>
+                  </h2>
+
+                  {hostRequests.map(request => <HostRequestCard key={request.id} request={request} />)}
                 </section>
               )}
 

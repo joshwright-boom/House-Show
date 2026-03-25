@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
@@ -35,7 +35,7 @@ interface Musician {
   location_address?: string
 }
 
-export default function CreateShow() {
+function CreateShowContent() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
@@ -65,6 +65,8 @@ export default function CreateShow() {
   })
   
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestId = searchParams.get('requestId')
 
   useEffect(() => {
     const checkUser = async () => {
@@ -91,6 +93,47 @@ export default function CreateShow() {
     
     checkUser()
   }, [router])
+
+  useEffect(() => {
+    const loadRequestDraft = async () => {
+      if (!user || !requestId) return
+
+      const { data: request, error } = await supabase
+        .from('booking_requests')
+        .select('id, musician_id, proposed_date, venue_address, ticket_price, message')
+        .eq('id', requestId)
+        .eq('host_id', user.id)
+        .single()
+
+      if (error || !request) {
+        console.error('Error loading booking request draft:', error)
+        return
+      }
+
+      const { data: musician } = await supabase
+        .from('profiles')
+        .select('id, name, bio, photo_url, user_type, zip_code, latitude, longitude, location_address')
+        .eq('id', request.musician_id)
+        .single()
+
+      if (musician) {
+        setSelectedMusician(musician as Musician)
+        setMusicianSearch(musician.name)
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        show_name: musician?.name ? `${musician.name} Live at HouseShow` : prev.show_name,
+        venue_name: prev.venue_name || request.venue_address,
+        venue_address: request.venue_address,
+        date: request.proposed_date,
+        ticket_price: String(request.ticket_price ?? ''),
+        show_description: request.message || prev.show_description
+      }))
+    }
+
+    loadRequestDraft()
+  }, [user, requestId])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -338,9 +381,11 @@ export default function CreateShow() {
       }
       
       // Save to Supabase
-      const { error } = await supabase
+      const { data: createdShow, error } = await supabase
         .from('shows')
         .insert(showData)
+        .select('id')
+        .single()
       
       if (error) {
         console.error('Error creating show:', error)
@@ -348,8 +393,7 @@ export default function CreateShow() {
         return
       }
       
-      // Redirect to bookings page
-      router.push('/bookings')
+      router.push(createdShow ? `/show/${createdShow.id}` : '/bookings')
     } catch (error) {
       console.error('Error creating show:', error)
       alert('Error creating show. Please try again.')
@@ -952,5 +996,13 @@ export default function CreateShow() {
         </div>
       </main>
     </>
+  )
+}
+
+export default function CreateShow() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#1A1410' }} />}>
+      <CreateShowContent />
+    </Suspense>
   )
 }
