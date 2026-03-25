@@ -14,9 +14,6 @@ interface BookingRequest {
   musician_split: number | null
   message: string
   status: 'pending' | 'accepted' | 'declined'
-  host_profile?: {
-    name?: string
-  }[] | null
 }
 
 export default function Dashboard() {
@@ -25,6 +22,7 @@ export default function Dashboard() {
   const [switchingMode, setSwitchingMode] = useState(false)
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
   const [requestsLoading, setRequestsLoading] = useState(true)
+  const [requestsError, setRequestsError] = useState<string | null>(null)
   const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -63,15 +61,21 @@ export default function Dashboard() {
       try {
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, host_profile:profiles!host_id(name)')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id')
           .eq('musician_id', user.id)
           .order('created_at', { ascending: false })
 
         console.log('BOOKING DEBUG:', { userId: user.id, requests, error })
-        if (error) console.error('Booking requests error:', error)
+        if (error) {
+          console.error('Booking requests error:', error)
+          setRequestsError(error.message || 'Unknown booking request error')
+        } else {
+          setRequestsError(null)
+        }
         setBookingRequests(requests || [])
       } catch (error) {
         console.error('Error loading booking requests:', error)
+        setRequestsError(error instanceof Error ? error.message : 'Unknown booking request error')
       } finally {
         setRequestsLoading(false)
       }
@@ -273,6 +277,17 @@ export default function Dashboard() {
                 }}>
                   Loading requests...
                 </div>
+              ) : requestsError ? (
+                <div style={{
+                  border: '1px solid rgba(160,60,60,0.4)',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  background: 'rgba(80,20,20,0.2)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#F5B5B5'
+                }}>
+                  Booking request error: {requestsError}
+                </div>
               ) : bookingRequests.length === 0 ? (
                 <div style={{
                   border: '1px solid rgba(212,130,10,0.2)',
@@ -297,7 +312,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        {request.host_profile?.[0]?.name || 'Host'}
+                        Host Invitation
                       </h3>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
                         Venue: {request.venue_address}
