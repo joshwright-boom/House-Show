@@ -33,6 +33,8 @@ interface BookingRequest {
 }
 
 export default function FindMusicians() {
+  const PLATFORM_SPLIT = 5
+  const AVAILABLE_SPLIT = 100 - PLATFORM_SPLIT
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [hostLocation, setHostLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -297,6 +299,32 @@ export default function FindMusicians() {
     })
   }
 
+  const clampSplit = (value: string) => {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isNaN(parsed)) return 0
+    return Math.max(0, Math.min(AVAILABLE_SPLIT, parsed))
+  }
+
+  const updateHostSplit = (value: string) => {
+    const hostSplit = clampSplit(value)
+    const musicianSplit = AVAILABLE_SPLIT - hostSplit
+    setInviteForm(prev => ({
+      ...prev,
+      host_split: String(hostSplit),
+      musician_split: String(musicianSplit)
+    }))
+  }
+
+  const updateMusicianSplit = (value: string) => {
+    const musicianSplit = clampSplit(value)
+    const hostSplit = AVAILABLE_SPLIT - musicianSplit
+    setInviteForm(prev => ({
+      ...prev,
+      host_split: String(hostSplit),
+      musician_split: String(musicianSplit)
+    }))
+  }
+
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !selectedMusician) return
@@ -345,6 +373,10 @@ export default function FindMusicians() {
       </div>
     )
   }
+
+  const ticketPriceValue = Number.parseFloat(inviteForm.ticket_price || '0') || 0
+  const hostPerTicket = ticketPriceValue * ((Number.parseFloat(inviteForm.host_split || '0') || 0) / 100)
+  const musicianPerTicket = ticketPriceValue * ((Number.parseFloat(inviteForm.musician_split || '0') || 0) / 100)
 
   return (
     <div style={{
@@ -728,9 +760,9 @@ export default function FindMusicians() {
                     <input
                       type="number"
                       min="0"
-                      max="100"
+                      max={AVAILABLE_SPLIT}
                       value={inviteForm.host_split}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, host_split: e.target.value }))}
+                      onChange={(e) => updateHostSplit(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -754,9 +786,9 @@ export default function FindMusicians() {
                     <input
                       type="number"
                       min="0"
-                      max="100"
+                      max={AVAILABLE_SPLIT}
                       value={inviteForm.musician_split}
-                      onChange={(e) => setInviteForm(prev => ({ ...prev, musician_split: e.target.value }))}
+                      onChange={(e) => updateMusicianSplit(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -794,6 +826,9 @@ export default function FindMusicians() {
                       Platform
                     </div>
                   </div>
+                </div>
+                <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#8C7B6B' }}>
+                  Host earns ${hostPerTicket.toFixed(2)} per ticket. Musician earns ${musicianPerTicket.toFixed(2)} per ticket. Platform keeps 5%.
                 </div>
               </div>
 

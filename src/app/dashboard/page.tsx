@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 interface BookingRequest {
   id: string
   host_id: string
+  musician_id?: string
   created_at: string
   proposed_date: string
   venue_address: string
@@ -21,8 +22,11 @@ export default function Dashboard() {
   const [activeMode, setActiveMode] = useState<'musician' | 'host'>('musician')
   const [switchingMode, setSwitchingMode] = useState(false)
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
+  const [hostRequests, setHostRequests] = useState<BookingRequest[]>([])
   const [requestsLoading, setRequestsLoading] = useState(true)
+  const [hostRequestsLoading, setHostRequestsLoading] = useState(true)
   const [requestsError, setRequestsError] = useState<string | null>(null)
+  const [hostRequestsError, setHostRequestsError] = useState<string | null>(null)
   const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -82,6 +86,39 @@ export default function Dashboard() {
     }
 
     loadBookingRequests()
+  }, [user?.id])
+
+  useEffect(() => {
+    const loadHostRequests = async () => {
+      if (!user?.id) {
+        setHostRequestsLoading(false)
+        return
+      }
+
+      try {
+        const { data: requests, error } = await supabase
+          .from('booking_requests')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, musician_id')
+          .eq('host_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Host booking requests error:', error)
+          setHostRequestsError(error.message || 'Unknown host booking request error')
+        } else {
+          setHostRequestsError(null)
+        }
+
+        setHostRequests(requests || [])
+      } catch (error) {
+        console.error('Error loading host booking requests:', error)
+        setHostRequestsError(error instanceof Error ? error.message : 'Unknown host booking request error')
+      } finally {
+        setHostRequestsLoading(false)
+      }
+    }
+
+    loadHostRequests()
   }, [user?.id])
 
   useEffect(() => {
@@ -402,6 +439,108 @@ export default function Dashboard() {
                       >
                         Decline
                       </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {activeMode === 'host' && (
+          <section style={{ marginTop: '48px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+              Sent Invitations
+            </div>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {hostRequestsLoading ? (
+                <div style={{
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  background: 'rgba(44,34,24,0.3)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#8C7B6B'
+                }}>
+                  Loading invitations...
+                </div>
+              ) : hostRequestsError ? (
+                <div style={{
+                  border: '1px solid rgba(160,60,60,0.4)',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  background: 'rgba(80,20,20,0.2)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#F5B5B5'
+                }}>
+                  Invitation error: {hostRequestsError}
+                </div>
+              ) : hostRequests.length === 0 ? (
+                <div style={{
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  background: 'rgba(44,34,24,0.3)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#8C7B6B'
+                }}>
+                  No sent invitations yet.
+                </div>
+              ) : hostRequests.map((request) => (
+                <div
+                  key={request.id}
+                  style={{
+                    border: '1px solid rgba(212,130,10,0.2)',
+                    borderRadius: '8px',
+                    padding: '24px',
+                    background: 'rgba(44,34,24,0.3)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
+                    <div>
+                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                        Invitation Status
+                      </h3>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
+                        Venue: {request.venue_address}
+                      </p>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
+                        Proposed Date: {formatDate(request.proposed_date)}
+                      </p>
+                    </div>
+                    <div style={{
+                      display: 'inline-block',
+                      padding: '6px 10px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(212,130,10,0.3)',
+                      color: '#F5F0E8',
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize',
+                      height: 'fit-content'
+                    }}>
+                      {request.status}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: 'rgba(26,20,16,0.35)',
+                    color: '#F5F0E8',
+                    fontFamily: "'DM Sans', sans-serif"
+                  }}>
+                    {request.status === 'accepted'
+                      ? 'Your musician accepted this invitation. Open My Bookings to create or manage the ticket page.'
+                      : request.status === 'declined'
+                        ? 'The musician declined this invitation.'
+                        : 'Waiting for the musician to respond.'}
+                  </div>
+
+                  {request.message && (
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
+                      Original message: <span style={{ color: '#F5F0E8' }}>{request.message}</span>
                     </div>
                   )}
                 </div>
