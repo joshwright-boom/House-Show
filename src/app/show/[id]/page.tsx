@@ -18,6 +18,12 @@ interface ShowRecord {
   status: 'open' | 'booked' | 'cancelled'
 }
 
+const getShowDateValue = (show: Record<string, any>) =>
+  show.date || show.show_date || show.event_date || show.scheduled_date || ''
+
+const getShowCapacity = (show: Record<string, any>) =>
+  show.max_capacity || show.capacity || 0
+
 export default function ShowPage({ params }: { params: { id: string } }) {
   const [show, setShow] = useState<ShowRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -31,7 +37,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
       try {
         const { data, error } = await supabase
           .from('shows')
-          .select('id, show_name, venue_name, venue_address, date, time, ticket_price, max_capacity, show_description, host_id, artist_user_id, status')
+          .select('*')
           .eq('id', params.id)
           .single()
 
@@ -39,8 +45,20 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           setError(error.message || 'Unable to load show.')
           return
         }
-
-        setShow(data)
+        setShow({
+          id: data.id,
+          show_name: data.show_name,
+          venue_name: data.venue_name,
+          venue_address: data.venue_address,
+          date: getShowDateValue(data),
+          time: data.time,
+          ticket_price: data.ticket_price,
+          max_capacity: getShowCapacity(data),
+          show_description: data.show_description,
+          host_id: data.host_id,
+          artist_user_id: data.artist_user_id || data.artist_id || data.musician_id || null,
+          status: data.status
+        })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load show.')
       } finally {

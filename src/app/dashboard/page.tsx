@@ -25,6 +25,12 @@ interface HostShow {
   venue_address: string
 }
 
+const getShowDateValue = (show: Record<string, any>) =>
+  show.date || show.show_date || show.event_date || show.scheduled_date || ''
+
+const getShowArtistId = (show: Record<string, any>) =>
+  show.artist_user_id || show.artist_id || show.musician_id || null
+
 export default function Dashboard() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string; active_mode?: string } | null>(null)
   const [activeMode, setActiveMode] = useState<'musician' | 'host'>('musician')
@@ -138,7 +144,7 @@ export default function Dashboard() {
       try {
         const { data: shows, error } = await supabase
           .from('shows')
-          .select('id, host_id, artist_user_id, date, venue_address')
+          .select('*')
           .eq('host_id', user.id)
 
         if (error) {
@@ -146,7 +152,13 @@ export default function Dashboard() {
           return
         }
 
-        setHostShows(shows || [])
+        setHostShows((shows || []).map((show: any) => ({
+          id: show.id,
+          host_id: show.host_id,
+          artist_user_id: getShowArtistId(show),
+          date: getShowDateValue(show),
+          venue_address: show.venue_address
+        })))
       } catch (error) {
         console.error('Error loading host shows:', error)
       }
@@ -162,15 +174,21 @@ export default function Dashboard() {
       try {
         const { data: shows, error } = await supabase
           .from('shows')
-          .select('id, host_id, artist_user_id, date, venue_address')
-          .eq('artist_user_id', user.id)
+          .select('*')
+          .or(`artist_user_id.eq.${user.id},artist_id.eq.${user.id},musician_id.eq.${user.id}`)
 
         if (error) {
           console.error('Error loading musician shows:', error)
           return
         }
 
-        setMusicianShows(shows || [])
+        setMusicianShows((shows || []).map((show: any) => ({
+          id: show.id,
+          host_id: show.host_id,
+          artist_user_id: getShowArtistId(show),
+          date: getShowDateValue(show),
+          venue_address: show.venue_address
+        })))
       } catch (error) {
         console.error('Error loading musician shows:', error)
       }

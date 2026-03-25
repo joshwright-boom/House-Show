@@ -52,6 +52,15 @@ interface BookingRequest {
   musician_name?: string
 }
 
+const getShowDateValue = (show: Record<string, any>) =>
+  show.date || show.show_date || show.event_date || show.scheduled_date || ''
+
+const getShowArtistId = (show: Record<string, any>) =>
+  show.artist_user_id || show.artist_id || show.musician_id || null
+
+const getShowCapacity = (show: Record<string, any>) =>
+  show.max_capacity || show.capacity || 0
+
 export default function Bookings() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -98,9 +107,9 @@ export default function Bookings() {
     try {
       const { data: shows, error } = await supabase
         .from('shows')
-        .select('id, show_name, venue_name, venue_address, date, time, ticket_price, max_capacity, status, created_at, host_id, artist_user_id')
-        .or(`host_id.eq.${userId},artist_user_id.eq.${userId}`)
-        .order('date', { ascending: true })
+        .select('*')
+        .or(`host_id.eq.${userId},artist_user_id.eq.${userId},artist_id.eq.${userId},musician_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Error fetching bookings:', error)
@@ -111,7 +120,8 @@ export default function Bookings() {
       today.setHours(0, 0, 0, 0)
 
       const transformedBookings: Booking[] = (shows || []).map(show => {
-        const showDate = new Date(show.date)
+        const resolvedDate = getShowDateValue(show)
+        const showDate = new Date(resolvedDate)
         showDate.setHours(0, 0, 0, 0)
 
         const status: Booking['status'] =
@@ -126,14 +136,14 @@ export default function Bookings() {
           show_name: show.show_name,
           venue_name: show.venue_name,
           venue_address: show.venue_address,
-          date: show.date,
+          date: resolvedDate,
           time: show.time,
           price: show.ticket_price,
           tickets_sold: 0,
-          total_tickets: show.max_capacity,
+          total_tickets: getShowCapacity(show),
           status,
           created_at: show.created_at,
-          musician_id: show.artist_user_id,
+          musician_id: getShowArtistId(show),
           host_id: show.host_id
         }
       })
@@ -257,10 +267,10 @@ export default function Bookings() {
         id: show.id,
         title: show.show_name,
         description: show.show_description,
-        date: show.date,
+        date: getShowDateValue(show),
         time: show.time,
         price: show.ticket_price,
-        total_tickets: show.max_capacity,
+        total_tickets: getShowCapacity(show),
         host_id: show.host_id,
         status: 'available',
         created_at: show.created_at

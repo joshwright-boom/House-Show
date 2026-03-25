@@ -35,6 +35,9 @@ interface Musician {
   location_address?: string
 }
 
+const getShowDateValue = (show: Record<string, any>) =>
+  show.date || show.show_date || show.event_date || show.scheduled_date || ''
+
 interface BookingRequestDraft {
   id: string
   host_id: string
@@ -395,11 +398,10 @@ function CreateShowContent() {
     setSubmitError(null)
     
     try {
-      const showData = {
+      const baseShowData = {
         show_name: formData.show_name,
         venue_name: formData.venue_name,
         venue_address: formData.venue_address,
-        date: formData.date,
         time: formData.time,
         ticket_price: parseFloat(formData.ticket_price),
         max_capacity: parseInt(formData.max_capacity),
@@ -410,25 +412,44 @@ function CreateShowContent() {
         status: 'open',
         created_at: new Date().toISOString()
       }
+
+      const showPayloads = [
+        { ...baseShowData, date: formData.date },
+        { ...baseShowData, show_date: formData.date },
+        { ...baseShowData, event_date: formData.date }
+      ]
+
+      let insertError: { message?: string } | null = null
+
+      for (const payload of showPayloads) {
+        const { error } = await supabase
+          .from('shows')
+          .insert(payload as any)
+
+        if (!error) {
+          insertError = null
+          break
+        }
+
+        insertError = error
+
+        if (!error.message?.includes('column')) {
+          break
+        }
+      }
       
-      // Save to Supabase
-      const { error } = await supabase
-        .from('shows')
-        .insert(showData)
-      
-      if (error) {
-        console.error('Error creating show:', error)
-        setSubmitError(error.message || 'Please try again.')
-        alert(`Error creating show: ${error.message || 'Please try again.'}`)
+      if (insertError) {
+        console.error('Error creating show:', insertError)
+        setSubmitError(insertError.message || 'Please try again.')
+        alert(`Error creating show: ${insertError.message || 'Please try again.'}`)
         return
       }
 
       const { data: createdShow, error: lookupError } = await supabase
         .from('shows')
-        .select('id')
-        .eq('host_id', showData.host_id)
-        .eq('date', showData.date)
-        .eq('venue_address', showData.venue_address)
+        .select('*')
+        .eq('host_id', baseShowData.host_id)
+        .eq('venue_address', baseShowData.venue_address)
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
