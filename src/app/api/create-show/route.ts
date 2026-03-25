@@ -46,6 +46,23 @@ const insertShowWithFallback = async (adminSupabase: any, initialPayload: Record
   }
 }
 
+const normalizeDateForInsert = (value?: string | null) => {
+  if (!value) return null
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+
+  const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})T/)
+  if (isoMatch) return isoMatch[1]
+
+  const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (usMatch) {
+    const [, month, day, year] = usMatch
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  }
+
+  return value
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -104,13 +121,14 @@ export async function POST(request: NextRequest) {
       id: string
       host_id: string
       musician_id: string
+      proposed_date?: string
       status?: string
     } | null = null
 
     if (requestId) {
       const { data: bookingRequest, error: requestError } = await dbSupabase
         .from('booking_requests')
-        .select('id, host_id, musician_id, status')
+        .select('id, host_id, musician_id, proposed_date, status')
         .eq('id', requestId)
         .single()
 
@@ -140,12 +158,17 @@ export async function POST(request: NextRequest) {
 
     const musicianId = requestDraft?.musician_id || selectedMusicianId || null
     const maxCapacity = Number.parseInt(formData?.max_capacity || '0', 10)
+    const normalizedDate = normalizeDateForInsert(formData?.date || requestDraft?.proposed_date || null)
+
+    if (!normalizedDate) {
+      return NextResponse.json({ error: 'Show date is missing. Please choose a date before publishing.' }, { status: 400 })
+    }
 
     const datePayloads = [
-      { ...commonShowData, show_date: formData?.date },
-      { ...commonShowData, event_date: formData?.date },
-      { ...commonShowData, scheduled_date: formData?.date },
-      { ...commonShowData, date: formData?.date }
+      { ...commonShowData, show_date: normalizedDate },
+      { ...commonShowData, event_date: normalizedDate },
+      { ...commonShowData, scheduled_date: normalizedDate },
+      { ...commonShowData, date: normalizedDate }
     ]
 
     const timePayloads = datePayloads.flatMap(payload => [

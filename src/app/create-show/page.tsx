@@ -38,6 +38,23 @@ interface Musician {
 const getShowDateValue = (show: Record<string, any>) =>
   show.date || show.show_date || show.event_date || show.scheduled_date || ''
 
+const normalizeDateForInput = (value?: string | null) => {
+  if (!value) return ''
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+
+  const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})T/)
+  if (isoMatch) return isoMatch[1]
+
+  const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (usMatch) {
+    const [, month, day, year] = usMatch
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  }
+
+  return value
+}
+
 interface BookingRequestDraft {
   id: string
   host_id: string
@@ -115,7 +132,7 @@ function CreateShowContent() {
           .from('host_profiles')
           .select('venue_name, address, capacity')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (hostProfile) {
           setFormData(prev => ({
@@ -169,7 +186,7 @@ function CreateShowContent() {
         show_name: musician?.name ? `${musician.name} Live at HouseShow` : prev.show_name,
         venue_name: prev.venue_name || request.venue_address,
         venue_address: request.venue_address,
-        date: request.proposed_date,
+        date: normalizeDateForInput(request.proposed_date),
         time: prev.time || '19:00',
         ticket_price: String(request.ticket_price ?? ''),
         max_capacity: prev.max_capacity || '40',
