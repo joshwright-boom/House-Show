@@ -10,10 +10,13 @@ interface BookingRequest {
   proposed_date: string
   venue_address: string
   ticket_price: number | null
-  host_revenue_percent: number | null
-  musician_revenue_percent: number | null
+  host_split: number | null
+  musician_split: number | null
   message: string
   status: 'pending' | 'accepted' | 'declined'
+  host_profile?: {
+    name?: string
+  }[] | null
 }
 
 export default function Dashboard() {
@@ -60,7 +63,7 @@ export default function Dashboard() {
       try {
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_revenue_percent, musician_revenue_percent, message, status, host_id')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, host_profile:profiles!host_id(name)')
           .eq('musician_id', user.id)
           .order('created_at', { ascending: false })
 
@@ -294,7 +297,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        {request.host_id}
+                        {request.host_profile?.[0]?.name || 'Host'}
                       </h3>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
                         Venue: {request.venue_address}
@@ -318,6 +321,17 @@ export default function Dashboard() {
                         textTransform: 'capitalize'
                       }}>
                         {request.status}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                    <div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem', marginBottom: '4px' }}>
+                        Revenue Split
+                      </div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                        You: {request.musician_split ?? 0}% • Host: {request.host_split ?? 0}% • Platform: 5%
                       </div>
                     </div>
                   </div>

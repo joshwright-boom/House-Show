@@ -355,6 +355,23 @@ export default function FindMusicians() {
       padding: '20px'
     }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <a
+            href="/dashboard"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              color: '#F0A500',
+              textDecoration: 'none',
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1.4rem',
+              fontWeight: '700',
+              background: 'transparent'
+            }}
+          >
+            HouseShow
+          </a>
+        </div>
         <h1 style={{
           fontFamily: "'Playfair Display', serif",
           fontSize: '2.5rem',
