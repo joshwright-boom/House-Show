@@ -63,6 +63,16 @@ const normalizeDateForInsert = (value?: string | null) => {
   return value
 }
 
+const buildShowSlug = (showName?: string | null) => {
+  const base = (showName || 'show')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50)
+  const randomPart = Math.random().toString(36).slice(2, 8)
+  return `${base || 'show'}-${randomPart}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -153,7 +163,9 @@ export async function POST(request: NextRequest) {
       show_description: formData?.show_description || '',
       genre_preference: formData?.genre_preference || 'Any',
       host_id: user.id,
-      status: 'draft',
+      host_user_id: user.id,
+      status: 'on_sale',
+      slug: buildShowSlug(formData?.show_name),
       created_at: new Date().toISOString()
     }
 
@@ -182,11 +194,14 @@ export async function POST(request: NextRequest) {
       { ...payload, capacity: maxCapacity }
     ])
 
-    const showPayloads = capacityPayloads.flatMap(payload => [
-      { ...payload, artist_user_id: musicianId },
-      { ...payload, artist_id: musicianId },
-      { ...payload, musician_id: musicianId }
-    ])
+    const showPayloads = capacityPayloads.flatMap(payload => {
+      const withSessionUsers = { ...payload, artist_user_id: user.id, host_user_id: user.id }
+      return [
+        { ...withSessionUsers },
+        { ...withSessionUsers, artist_id: musicianId },
+        { ...withSessionUsers, musician_id: musicianId }
+      ]
+    })
 
     console.log('Incoming form data:', JSON.stringify(formData))
 
