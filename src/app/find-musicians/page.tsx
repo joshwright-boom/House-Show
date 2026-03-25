@@ -560,13 +560,19 @@ export default function FindMusicians() {
                   )}
                   
                   <div style={{ flex: 1 }}>
-                    <h3 style={{
-                      fontFamily: "'Playfair Display', serif",
-                      fontSize: '1.3rem',
-                      marginBottom: '8px'
-                    }}>
+                    <a
+                      href={`/musician/${musician.id}`}
+                      style={{
+                        display: 'inline-block',
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '1.3rem',
+                        marginBottom: '8px',
+                        color: '#F5F0E8',
+                        textDecoration: 'none'
+                      }}
+                    >
                       {musician.name}
-                    </h3>
+                    </a>
                     
                     <p style={{
                       color: '#8C7B6B',
@@ -575,6 +581,19 @@ export default function FindMusicians() {
                     }}>
                       {musician.bio}
                     </p>
+
+                    <a
+                      href={`/musician/${musician.id}`}
+                      style={{
+                        display: 'inline-block',
+                        color: '#F0A500',
+                        textDecoration: 'none',
+                        marginBottom: '12px',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      View profile and social links
+                    </a>
                     
                     <div style={{
                       display: 'flex',

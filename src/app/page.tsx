@@ -77,7 +77,7 @@ export default function Home() {
           Live Music · House Shows · Real Revenue
         </div>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2.8rem, 6vw, 5.5rem)', fontWeight: 900, lineHeight: 1.1, color: '#F5F0E8', maxWidth: '800px', marginBottom: '24px' }}>
-          Your talent.<br />Their living room.<br />
+          Your talent.<br />Our space.<br />
           <em style={{ color: '#F0A500' }}>Everyone wins.</em>
         </h1>
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '1.15rem', color: '#8C7B6B', maxWidth: '500px', lineHeight: 1.7, marginBottom: '48px' }}>
