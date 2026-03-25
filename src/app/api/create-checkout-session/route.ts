@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -9,7 +10,33 @@ export async function POST(request: NextRequest) {
   try {
     const { showId, showName, ticketPrice, quantity } = await request.json()
 
-    if (!showId || !showName || !ticketPrice || !quantity) {
+    if (!showId || !quantity) {
+      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
+    }
+
+    let resolvedShowName = showName
+    let resolvedTicketPrice = ticketPrice
+
+    if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+      if (supabaseUrl && supabaseAnonKey) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+        const { data: showRecord } = await supabase
+          .from('shows')
+          .select('show_name, artist_name, ticket_price')
+          .eq('id', showId)
+          .single()
+
+        if (showRecord) {
+          resolvedShowName = resolvedShowName || showRecord.show_name || showRecord.artist_name || 'HouseShow Event'
+          resolvedTicketPrice = resolvedTicketPrice ?? showRecord.ticket_price
+        }
+      }
+    }
+
+    if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
@@ -22,9 +49,9 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `${showName} Ticket`,
+              name: `${resolvedShowName} Ticket`,
             },
-            unit_amount: Math.round(Number(ticketPrice) * 100),
+            unit_amount: Math.round(Number(resolvedTicketPrice) * 100),
           },
           quantity: Number(quantity),
         },

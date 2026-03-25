@@ -15,7 +15,7 @@ interface ShowRecord {
   show_description: string
   host_id: string
   artist_user_id?: string | null
-  status: 'open' | 'booked' | 'cancelled'
+  status: string
 }
 
 const getShowDateValue = (show: Record<string, any>) =>
@@ -23,6 +23,15 @@ const getShowDateValue = (show: Record<string, any>) =>
 
 const getShowCapacity = (show: Record<string, any>) =>
   show.max_capacity || show.capacity || 0
+
+const getShowNameValue = (show: Record<string, any>) =>
+  show.show_name || show.artist_name || show.title || 'HouseShow Event'
+
+const getShowTimeValue = (show: Record<string, any>) =>
+  show.show_time || show.time || 'TBD'
+
+const getShowHostId = (show: Record<string, any>) =>
+  show.host_user_id || show.host_id || ''
 
 export default function ShowPage({ params }: { params: { id: string } }) {
   const [show, setShow] = useState<ShowRecord | null>(null)
@@ -47,15 +56,15 @@ export default function ShowPage({ params }: { params: { id: string } }) {
         }
         setShow({
           id: data.id,
-          show_name: data.show_name,
+          show_name: getShowNameValue(data),
           venue_name: data.venue_name,
           venue_address: data.venue_address,
           date: getShowDateValue(data),
-          time: data.time,
+          time: getShowTimeValue(data),
           ticket_price: data.ticket_price,
           max_capacity: getShowCapacity(data),
           show_description: data.show_description,
-          host_id: data.host_id,
+          host_id: getShowHostId(data),
           artist_user_id: data.artist_user_id || data.artist_id || data.musician_id || null,
           status: data.status
         })
