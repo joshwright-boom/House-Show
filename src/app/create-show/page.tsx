@@ -50,6 +50,37 @@ const omitKey = <T extends Record<string, any>>(object: T, key: string) => {
   return rest
 }
 
+const insertShowWithFallback = async (initialPayload: Record<string, any>) => {
+  let payload = { ...initialPayload }
+  let attempts = 0
+
+  while (attempts < 12) {
+    const { error } = await supabase
+      .from('shows')
+      .insert(payload as any)
+
+    if (!error) {
+      return { error: null }
+    }
+
+    const missingColumn = getMissingColumnName(error.message)
+    const isMissingColumnError = error.message?.includes('column') && missingColumn
+
+    if (!isMissingColumnError || !missingColumn || !(missingColumn in payload)) {
+      return { error }
+    }
+
+    payload = omitKey(payload, missingColumn)
+    attempts += 1
+  }
+
+  return {
+    error: {
+      message: 'Show creation failed after removing unsupported show columns.'
+    }
+  }
+}
+
 interface BookingRequestDraft {
   id: string
   host_id: string
@@ -450,36 +481,13 @@ function CreateShowContent() {
       let insertError: { message?: string } | null = null
 
       for (const payload of showPayloads) {
-        const { error } = await supabase
-          .from('shows')
-          .insert(payload as any)
-
+        const { error } = await insertShowWithFallback(payload)
         if (!error) {
           insertError = null
           break
         }
 
         insertError = error
-
-        const missingColumn = getMissingColumnName(error.message)
-
-        if (!error.message?.includes('column') || !missingColumn) {
-          break
-        }
-
-        if (missingColumn in payload) {
-          const retryPayload = omitKey(payload, missingColumn)
-          const { error: retryError } = await supabase
-            .from('shows')
-            .insert(retryPayload as any)
-
-          if (!retryError) {
-            insertError = null
-            break
-          }
-
-          insertError = retryError
-        }
       }
       
       if (insertError) {
