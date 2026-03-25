@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       { ...commonShowData, show_date: normalizedDate },
       { ...commonShowData, event_date: normalizedDate },
       { ...commonShowData, scheduled_date: normalizedDate },
-      { ...commonShowData, date: normalizedDate }
+      { ...commonShowData, show_date: normalizedDate }
     ]
 
     const timePayloads = datePayloads.flatMap(payload => [
