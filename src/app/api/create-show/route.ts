@@ -5,47 +5,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const getMissingColumnName = (message?: string | null) => {
-  if (!message) return null
-
-  const match = message.match(/'([^']+)'/)
-  return match?.[1] || null
-}
-
-const omitKey = <T extends Record<string, any>>(object: T, key: string) => {
-  const { [key]: _removed, ...rest } = object
-  return rest
-}
-
-const insertShowWithFallback = async (adminSupabase: any, initialPayload: Record<string, any>) => {
-  let payload = { ...initialPayload }
-  let attempts = 0
-
-  while (attempts < 12) {
-    const { error } = await adminSupabase.from('shows').insert(payload as any)
-
-    if (!error) {
-      return { error: null }
-    }
-
-    const missingColumn = getMissingColumnName(error.message)
-    const isMissingColumnError = error.message?.includes('column') && missingColumn
-
-    if (!isMissingColumnError || !missingColumn || !(missingColumn in payload)) {
-      return { error }
-    }
-
-    payload = omitKey(payload, missingColumn)
-    attempts += 1
-  }
-
-  return {
-    error: {
-      message: 'Show creation failed after removing unsupported show columns.'
-    }
-  }
-}
-
 const normalizeDateForInsert = (value?: string | null) => {
   if (!value) return null
 
@@ -129,17 +88,17 @@ export async function POST(request: NextRequest) {
 
     let requestDraft: {
       id: string
-      host_user_id: string
+      host_id: string
       musician_id: string
-      proposed_date?: string
       show_date?: string
-      status?: string
+      venue_address?: string
+      ticket_price?: number
     } | null = null
 
     if (requestId) {
       const { data: bookingRequest, error: requestError } = await dbSupabase
         .from('booking_requests')
-        .select('id, host_user_id, musician_id, proposed_date, show_date, status')
+        .select('id, host_id, musician_id, show_date, venue_address, ticket_price')
         .eq('id', requestId)
         .single()
 
@@ -147,75 +106,41 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: requestError?.message || 'Booking request not found.' }, { status: 404 })
       }
 
-      if (bookingRequest.host_user_id !== user.id) {
+      if (bookingRequest.host_id !== user.id) {
         return NextResponse.json({ error: 'Only the host who sent this invitation can create the show.' }, { status: 403 })
       }
 
       requestDraft = bookingRequest
     }
 
-    const commonShowData = {
-      show_name: formData?.show_name,
-      artist_name: artist_name || null,
-      venue_name: formData?.venue_name,
-      venue_address: formData?.venue_address,
-      ticket_price: Number.parseFloat(formData?.ticket_price || '0'),
-      show_description: formData?.show_description || '',
-      genre_preference: formData?.genre_preference || 'Any',
-      host_user_id: user.id,
-      status: 'on_sale',
-      slug: buildShowSlug(formData?.show_name),
-      created_at: new Date().toISOString()
-    }
-
-    const musicianId = requestDraft?.musician_id || selectedMusicianId || null
-    const maxCapacity = Number.parseInt(formData?.max_capacity || '0', 10)
-    const normalizedDate = normalizeDateForInsert(formData?.date || requestDraft?.show_date || requestDraft?.proposed_date || null)
+    const normalizedDate = normalizeDateForInsert(formData?.date || requestDraft?.show_date || null)
 
     if (!normalizedDate) {
       return NextResponse.json({ error: 'Show date is missing. Please choose a date before publishing.' }, { status: 400 })
     }
 
-    const datePayloads = [
-      { ...commonShowData, show_date: normalizedDate },
-      { ...commonShowData, event_date: normalizedDate },
-      { ...commonShowData, scheduled_date: normalizedDate },
-      { ...commonShowData, show_date: normalizedDate }
-    ]
+    const showInsertPayload = {
+      artist_name: (artist_name || formData?.artist_name || '').trim(),
+      venue_name: formData?.venue_name,
+      venue_address: formData?.venue_address,
+      show_date: normalizedDate,
+      show_time: formData?.time,
+      status: 'on_sale',
+      artist_user_id: user.id,
+      host_user_id: user.id,
+      slug: buildShowSlug(formData?.show_name),
+      booking_id: requestDraft?.id || null
+    }
 
-    const timePayloads = datePayloads.flatMap(payload => [
-      { ...payload, time: formData?.time },
-      { ...payload, show_time: formData?.time }
-    ])
-
-    const capacityPayloads = timePayloads.flatMap(payload => [
-      { ...payload, max_capacity: maxCapacity },
-      { ...payload, capacity: maxCapacity }
-    ])
-
-    const showPayloads = capacityPayloads.flatMap(payload => {
-      const withSessionUsers = { ...payload, artist_user_id: user.id, host_user_id: user.id }
-      return [
-        { ...withSessionUsers },
-        { ...withSessionUsers, artist_user_id: musicianId },
-        { ...withSessionUsers, musician_id: musicianId }
-      ]
-    })
+    if (!showInsertPayload.artist_name) {
+      return NextResponse.json({ error: 'Artist name is required.' }, { status: 400 })
+    }
 
     console.log('Incoming form data:', JSON.stringify(formData))
 
-    let insertError: { message?: string } | null = null
-
-    for (const payload of showPayloads) {
-      const { error } = await insertShowWithFallback(dbSupabase, payload)
-
-      if (!error) {
-        insertError = null
-        break
-      }
-
-      insertError = error
-    }
+    const { error: insertError } = await dbSupabase
+      .from('shows')
+      .insert(showInsertPayload as any)
 
     if (insertError) {
       if (!hasServiceRole && insertError.message?.includes('row-level security')) {
@@ -235,7 +160,7 @@ export async function POST(request: NextRequest) {
       .from('shows')
       .select('*')
       .eq('host_user_id', user.id)
-      .eq('venue_address', commonShowData.venue_address)
+      .eq('venue_address', showInsertPayload.venue_address)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
