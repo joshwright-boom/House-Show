@@ -188,6 +188,8 @@ export async function POST(request: NextRequest) {
       { ...payload, musician_id: musicianId }
     ])
 
+    console.log('Incoming form data:', JSON.stringify(formData))
+
     let insertError: { message?: string } | null = null
 
     for (const payload of showPayloads) {
