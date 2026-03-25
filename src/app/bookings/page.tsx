@@ -112,15 +112,28 @@ export default function Bookings() {
 
   const fetchBookings = async (userId: string) => {
     try {
-      const { data: shows, error } = await supabase
+      const { data: primaryShows, error: primaryError } = await supabase
         .from('shows')
         .select('*')
-        .or(`host_user_id.eq.${userId},host_id.eq.${userId},artist_user_id.eq.${userId},artist_id.eq.${userId},musician_id.eq.${userId}`)
+        .or(`host_user_id.eq.${userId},artist_user_id.eq.${userId}`)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error fetching bookings:', error)
-        return
+      let shows = primaryShows || []
+
+      if (primaryError) {
+        console.error('Error fetching bookings with current columns, trying legacy fallback:', primaryError)
+        const { data: legacyShows, error: legacyError } = await supabase
+          .from('shows')
+          .select('*')
+          .or(`host_id.eq.${userId},artist_id.eq.${userId},musician_id.eq.${userId}`)
+          .order('created_at', { ascending: false })
+
+        if (legacyError) {
+          console.error('Error fetching bookings:', legacyError)
+          return
+        }
+
+        shows = legacyShows || []
       }
 
       const today = new Date()
@@ -140,11 +153,11 @@ export default function Bookings() {
 
         return {
           id: show.id,
-          show_name: show.show_name,
-          venue_name: show.venue_name,
+          show_name: show.show_name || show.artist_name || 'HouseShow Event',
+          venue_name: show.venue_name || show.venue_address || 'Venue',
           venue_address: show.venue_address,
           date: resolvedDate,
-          time: show.time,
+          time: show.show_time || show.time || 'TBD',
           price: show.ticket_price,
           tickets_sold: 0,
           total_tickets: getShowCapacity(show),
