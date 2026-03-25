@@ -17,12 +17,21 @@ interface BookingRequest {
   status: 'pending' | 'accepted' | 'declined'
 }
 
+interface HostShow {
+  id: string
+  host_id: string
+  artist_user_id?: string | null
+  date: string
+  venue_address: string
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string; active_mode?: string } | null>(null)
   const [activeMode, setActiveMode] = useState<'musician' | 'host'>('musician')
   const [switchingMode, setSwitchingMode] = useState(false)
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
   const [hostRequests, setHostRequests] = useState<BookingRequest[]>([])
+  const [hostShows, setHostShows] = useState<HostShow[]>([])
   const [requestsLoading, setRequestsLoading] = useState(true)
   const [hostRequestsLoading, setHostRequestsLoading] = useState(true)
   const [requestsError, setRequestsError] = useState<string | null>(null)
@@ -122,6 +131,30 @@ export default function Dashboard() {
   }, [user?.id])
 
   useEffect(() => {
+    const loadHostShows = async () => {
+      if (!user?.id) return
+
+      try {
+        const { data: shows, error } = await supabase
+          .from('shows')
+          .select('id, host_id, artist_user_id, date, venue_address')
+          .eq('host_id', user.id)
+
+        if (error) {
+          console.error('Error loading host shows:', error)
+          return
+        }
+
+        setHostShows(shows || [])
+      } catch (error) {
+        console.error('Error loading host shows:', error)
+      }
+    }
+
+    loadHostShows()
+  }, [user?.id])
+
+  useEffect(() => {
     const loadActiveMode = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -201,6 +234,19 @@ export default function Dashboard() {
     day: 'numeric',
     year: 'numeric'
   })
+
+  const findHostShowForRequest = (request: BookingRequest) =>
+    hostShows.find(show =>
+      show.host_id === request.host_id &&
+      show.artist_user_id === request.musician_id &&
+      show.date === request.proposed_date &&
+      show.venue_address === request.venue_address
+    )
+
+  const getHostTicketingHref = (request: BookingRequest) => {
+    const matchingShow = findHostShowForRequest(request)
+    return matchingShow ? `/show/${matchingShow.id}` : `/create-show?requestId=${request.id}`
+  }
 
   return (
     <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
@@ -568,7 +614,7 @@ export default function Dashboard() {
                   {request.status === 'accepted' && (
                     <div style={{ marginTop: '16px' }}>
                       <a
-                        href="/bookings"
+                        href={getHostTicketingHref(request)}
                         style={{
                           display: 'inline-block',
                           background: '#D4820A',
@@ -581,7 +627,7 @@ export default function Dashboard() {
                           fontWeight: '600'
                         }}
                       >
-                        Create or Share Ticket Page
+                        {findHostShowForRequest(request) ? 'Open Shareable Ticket Page' : 'Create Ticket Page'}
                       </a>
                     </div>
                   )}
