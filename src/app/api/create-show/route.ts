@@ -82,8 +82,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: profileError?.message || 'Profile not found.' }, { status: 403 })
     }
 
-    if (profile.user_type !== 'host') {
-      return NextResponse.json({ error: 'Only host accounts can publish shows.' }, { status: 403 })
+    if (profile.user_type !== 'host' && profile.user_type !== 'musician') {
+      return NextResponse.json({ error: 'Only host or musician accounts can publish shows.' }, { status: 403 })
     }
 
     let requestDraft: {
@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: requestError?.message || 'Booking request not found.' }, { status: 404 })
       }
 
-      if (bookingRequest.host_id !== user.id) {
-        return NextResponse.json({ error: 'Only the host who sent this invitation can create the show.' }, { status: 403 })
+      if (bookingRequest.host_id !== user.id && bookingRequest.musician_id !== user.id) {
+        return NextResponse.json({ error: 'Only the host or musician on this booking can create the show.' }, { status: 403 })
       }
 
       requestDraft = bookingRequest
@@ -139,6 +139,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const hostUserId = requestDraft?.host_id || user.id
+    const artistUserId = requestDraft?.musician_id || selectedMusicianId || user.id
+
     const showInsertPayload = {
       artist_name: (artist_name || formData?.artist_name || '').trim(),
       venue_name: formData?.venue_name,
@@ -147,8 +150,8 @@ export async function POST(request: NextRequest) {
       show_time: formData?.time,
       ticket_price: parseFloat(formData?.ticket_price),
       status: 'on_sale',
-      artist_user_id: user.id,
-      host_user_id: user.id,
+      artist_user_id: artistUserId,
+      host_user_id: hostUserId,
       slug: buildShowSlug(formData?.show_name),
       booking_id: bookingId
     }
@@ -188,6 +191,39 @@ export async function POST(request: NextRequest) {
 
     if (lookupError || !createdShow) {
       return NextResponse.json({ error: lookupError?.message || 'Show created but could not be loaded.' }, { status: 500 })
+    }
+
+    try {
+      const emailRecipients = new Set<string>()
+      if (authData.user?.email) {
+        emailRecipients.add(authData.user.email)
+      }
+
+      if (hasServiceRole) {
+        const adminSupabase = createClient(supabaseUrl, serviceRoleKey!)
+        const participantIds = [hostUserId, artistUserId].filter(Boolean) as string[]
+        for (const participantId of participantIds) {
+          const { data: accountData } = await adminSupabase.auth.admin.getUserById(participantId)
+          if (accountData?.user?.email) {
+            emailRecipients.add(accountData.user.email)
+          }
+        }
+      }
+
+      if (emailRecipients.size > 0) {
+        await fetch(new URL('/api/notify-show-published', request.url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emails: Array.from(emailRecipients),
+            showName: formData?.show_name || showInsertPayload.artist_name,
+            showDate: normalizedDate,
+            showUrl: `https://www.houseshow.net/show/${createdShow.slug || showInsertPayload.slug}`
+          })
+        })
+      }
+    } catch (notificationError) {
+      console.error('Show published notification error:', notificationError)
     }
 
     return NextResponse.json({ showId: createdShow.id })

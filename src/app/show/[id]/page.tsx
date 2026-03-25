@@ -38,7 +38,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
         const { data, error } = await supabase
           .from('shows')
           .select('*')
-          .eq('id', params.id)
+          .or(`id.eq.${params.id},slug.eq.${params.id}`)
           .single()
 
         if (error) {
