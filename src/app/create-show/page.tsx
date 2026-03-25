@@ -448,7 +448,7 @@ function CreateShowContent() {
         ticket_price: parseFloat(formData.ticket_price),
         show_description: formData.show_description,
         genre_preference: formData.genre_preference,
-        host_id: requestDraft?.host_id || user.id,
+        host_id: user.id,
         status: 'open',
         created_at: new Date().toISOString()
       }
