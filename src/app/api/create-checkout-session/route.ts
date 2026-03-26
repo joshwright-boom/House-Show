@@ -15,13 +15,16 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseServiceKey) {
+      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { data: showRecord, error: showLookupError } = await supabase
       .from('shows')
       .select('artist_name, ticket_price')

@@ -125,13 +125,28 @@ export default function ShowSuccessPage({ params }: { params: { id: string } }) 
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <a
-              href="/bookings"
+              href="/tickets"
               style={{
                 display: 'inline-block',
                 background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                 color: '#1A1410',
+                textDecoration: 'none',
+                padding: '12px 22px',
+                borderRadius: '8px',
+                fontWeight: 700
+              }}
+            >
+              View My Tickets
+            </a>
+            <a
+              href="/bookings"
+              style={{
+                display: 'inline-block',
+                background: 'transparent',
+                border: '1px solid rgba(212,130,10,0.4)',
+                color: '#F0A500',
                 textDecoration: 'none',
                 padding: '12px 22px',
                 borderRadius: '8px',

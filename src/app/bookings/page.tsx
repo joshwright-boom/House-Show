@@ -70,6 +70,7 @@ const getRequestDateValue = (request: BookingRequest) =>
 
 export default function Bookings() {
   const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
+  const [profile, setProfile] = useState<{ user_type?: string } | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [availableShows, setAvailableShows] = useState<Show[]>([])
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
@@ -91,6 +92,8 @@ export default function Bookings() {
         .select('user_type')
         .eq('id', user.id)
         .single()
+
+      setProfile(profile || null)
       
       setUser({ 
         id: user.id, 
@@ -514,25 +517,46 @@ export default function Bookings() {
         </div>
       </div>
 
-      <button
-        onClick={() => handleBookShow(show)}
-        disabled={processingPayment}
-        style={{
-          background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-          color: '#1A1410',
-          padding: '12px 24px',
-          borderRadius: '6px',
-          fontSize: '0.9rem',
-          fontWeight: 600,
-          fontFamily: "'DM Sans', sans-serif",
-          border: 'none',
-          cursor: processingPayment ? 'not-allowed' : 'pointer',
-          opacity: processingPayment ? 0.7 : 1,
-          width: '100%'
-        }}
-      >
-        {processingPayment ? 'Processing...' : 'Book This Show'}
-      </button>
+      {user?.user_type === 'host' ? (
+        <button
+          onClick={() => handleBookShow(show)}
+          disabled={processingPayment}
+          style={{
+            background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+            color: '#1A1410',
+            padding: '12px 24px',
+            borderRadius: '6px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            fontFamily: "'DM Sans', sans-serif",
+            border: 'none',
+            cursor: processingPayment ? 'not-allowed' : 'pointer',
+            opacity: processingPayment ? 0.7 : 1,
+            width: '100%'
+          }}
+        >
+          {processingPayment ? 'Processing...' : 'Book This Show'}
+        </button>
+      ) : (
+        <a
+          href={`/tickets/${show.id}`}
+          style={{
+            display: 'block',
+            background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+            color: '#1A1410',
+            padding: '12px 24px',
+            borderRadius: '6px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            fontFamily: "'DM Sans', sans-serif",
+            textDecoration: 'none',
+            textAlign: 'center',
+            width: '100%'
+          }}
+        >
+          Buy Tickets
+        </a>
+      )}
     </div>
   )
 
@@ -922,8 +946,8 @@ export default function Bookings() {
                 </section>
               )}
 
-              {/* Available Shows (for musicians) */}
-              {user.user_type === 'musician' && availableShows.length > 0 && (
+              {/* Available Shows (for hosts) */}
+              {profile?.user_type === 'host' && availableShows.length > 0 && (
                 <section style={{ marginBottom: '64px' }}>
                   <h2 style={{ 
                     fontFamily: "'Playfair Display', serif", 
