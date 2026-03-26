@@ -8,33 +8,32 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: NextRequest) {
   try {
-    const { showId, showName, ticketPrice, quantity } = await request.json()
+    const { showId, quantity } = await request.json()
 
     if (!showId || !quantity) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
-    let resolvedShowName = showName
-    let resolvedTicketPrice = ticketPrice
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (supabaseUrl && supabaseAnonKey) {
-        const supabase = createClient(supabaseUrl, supabaseAnonKey)
-        const { data: showRecord } = await supabase
-          .from('shows')
-          .select('show_name, artist_name, ticket_price')
-          .eq('id', showId)
-          .single()
-
-        if (showRecord) {
-          resolvedShowName = resolvedShowName || showRecord.show_name || showRecord.artist_name || 'HouseShow Event'
-          resolvedTicketPrice = resolvedTicketPrice ?? showRecord.ticket_price
-        }
-      }
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const { data: showRecord, error: showLookupError } = await supabase
+      .from('shows')
+      .select('show_name, artist_name, ticket_price')
+      .eq('id', showId)
+      .single()
+
+    if (showLookupError || !showRecord) {
+      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
+    }
+
+    const resolvedShowName = showRecord.artist_name || showRecord.show_name || 'HouseShow Event'
+    const resolvedTicketPrice = showRecord.ticket_price
 
     if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
