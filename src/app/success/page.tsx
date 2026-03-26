@@ -24,10 +24,12 @@ const getShowTimeValue = (show: Record<string, any>) =>
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const showId = searchParams.get('showId')
+  const sessionId = searchParams.get('session_id')
 
   const [show, setShow] = useState<ShowDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [ticketEmail, setTicketEmail] = useState<string | null>(null)
 
   useEffect(() => {
     const loadShow = async () => {
@@ -64,6 +66,22 @@ function CheckoutSuccessContent() {
 
     loadShow()
   }, [showId])
+
+  useEffect(() => {
+    const loadCheckoutEmail = async () => {
+      if (!sessionId) return
+      try {
+        const response = await fetch(`/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`)
+        if (!response.ok) return
+        const data = await response.json()
+        setTicketEmail(data.email || null)
+      } catch (err) {
+        console.error('Unable to load checkout email:', err)
+      }
+    }
+
+    loadCheckoutEmail()
+  }, [sessionId])
 
   const formatDate = (value: string) => {
     if (!value) return 'Date TBD'
@@ -124,6 +142,10 @@ function CheckoutSuccessContent() {
               <div>{show.venue_address}</div>
             </div>
           )}
+
+          <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '24px' }}>
+            Your ticket will be sent to {ticketEmail || 'your email'}.
+          </p>
 
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <a

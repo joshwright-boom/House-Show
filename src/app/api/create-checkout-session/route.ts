@@ -8,9 +8,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: NextRequest) {
   try {
-    const { showId, quantity, userId } = await request.json()
+    const { showId, quantity } = await request.json()
 
-    if (!showId || !quantity || !userId) {
+    if (!showId || !quantity) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { data: showRecord, error: showLookupError } = await supabase
       .from('shows')
-      .select('artist_name, ticket_price')
+      .select('id, show_name, artist_name, show_date, show_time, venue_name, venue_address, ticket_price')
       .eq('id', showId)
       .single()
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
-    const resolvedShowName = showRecord.artist_name
+    const resolvedShowName = showRecord.show_name || showRecord.artist_name
     const resolvedTicketPrice = showRecord.ticket_price
 
     if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.houseshow.net'
+    const safeQuantity = Math.max(1, Number(quantity) || 1)
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -61,15 +62,19 @@ export async function POST(request: NextRequest) {
             },
             unit_amount: Math.round(Number(resolvedTicketPrice) * 100),
           },
-          quantity: Number(quantity),
+          quantity: safeQuantity,
         },
       ],
-      success_url: `${origin}/success?showId=${showId}`,
+      success_url: `${origin}/success?showId=${showId}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/show/${showId}?checkout=cancelled`,
       metadata: {
         showId,
-        userId,
-        quantity: String(quantity),
+        showName: resolvedShowName,
+        showDate: showRecord.show_date || '',
+        showTime: showRecord.show_time || '',
+        venueName: showRecord.venue_name || '',
+        venueAddress: showRecord.venue_address || '',
+        quantity: String(safeQuantity),
       },
     })
 

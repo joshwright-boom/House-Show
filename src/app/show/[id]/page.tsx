@@ -128,21 +128,12 @@ export default function ShowPage({ params }: { params: { id: string } }) {
 
     try {
       setCheckoutLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        window.location.href = '/auth/login'
-        return
-      }
 
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           showId: show.id,
-          userId: user.id,
-          showName: show.show_name,
-          ticketPrice: show.ticket_price,
           quantity: ticketQuantity
         })
       })
