@@ -162,9 +162,11 @@ export async function POST(request: NextRequest) {
 
     console.log('Incoming form data:', JSON.stringify(formData))
 
-    const { error: insertError } = await dbSupabase
+    const { data: createdShow, error: insertError } = await dbSupabase
       .from('shows')
       .insert(showInsertPayload as any)
+      .select('*')
+      .single()
 
     if (insertError) {
       if (!hasServiceRole && insertError.message?.includes('row-level security')) {
@@ -180,17 +182,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertError.message || 'Unable to create show.' }, { status: 400 })
     }
 
-    const { data: createdShow, error: lookupError } = await dbSupabase
-      .from('shows')
-      .select('*')
-      .eq('host_user_id', user.id)
-      .eq('venue_address', showInsertPayload.venue_address)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (lookupError || !createdShow) {
-      return NextResponse.json({ error: lookupError?.message || 'Show created but could not be loaded.' }, { status: 500 })
+    if (!createdShow) {
+      return NextResponse.json({ error: 'Show created but could not be loaded.' }, { status: 500 })
     }
 
     try {
