@@ -122,7 +122,7 @@ export default function Dashboard() {
       try {
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, musician_id, musician_profile:profiles!musician_id(name)')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, musician_id')
           .eq('host_id', user.id)
           .order('created_at', { ascending: false })
 
@@ -133,9 +133,36 @@ export default function Dashboard() {
           setHostRequestsError(null)
         }
 
-        const normalizedRequests = (requests || []).map((request: any) => ({
+        const requestsList = requests || []
+        const musicianIds = Array.from(
+          new Set(
+            requestsList
+              .map((request: any) => request.musician_id)
+              .filter(Boolean)
+          )
+        ) as string[]
+
+        let musicianNameById: Record<string, string> = {}
+
+        if (musicianIds.length > 0) {
+          const { data: musicianProfiles, error: musicianProfilesError } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', musicianIds)
+
+          if (musicianProfilesError) {
+            console.error('Host booking requests musician profile lookup error:', musicianProfilesError)
+          } else {
+            musicianNameById = (musicianProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
+              acc[profile.id] = profile.name || 'Musician'
+              return acc
+            }, {})
+          }
+        }
+
+        const normalizedRequests = requestsList.map((request: any) => ({
           ...request,
-          musician_name: request.musician_profile?.name || request.musician_profile?.[0]?.name || 'Musician'
+          musician_name: musicianNameById[request.musician_id] || 'Musician'
         }))
 
         setHostRequests(normalizedRequests)
