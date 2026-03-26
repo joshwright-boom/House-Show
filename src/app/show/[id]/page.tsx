@@ -33,6 +33,12 @@ const getShowTimeValue = (show: Record<string, any>) =>
 const getShowHostId = (show: Record<string, any>) =>
   show.host_user_id || show.host_id || ''
 
+const getVenueNameValue = (show: Record<string, any>) =>
+  show.venue_name || show.location_name || show.space_name || 'Venue'
+
+const getVenueAddressValue = (show: Record<string, any>) =>
+  show.venue_address || show.location_address || show.address || ''
+
 export default function ShowPage({ params }: { params: { id: string } }) {
   const [show, setShow] = useState<ShowRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -57,8 +63,8 @@ export default function ShowPage({ params }: { params: { id: string } }) {
         setShow({
           id: data.id,
           show_name: getShowNameValue(data),
-          venue_name: data.venue_name,
-          venue_address: data.venue_address,
+          venue_name: getVenueNameValue(data),
+          venue_address: getVenueAddressValue(data),
           date: getShowDateValue(data),
           time: getShowTimeValue(data),
           ticket_price: data.ticket_price,
@@ -84,13 +90,11 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   }, [params.id])
 
   const totalPrice = show ? Number(show.ticket_price) * ticketQuantity : 0
-  const mapsUrl = show
-    ? `https://maps.google.com/?q=${encodeURIComponent(show.venue_address)}`
-    : ''
   const venueName = show?.venue_name?.trim() || ''
   const venueAddress = show?.venue_address?.trim() || ''
-  const hasDistinctVenueAddress =
-    venueAddress.length > 0 && venueAddress.toLowerCase() !== venueName.toLowerCase()
+  const mapsUrl = show
+    ? `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`
+    : ''
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('en-US', {
@@ -197,9 +201,11 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               {venueName}
             </div>
           ) : null}
-          <div style={{ color: '#8C7B6B', fontSize: '0.95rem', lineHeight: 1.6, wordBreak: 'break-word' }}>
-            {hasDistinctVenueAddress ? venueAddress : venueName}
-          </div>
+          {venueAddress ? (
+            <div style={{ color: '#8C7B6B', fontSize: '0.95rem', lineHeight: 1.6, wordBreak: 'break-word' }}>
+              {venueAddress}
+            </div>
+          ) : null}
           <a
             href={mapsUrl}
             target="_blank"
@@ -305,6 +311,23 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             >
               Share on Facebook
             </button>
+            <a
+              href={`sms:?body=${encodeURIComponent(`Check out this show: ${showUrl}`)}`}
+              style={{
+                display: 'inline-block',
+                background: 'transparent',
+                color: '#F5F0E8',
+                border: '1px solid rgba(212,130,10,0.2)',
+                borderRadius: '8px',
+                padding: '11px 14px',
+                cursor: 'pointer',
+                flex: '1 1 140px',
+                textDecoration: 'none',
+                textAlign: 'center'
+              }}
+            >
+              Share via Text
+            </a>
           </div>
         </section>
       </div>
