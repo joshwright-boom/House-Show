@@ -28,6 +28,12 @@ export async function POST(request: NextRequest) {
       .eq('id', showId)
       .single()
 
+    console.log('CHECKOUT SHOW LOOKUP:', JSON.stringify({
+      showId,
+      showRecord,
+      showLookupError
+    }))
+
     if (showLookupError || !showRecord) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
