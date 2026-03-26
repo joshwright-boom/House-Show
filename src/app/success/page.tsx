@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface ShowDetails {
   artist_name: string
@@ -30,6 +31,9 @@ function CheckoutSuccessContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [ticketEmail, setTicketEmail] = useState<string | null>(null)
+  const ticketUrl = sessionId
+    ? `https://houseshow.net/ticket/${sessionId}`
+    : 'https://houseshow.net/ticket/pending'
 
   useEffect(() => {
     const loadShow = async () => {
@@ -142,6 +146,58 @@ function CheckoutSuccessContent() {
               <div>{show.venue_address}</div>
             </div>
           )}
+
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#FFFFFF',
+              padding: '16px',
+              borderRadius: '14px',
+              marginBottom: '10px'
+            }}>
+              <QRCodeSVG value={ticketUrl} size={220} />
+            </div>
+            <div style={{ color: '#8C7B6B', fontSize: '0.95rem' }}>
+              Show this at the door
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: '12px', marginBottom: '22px' }}>
+            <a
+              href={sessionId ? `/api/wallet?session_id=${encodeURIComponent(sessionId)}&provider=apple` : '#'}
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                background: '#000000',
+                color: '#FFFFFF',
+                textDecoration: 'none',
+                padding: '12px 16px',
+                borderRadius: '10px',
+                fontWeight: 700,
+                border: '1px solid #2A2A2A'
+              }}
+            >
+              Add to Apple Wallet
+            </a>
+            <a
+              href={sessionId ? `/api/wallet?session_id=${encodeURIComponent(sessionId)}&provider=google` : '#'}
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                background: '#1F1F1F',
+                color: '#F5F0E8',
+                textDecoration: 'none',
+                padding: '12px 16px',
+                borderRadius: '10px',
+                fontWeight: 700,
+                border: '1px solid rgba(212,130,10,0.35)'
+              }}
+            >
+              Add to Google Wallet
+            </a>
+          </div>
 
           <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '24px' }}>
             Your ticket will be sent to {ticketEmail || 'your email'}.
