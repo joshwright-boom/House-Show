@@ -77,6 +77,9 @@ function CreateShowContent() {
   const [musicianResults, setMusicianResults] = useState<Musician[]>([])
   const [searchingMusicians, setSearchingMusicians] = useState(false)
   const [showMusicianDropdown, setShowMusicianDropdown] = useState(false)
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([])
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false)
+  const [addressLoading, setAddressLoading] = useState(false)
   
   // Map state
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -200,6 +203,47 @@ function CreateShowContent() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  useEffect(() => {
+    const query = formData.venue_address.trim()
+    if (query.length < 3 || !MAPBOX_TOKEN) {
+      setAddressSuggestions([])
+      setShowAddressSuggestions(false)
+      return
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setAddressLoading(true)
+        const response = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&limit=5&country=us&access_token=${MAPBOX_TOKEN}`
+        )
+        const data = await response.json()
+        const suggestions: string[] = (data?.features || [])
+          .map((feature: { place_name?: string }) => feature.place_name)
+          .filter(Boolean)
+
+        setAddressSuggestions(suggestions)
+        setShowAddressSuggestions(suggestions.length > 0)
+      } catch (error) {
+        console.error('Error loading address suggestions:', error)
+        setAddressSuggestions([])
+        setShowAddressSuggestions(false)
+      } finally {
+        setAddressLoading(false)
+      }
+    }, 250)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [formData.venue_address])
+
+  const handleSelectAddress = (address: string) => {
+    setFormData(prev => ({ ...prev, venue_address: address }))
+    setAddressSuggestions([])
+    setShowAddressSuggestions(false)
   }
 
   const searchMusicians = async (query: string) => {
@@ -598,7 +642,7 @@ function CreateShowContent() {
             </div>
 
             {/* Venue Address */}
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{
                 display: 'block',
                 fontFamily: "'Playfair Display', serif",
@@ -611,9 +655,16 @@ function CreateShowContent() {
               <input
                 type="text"
                 value={formData.venue_address}
-                onChange={(e) => handleInputChange('venue_address', e.target.value)}
+                onChange={(e) => {
+                  handleInputChange('venue_address', e.target.value)
+                  setShowAddressSuggestions(true)
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => setShowAddressSuggestions(false), 120)
+                }}
                 placeholder="123 Main St, City, State"
                 required
+                autoComplete="off"
                 style={{
                   width: '100%',
                   padding: '16px',
@@ -625,6 +676,52 @@ function CreateShowContent() {
                   fontFamily: "'DM Sans', sans-serif"
                 }}
               />
+              {showAddressSuggestions && addressSuggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  border: '1px solid rgba(212,130,10,0.25)',
+                  borderRadius: '8px',
+                  background: '#241A12',
+                  overflow: 'hidden',
+                  zIndex: 20,
+                  boxShadow: '0 12px 30px rgba(0,0,0,0.35)'
+                }}>
+                  {addressSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onMouseDown={() => handleSelectAddress(suggestion)}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        borderBottom: '1px solid rgba(212,130,10,0.12)',
+                        padding: '12px 14px',
+                        color: '#F5F0E8',
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: '0.92rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {addressLoading && (
+                <div style={{
+                  marginTop: '8px',
+                  color: '#8C7B6B',
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: '0.85rem'
+                }}>
+                  Looking up address suggestions...
+                </div>
+              )}
             </div>
 
             {/* Date and Time */}

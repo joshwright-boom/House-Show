@@ -26,6 +26,7 @@ interface Show {
   id: string
   title: string
   description: string
+  venue_address?: string
   date: string
   time: string
   price: number
@@ -290,6 +291,7 @@ export default function Bookings() {
         id: show.id,
         title: show.show_name,
         description: show.show_description,
+        venue_address: show.venue_address,
         date: getShowDateValue(show),
         time: show.time,
         price: show.ticket_price,
@@ -333,6 +335,9 @@ export default function Bookings() {
     })
   }
 
+  const getDirectionsHref = (address?: string) =>
+    address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : ''
+
   const BookingCard = ({ booking }: { booking: Booking }) => (
     <div style={{
       border: '1px solid rgba(212,130,10,0.2)',
@@ -358,6 +363,24 @@ export default function Bookings() {
           }}>
             📍 {booking.venue_name}
           </p>
+          {booking.venue_address && (
+            <a
+              href={getDirectionsHref(booking.venue_address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                marginTop: '8px',
+                fontFamily: "'DM Sans', sans-serif",
+                color: '#D4820A',
+                fontSize: '0.9rem',
+                textDecoration: 'none',
+                fontWeight: 600
+              }}
+            >
+              Get Directions
+            </a>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ 
@@ -497,6 +520,24 @@ export default function Bookings() {
           }}>
             📍 Host Venue • {formatDate(show.date)} at {show.time}
           </p>
+          {show.venue_address && (
+            <a
+              href={getDirectionsHref(show.venue_address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                marginTop: '8px',
+                fontFamily: "'DM Sans', sans-serif",
+                color: '#D4820A',
+                fontSize: '0.9rem',
+                textDecoration: 'none',
+                fontWeight: 600
+              }}
+            >
+              Get Directions
+            </a>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ 
@@ -585,6 +626,22 @@ export default function Bookings() {
           }}>
             📍 {request.venue_address}
           </p>
+          <a
+            href={getDirectionsHref(request.venue_address)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-block',
+              marginTop: '8px',
+              fontFamily: "'DM Sans', sans-serif",
+              color: '#D4820A',
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+              fontWeight: 600
+            }}
+          >
+            Get Directions
+          </a>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ 
@@ -756,6 +813,22 @@ export default function Bookings() {
             }}>
               📍 {request.venue_address}
             </p>
+            <a
+              href={getDirectionsHref(request.venue_address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                marginTop: '8px',
+                fontFamily: "'DM Sans', sans-serif",
+                color: '#D4820A',
+                fontSize: '0.9rem',
+                textDecoration: 'none',
+                fontWeight: 600
+              }}
+            >
+              Get Directions
+            </a>
           </div>
           <div style={{
             padding: '6px 12px',

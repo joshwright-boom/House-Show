@@ -85,7 +85,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
 
   const totalPrice = show ? Number(show.ticket_price) * ticketQuantity : 0
   const mapsUrl = show
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(show.venue_address)}`
+    ? `https://maps.google.com/?q=${encodeURIComponent(show.venue_address)}`
     : ''
   const venueName = show?.venue_name?.trim() || ''
   const venueAddress = show?.venue_address?.trim() || ''
@@ -202,13 +202,14 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               {venueName ? <div>{venueName}</div> : null}
               {hasDistinctVenueAddress ? (
                 <div>
+                  <div style={{ color: '#F0A500' }}>{venueAddress}</div>
                   <a
                     href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: '#F0A500', textDecoration: 'none' }}
+                    style={{ color: '#D4820A', textDecoration: 'none', fontWeight: 600 }}
                   >
-                    {venueAddress}
+                    Get Directions
                   </a>
                 </div>
               ) : null}
