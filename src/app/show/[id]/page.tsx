@@ -134,6 +134,12 @@ export default function ShowPage({ params }: { params: { id: string } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           showId: show.id,
+          showName: show.show_name,
+          showDate: show.date,
+          showTime: show.time,
+          venueName: show.venue_name,
+          venueAddress: show.venue_address,
+          ticketPrice: show.ticket_price,
           quantity: ticketQuantity
         })
       })

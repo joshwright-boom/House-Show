@@ -8,9 +8,29 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: NextRequest) {
   try {
-    const { showId, quantity } = await request.json()
+    const {
+      showId,
+      showName,
+      showDate,
+      showTime,
+      venueName,
+      venueAddress,
+      ticketPrice,
+      quantity
+    } = await request.json()
 
-    if (!showId || !quantity) {
+    console.log('CHECKOUT REQUEST BODY:', JSON.stringify({
+      showId,
+      showName,
+      showDate,
+      showTime,
+      venueName,
+      venueAddress,
+      ticketPrice,
+      quantity
+    }))
+
+    if (!showId || !showName || !showDate || !showTime || !venueName || !venueAddress || ticketPrice === undefined || ticketPrice === null || !quantity) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
@@ -29,27 +49,24 @@ export async function POST(request: NextRequest) {
       .from('shows')
       .select('id, show_name, artist_name, show_date, show_time, venue_name, venue_address, ticket_price')
       .eq('id', showId)
-      .single()
+      .maybeSingle()
 
-    console.log('CHECKOUT SHOW LOOKUP:', JSON.stringify({
-      showId,
-      showRecord,
-      showLookupError
-    }))
+    console.log('CHECKOUT SHOW LOOKUP:', JSON.stringify({ showId, showRecord, showLookupError }))
 
-    if (showLookupError || !showRecord) {
-      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
-    }
+    const resolvedShowName = String(showName || showRecord?.show_name || showRecord?.artist_name || '').trim()
+    const resolvedShowDate = String(showDate || showRecord?.show_date || '')
+    const resolvedShowTime = String(showTime || showRecord?.show_time || '')
+    const resolvedVenueName = String(venueName || showRecord?.venue_name || '')
+    const resolvedVenueAddress = String(venueAddress || showRecord?.venue_address || '')
+    const resolvedTicketPrice = Number(ticketPrice ?? showRecord?.ticket_price)
+    const safeQuantity = Math.max(1, Number(quantity) || 1)
+    const unitAmount = Math.round(resolvedTicketPrice * 100)
 
-    const resolvedShowName = showRecord.show_name || showRecord.artist_name
-    const resolvedTicketPrice = showRecord.ticket_price
-
-    if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
+    if (!resolvedShowName || !resolvedShowDate || !resolvedShowTime || !resolvedVenueName || !resolvedVenueAddress || Number.isNaN(resolvedTicketPrice) || resolvedTicketPrice <= 0 || !Number.isFinite(unitAmount) || unitAmount <= 0) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.houseshow.net'
-    const safeQuantity = Math.max(1, Number(quantity) || 1)
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -60,7 +77,7 @@ export async function POST(request: NextRequest) {
             product_data: {
               name: `${resolvedShowName} Ticket`,
             },
-            unit_amount: Math.round(Number(resolvedTicketPrice) * 100),
+            unit_amount: unitAmount,
           },
           quantity: safeQuantity,
         },
@@ -70,10 +87,11 @@ export async function POST(request: NextRequest) {
       metadata: {
         showId,
         showName: resolvedShowName,
-        showDate: showRecord.show_date || '',
-        showTime: showRecord.show_time || '',
-        venueName: showRecord.venue_name || '',
-        venueAddress: showRecord.venue_address || '',
+        showDate: resolvedShowDate,
+        showTime: resolvedShowTime,
+        venueName: resolvedVenueName,
+        venueAddress: resolvedVenueAddress,
+        ticketPrice: String(resolvedTicketPrice),
         quantity: String(safeQuantity),
       },
     })
