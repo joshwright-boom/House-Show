@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const { data: showRecord, error: showLookupError } = await supabase
       .from('shows')
-      .select('show_name, artist_name, ticket_price')
+      .select('artist_name, ticket_price')
       .eq('id', showId)
       .single()
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
-    const resolvedShowName = showRecord.artist_name || showRecord.show_name || 'HouseShow Event'
+    const resolvedShowName = showRecord.artist_name
     const resolvedTicketPrice = showRecord.ticket_price
 
     if (!resolvedShowName || resolvedTicketPrice === undefined || resolvedTicketPrice === null || Number.isNaN(Number(resolvedTicketPrice))) {
