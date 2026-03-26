@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
 
     const session = await stripe.checkout.sessions.retrieve(sessionId)
     const email = session.customer_details?.email || session.customer_email || null
+    const quantity = session.metadata?.quantity || '1'
 
-    return NextResponse.json({ email })
+    return NextResponse.json({ email, quantity })
   } catch (error) {
     console.error('Error fetching checkout session:', error)
     return NextResponse.json({ error: 'Failed to load checkout session' }, { status: 500 })

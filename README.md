@@ -18,6 +18,12 @@ You still need to add your service_role key:
 - Copy the service_role key
 - Open `.env.local` and replace `your_service_role_key_here`
 
+## Email (Resend)
+
+Ticket confirmation emails require:
+- `RESEND_API_KEY` (from resend.com)
+- `RESEND_FROM_EMAIL` (a verified sender, e.g. `tickets@yourdomain.com`)
+
 ## Pages
 
 - `/` — Homepage

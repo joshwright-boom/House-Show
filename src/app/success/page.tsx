@@ -7,14 +7,19 @@ import { supabase } from '@/lib/supabase'
 import { QRCodeSVG } from 'qrcode.react'
 
 interface ShowDetails {
+  show_name: string
   artist_name: string
   show_date: string
   show_time: string
+  venue_name: string
   venue_address: string
 }
 
 const getShowArtistName = (show: Record<string, any>) =>
   show.artist_name || show.show_name || 'HouseShow Artist'
+
+const getShowNameValue = (show: Record<string, any>) =>
+  show.show_name || show.artist_name || 'HouseShow Event'
 
 const getShowDateValue = (show: Record<string, any>) =>
   show.show_date || show.date || ''
@@ -43,6 +48,8 @@ function CheckoutSuccessContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [ticketEmail, setTicketEmail] = useState<string | null>(null)
+  const [ticketQuantity, setTicketQuantity] = useState('1')
+  const [emailSent, setEmailSent] = useState(false)
   const ticketUrl = sessionId
     ? `https://houseshow.net/ticket/${sessionId}`
     : 'https://houseshow.net/ticket/pending'
@@ -68,9 +75,11 @@ function CheckoutSuccessContent() {
         }
 
         setShow({
+          show_name: getShowNameValue(data),
           artist_name: getShowArtistName(data),
           show_date: getShowDateValue(data),
           show_time: getShowTimeValue(data),
+          venue_name: data.venue_name || 'Venue',
           venue_address: data.venue_address || 'Venue details coming soon'
         })
       } catch (err) {
@@ -91,6 +100,7 @@ function CheckoutSuccessContent() {
         if (!response.ok) return
         const data = await response.json()
         setTicketEmail(data.email || null)
+        setTicketQuantity(data.quantity || '1')
       } catch (err) {
         console.error('Unable to load checkout email:', err)
       }
@@ -98,6 +108,41 @@ function CheckoutSuccessContent() {
 
     loadCheckoutEmail()
   }, [sessionId])
+
+  useEffect(() => {
+    const sendTicketEmail = async () => {
+      if (!show || !ticketEmail || !sessionId || emailSent) return
+
+      try {
+        const response = await fetch('/api/send-ticket-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: ticketEmail,
+            showName: show.show_name,
+            showDate: formatDate(show.show_date),
+            showTime: formatTime(show.show_time),
+            venueName: show.venue_name,
+            venueAddress: show.venue_address,
+            sessionId,
+            quantity: ticketQuantity
+          })
+        })
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null)
+          console.error('Ticket email API error:', data?.error || response.statusText)
+          return
+        }
+
+        setEmailSent(true)
+      } catch (err) {
+        console.error('Unable to send ticket email:', err)
+      }
+    }
+
+    sendTicketEmail()
+  }, [show, ticketEmail, sessionId, ticketQuantity, emailSent])
 
   const formatDate = (value: string) => {
     if (!value) return 'Date TBD'
@@ -152,9 +197,11 @@ function CheckoutSuccessContent() {
               padding: '20px',
               marginBottom: '24px'
             }}>
-              <div style={{ color: '#F0A500', fontWeight: 700, marginBottom: '10px', fontSize: '1.1rem' }}>{show.artist_name}</div>
+              <div style={{ color: '#F0A500', fontWeight: 700, marginBottom: '10px', fontSize: '1.1rem' }}>{show.show_name}</div>
+              <div style={{ marginBottom: '8px', color: '#8C7B6B' }}>Artist: {show.artist_name}</div>
               <div style={{ marginBottom: '8px' }}>{formatDate(show.show_date)}</div>
               <div style={{ marginBottom: '8px' }}>{formatTime(show.show_time)}</div>
+              <div style={{ marginBottom: '8px' }}>{show.venue_name}</div>
               <div>{show.venue_address}</div>
             </div>
           )}
