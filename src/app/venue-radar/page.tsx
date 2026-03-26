@@ -182,7 +182,7 @@ export default function VenueRadarPage() {
       `
       el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.8)' })
       el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)' })
-      el.addEventListener('click', () => { window.location.href = `/host-profile?id=${venue.id}` })
+      el.addEventListener('click', () => { window.location.href = `/request-show/${venue.id}` })
 
       new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(el)
         .setLngLat([venue.longitude, venue.latitude])
@@ -246,7 +246,7 @@ export default function VenueRadarPage() {
             return (
               <a
                 key={venue.id}
-                href={`/host-profile?id=${venue.id}`}
+                href={`/request-show/${venue.id}`}
                 style={{
                   display: 'block',
                   padding: '16px 24px',
