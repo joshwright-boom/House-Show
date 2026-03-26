@@ -164,40 +164,9 @@ function CheckoutSuccessContent() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: '12px', marginBottom: '22px' }}>
-            <a
-              href={sessionId ? `/api/wallet?session_id=${encodeURIComponent(sessionId)}&provider=apple` : '#'}
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                background: '#000000',
-                color: '#FFFFFF',
-                textDecoration: 'none',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                border: '1px solid #2A2A2A'
-              }}
-            >
-              Add to Apple Wallet
-            </a>
-            <a
-              href={sessionId ? `/api/wallet?session_id=${encodeURIComponent(sessionId)}&provider=google` : '#'}
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                background: '#1F1F1F',
-                color: '#F5F0E8',
-                textDecoration: 'none',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                border: '1px solid rgba(212,130,10,0.35)'
-              }}
-            >
-              Add to Google Wallet
-            </a>
-          </div>
+          <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '22px' }}>
+            📱 Save this page to your home screen to keep your ticket
+          </p>
 
           <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '24px' }}>
             Your ticket will be sent to {ticketEmail || 'your email'}.
