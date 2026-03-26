@@ -22,6 +22,18 @@ const getShowDateValue = (show: Record<string, any>) =>
 const getShowTimeValue = (show: Record<string, any>) =>
   show.show_time || show.time || 'TBD'
 
+const formatTime = (value: string) => {
+  if (!value || value === 'TBD') return 'TBD'
+  const match = value.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return value
+
+  const rawHour = Number(match[1])
+  const minutes = match[2]
+  const period = rawHour >= 12 ? 'PM' : 'AM'
+  const hour12 = rawHour % 12 || 12
+  return `${hour12}:${minutes} ${period}`
+}
+
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const showId = searchParams.get('showId')
@@ -142,7 +154,7 @@ function CheckoutSuccessContent() {
             }}>
               <div style={{ color: '#F0A500', fontWeight: 700, marginBottom: '10px', fontSize: '1.1rem' }}>{show.artist_name}</div>
               <div style={{ marginBottom: '8px' }}>{formatDate(show.show_date)}</div>
-              <div style={{ marginBottom: '8px' }}>{show.show_time}</div>
+              <div style={{ marginBottom: '8px' }}>{formatTime(show.show_time)}</div>
               <div>{show.venue_address}</div>
             </div>
           )}

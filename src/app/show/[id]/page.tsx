@@ -39,6 +39,18 @@ const getVenueNameValue = (show: Record<string, any>) =>
 const getVenueAddressValue = (show: Record<string, any>) =>
   show.venue_address || show.location_address || show.address || ''
 
+const formatTime = (value: string) => {
+  if (!value || value === 'TBD') return 'TBD'
+  const match = value.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return value
+
+  const rawHour = Number(match[1])
+  const minutes = match[2]
+  const period = rawHour >= 12 ? 'PM' : 'AM'
+  const hour12 = rawHour % 12 || 12
+  return `${hour12}:${minutes} ${period}`
+}
+
 export default function ShowPage({ params }: { params: { id: string } }) {
   const [show, setShow] = useState<ShowRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -191,7 +203,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             {show.show_name}
           </h1>
           <div style={{ color: '#F5F0E8', fontSize: '0.98rem', lineHeight: 1.6, marginBottom: '6px' }}>
-            {formatDate(show.date)} at {show.time}
+            {formatDate(show.date)} at {formatTime(show.time)}
           </div>
           {venueName ? (
             <div style={{ color: '#F5F0E8', fontSize: '0.98rem', lineHeight: 1.6, marginBottom: '6px' }}>
