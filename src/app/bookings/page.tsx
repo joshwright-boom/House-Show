@@ -891,7 +891,7 @@ export default function Bookings() {
           {user.user_type === 'musician' && (
             <div style={{ marginBottom: '48px' }}>
               <a
-                href="/radar"
+                href="/venue-radar"
                 style={{
                   display: 'inline-block',
                   background: 'linear-gradient(135deg, #D4820A, #F0A500)',
@@ -1047,7 +1047,7 @@ export default function Bookings() {
                   )}
                   {user.user_type === 'musician' && (
                     <a
-                      href="/radar"
+                      href="/venue-radar"
                       style={{
                         display: 'inline-block',
                         background: '#F0A500',
@@ -1116,7 +1116,7 @@ export default function Bookings() {
                     )}
                     {user.user_type === 'musician' && (
                       <a
-                        href="/radar"
+                        href="/venue-radar"
                         style={{
                           display: 'inline-block',
                           background: 'linear-gradient(135deg, #D4820A, #F0A500)',
