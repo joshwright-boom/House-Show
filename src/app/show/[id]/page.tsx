@@ -87,6 +87,10 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   const mapsUrl = show
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(show.venue_address)}`
     : ''
+  const venueName = show?.venue_name?.trim() || ''
+  const venueAddress = show?.venue_address?.trim() || ''
+  const hasDistinctVenueAddress =
+    venueAddress.length > 0 && venueAddress.toLowerCase() !== venueName.toLowerCase()
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('en-US', {
@@ -124,12 +128,19 @@ export default function ShowPage({ params }: { params: { id: string } }) {
 
     try {
       setCheckoutLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        window.location.href = '/auth/login'
+        return
+      }
 
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           showId: show.id,
+          userId: user.id,
           showName: show.show_name,
           ticketPrice: show.ticket_price,
           quantity: ticketQuantity
@@ -188,17 +199,19 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             </h1>
             <div style={{ color: '#8C7B6B', fontSize: '1rem', marginBottom: '24px', lineHeight: '1.7' }}>
               <div>{formatDate(show.date)} at {show.time}</div>
-              <div>{show.venue_name}</div>
-              <div>
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#F0A500', textDecoration: 'none' }}
-                >
-                  {show.venue_address}
-                </a>
-              </div>
+              {venueName ? <div>{venueName}</div> : null}
+              {hasDistinctVenueAddress ? (
+                <div>
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#F0A500', textDecoration: 'none' }}
+                  >
+                    {venueAddress}
+                  </a>
+                </div>
+              ) : null}
             </div>
             <p style={{ color: '#F5F0E8', lineHeight: '1.7', fontSize: '1rem', marginBottom: '24px' }}>
               {show.show_description}

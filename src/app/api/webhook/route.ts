@@ -1,30 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import Stripe from 'stripe'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 } as any)
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const endpointSecret = (process.env.STRIPE_WEBHOOK_SECRET || '').trim()
+
+const createServiceSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase service role configuration')
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey)
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
-    const signature = headers().get('stripe-signature')!
+    const signature = request.headers.get('stripe-signature')
+    console.log('[webhook] received request', {
+      hasSignature: Boolean(signature),
+      bodyLength: body.length,
+      hasEndpointSecret: Boolean(endpointSecret),
+    })
+
+    if (!signature) {
+      console.error('[webhook] missing stripe-signature header')
+      return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
+    }
+    if (!endpointSecret) {
+      console.error('[webhook] STRIPE_WEBHOOK_SECRET is missing or empty')
+      return NextResponse.json({ error: 'Missing endpoint secret' }, { status: 500 })
+    }
 
     let event: Stripe.Event
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
     } catch (err) {
-      console.error('Webhook signature verification failed:', err)
+      console.error('[webhook] signature verification failed:', err)
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
+    console.log('[webhook] signature verified', { eventId: event.id, eventType: event.type })
 
     // Handle the event
     switch (event.type) {
+      case 'checkout.session.completed':
+        const checkoutSession = event.data.object as Stripe.Checkout.Session
+        await handleCompletedCheckoutSession(checkoutSession)
+        break
+
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object as Stripe.PaymentIntent
         await handleSuccessfulPayment(paymentIntent)
@@ -36,12 +66,13 @@ export async function POST(request: NextRequest) {
         break
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.log('[webhook] unhandled event type', { eventType: event.type, eventId: event.id })
     }
 
+    console.log('[webhook] handled successfully', { eventId: event.id, eventType: event.type })
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Webhook error:', error)
+    console.error('[webhook] fatal handler error:', error)
     return NextResponse.json(
       { error: 'Webhook handler failed' },
       { status: 500 }
@@ -49,10 +80,47 @@ export async function POST(request: NextRequest) {
   }
 }
 
+async function handleCompletedCheckoutSession(session: Stripe.Checkout.Session) {
+  const { showId, userId, quantity } = session.metadata || {}
+  console.log('[webhook] checkout.session.completed metadata', {
+    sessionId: session.id,
+    showId,
+    userId,
+    quantity,
+    paymentStatus: session.payment_status,
+  })
+
+  if (!showId || !userId) {
+    throw new Error(`Missing checkout metadata for ticket creation. Session: ${session.id}`)
+  }
+
+  const ticketCount = Math.max(1, Number(quantity || 1))
+  const ticketsToInsert = Array.from({ length: ticketCount }, () => ({
+    show_id: showId,
+    user_id: userId,
+  }))
+
+  try {
+    const supabase = createServiceSupabase()
+    console.log('[webhook] inserting tickets', { sessionId: session.id, ticketCount })
+    const { error } = await supabase.from('tickets').insert(ticketsToInsert)
+    if (error) {
+      console.error('[webhook] error inserting tickets:', error)
+      throw error
+    }
+
+    console.log('[webhook] tickets inserted', { sessionId: session.id, ticketCount })
+  } catch (error) {
+    console.error('[webhook] error handling checkout.session.completed:', error)
+    throw error
+  }
+}
+
 async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   const { bookingId, musicianId, hostId } = paymentIntent.metadata
 
   try {
+    const supabase = createServiceSupabase()
     // Update booking status to confirmed
     const { error } = await supabase
       .from('bookings')
@@ -108,6 +176,7 @@ async function handleFailedPayment(paymentIntent: Stripe.PaymentIntent) {
   const { bookingId } = paymentIntent.metadata
 
   try {
+    const supabase = createServiceSupabase()
     // Update booking status to payment_failed
     const { error } = await supabase
       .from('bookings')

@@ -423,11 +423,6 @@ function CreateShowContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
-
-    if (userRole !== 'host') {
-      alert('The host account needs to publish this show. Please switch to the host account to create the ticket page.')
-      return
-    }
     
     setLoading(true)
     setSubmitError(null)

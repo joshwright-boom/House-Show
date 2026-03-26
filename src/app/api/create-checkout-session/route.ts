@@ -8,9 +8,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: NextRequest) {
   try {
-    const { showId, quantity } = await request.json()
+    const { showId, quantity, userId } = await request.json()
 
-    if (!showId || !quantity) {
+    if (!showId || !quantity || !userId) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
@@ -61,10 +61,12 @@ export async function POST(request: NextRequest) {
           quantity: Number(quantity),
         },
       ],
-      success_url: `${origin}/show/${showId}?checkout=success`,
+      success_url: `${origin}/success?showId=${showId}`,
       cancel_url: `${origin}/show/${showId}?checkout=cancelled`,
       metadata: {
         showId,
+        userId,
+        quantity: String(quantity),
       },
     })
 

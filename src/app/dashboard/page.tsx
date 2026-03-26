@@ -315,9 +315,25 @@ export default function Dashboard() {
     <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
         <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
-        <button onClick={handleSignOut} style={{ background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#8C7B6B', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>
-          Sign Out
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <a
+            href="/tickets"
+            style={{
+              border: '1px solid rgba(212,130,10,0.3)',
+              color: '#F5F0E8',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: '0.85rem',
+              textDecoration: 'none'
+            }}
+          >
+            My Tickets
+          </a>
+          <button onClick={handleSignOut} style={{ background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#8C7B6B', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>
+            Sign Out
+          </button>
+        </div>
       </nav>
 
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -389,10 +405,12 @@ export default function Dashboard() {
               { icon: '🏠', title: 'My Host Profile', desc: 'Build your host profile', href: '/host-profile' },
               { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' },
               { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
+              { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
             ] : [
               { icon: '🎸', title: 'My Artist Profile', desc: 'Build your musician profile', href: '/profile' },
               { icon: '🏠', title: 'Find Hosts', desc: 'Discover hosts and venues near you', href: '/find-hosts' },
               { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
+              { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
             ])
           ].flat().map((card) => (
             <a key={card.title} href={card.href} style={{
