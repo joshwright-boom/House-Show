@@ -7,6 +7,7 @@ interface BookingRequest {
   id: string
   host_id: string
   musician_id?: string
+  musician_name?: string
   created_at: string
   proposed_date: string
   show_date?: string
@@ -121,7 +122,7 @@ export default function Dashboard() {
       try {
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, musician_id')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, message, status, host_id, musician_id, musician_profile:profiles!musician_id(name)')
           .eq('host_id', user.id)
           .order('created_at', { ascending: false })
 
@@ -132,7 +133,12 @@ export default function Dashboard() {
           setHostRequestsError(null)
         }
 
-        setHostRequests(requests || [])
+        const normalizedRequests = (requests || []).map((request: any) => ({
+          ...request,
+          musician_name: request.musician_profile?.name || request.musician_profile?.[0]?.name || 'Musician'
+        }))
+
+        setHostRequests(normalizedRequests)
       } catch (error) {
         console.error('Error loading host booking requests:', error)
         setHostRequestsError(error instanceof Error ? error.message : 'Unknown host booking request error')
@@ -270,6 +276,9 @@ export default function Dashboard() {
       }
 
       setBookingRequests(prev =>
+        prev.map(request => request.id === requestId ? { ...request, status } : request)
+      )
+      setHostRequests(prev =>
         prev.map(request => request.id === requestId ? { ...request, status } : request)
       )
     } catch (error) {
@@ -427,7 +436,7 @@ export default function Dashboard() {
         {activeMode === 'musician' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
-              Incoming Booking Requests
+              Sent Booking Requests
             </div>
             <div style={{ display: 'grid', gap: '16px' }}>
               {requestsLoading ? (
@@ -476,7 +485,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        Host Invitation
+                        Booking Request Sent
                       </h3>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
                         Venue: {request.venue_address}
@@ -533,39 +542,15 @@ export default function Dashboard() {
                   </div>
 
                   {request.status === 'pending' && (
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button
-                        onClick={() => updateBookingRequestStatus(request.id, 'accepted')}
-                        disabled={updatingRequestId === request.id}
-                        style={{
-                          background: '#D4820A',
-                          color: '#1A1410',
-                          border: '1px solid #D4820A',
-                          borderRadius: '6px',
-                          padding: '10px 16px',
-                          cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontWeight: '600'
-                        }}
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => updateBookingRequestStatus(request.id, 'declined')}
-                        disabled={updatingRequestId === request.id}
-                        style={{
-                          background: 'transparent',
-                          color: '#F5F0E8',
-                          border: '1px solid rgba(212,130,10,0.3)',
-                          borderRadius: '6px',
-                          padding: '10px 16px',
-                          cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontWeight: '600'
-                        }}
-                      >
-                        Decline
-                      </button>
+                    <div style={{
+                      marginBottom: '16px',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      background: 'rgba(26,20,16,0.35)',
+                      color: '#F5F0E8',
+                      fontFamily: "'DM Sans', sans-serif"
+                    }}>
+                      Waiting for the host to respond.
                     </div>
                   )}
 
@@ -598,7 +583,7 @@ export default function Dashboard() {
         {activeMode === 'host' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
-              Sent Invitations
+              Incoming Booking Requests
             </div>
             <div style={{ display: 'grid', gap: '16px' }}>
               {hostRequestsLoading ? (
@@ -610,7 +595,7 @@ export default function Dashboard() {
                   fontFamily: "'DM Sans', sans-serif",
                   color: '#8C7B6B'
                 }}>
-                  Loading invitations...
+                  Loading requests...
                 </div>
               ) : hostRequestsError ? (
                 <div style={{
@@ -621,7 +606,7 @@ export default function Dashboard() {
                   fontFamily: "'DM Sans', sans-serif",
                   color: '#F5B5B5'
                 }}>
-                  Invitation error: {hostRequestsError}
+                  Booking request error: {hostRequestsError}
                 </div>
               ) : hostRequests.length === 0 ? (
                 <div style={{
@@ -632,7 +617,7 @@ export default function Dashboard() {
                   fontFamily: "'DM Sans', sans-serif",
                   color: '#8C7B6B'
                 }}>
-                  No sent invitations yet.
+                  No booking requests yet.
                 </div>
               ) : hostRequests.map((request) => (
                 <div
@@ -647,8 +632,11 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', alignItems: 'flex-start' }}>
                     <div>
                       <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                        Invitation Status
+                        Booking Request
                       </h3>
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
+                        Musician: {request.musician_name || 'Musician'}
+                      </p>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
                         Venue: {request.venue_address}
                       </p>
@@ -680,15 +668,52 @@ export default function Dashboard() {
                     fontFamily: "'DM Sans', sans-serif"
                   }}>
                     {request.status === 'accepted'
-                      ? 'Your musician accepted this invitation. Open My Bookings to create or manage the ticket page.'
+                      ? 'You accepted this request. You can now create and share the ticket page.'
                       : request.status === 'declined'
-                        ? 'The musician declined this invitation.'
-                        : 'Waiting for the musician to respond.'}
+                        ? 'You declined this request.'
+                        : 'Waiting for your response.'}
                   </div>
 
                   {request.message && (
                     <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
-                      Original message: <span style={{ color: '#F5F0E8' }}>{request.message}</span>
+                      Message: <span style={{ color: '#F5F0E8' }}>{request.message}</span>
+                    </div>
+                  )}
+
+                  {request.status === 'pending' && (
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                      <button
+                        onClick={() => updateBookingRequestStatus(request.id, 'accepted')}
+                        disabled={updatingRequestId === request.id}
+                        style={{
+                          background: '#D4820A',
+                          color: '#1A1410',
+                          border: '1px solid #D4820A',
+                          borderRadius: '6px',
+                          padding: '10px 16px',
+                          cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => updateBookingRequestStatus(request.id, 'declined')}
+                        disabled={updatingRequestId === request.id}
+                        style={{
+                          background: 'transparent',
+                          color: '#F5F0E8',
+                          border: '1px solid rgba(212,130,10,0.3)',
+                          borderRadius: '6px',
+                          padding: '10px 16px',
+                          cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Decline
+                      </button>
                     </div>
                   )}
 
