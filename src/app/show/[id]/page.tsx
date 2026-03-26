@@ -119,10 +119,6 @@ export default function ShowPage({ params }: { params: { id: string } }) {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(showUrl)}`, '_blank')
   }
 
-  const shareByEmail = () => {
-    window.location.href = `mailto:?subject=${encodeURIComponent(show?.show_name || 'HouseShow')}&body=${encodeURIComponent(shareText)}`
-  }
-
   const startCheckout = async () => {
     if (!show) return
 
@@ -182,179 +178,135 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <main style={{ minHeight: '100vh', background: '#1A1410', color: '#F5F0E8', padding: '48px 24px' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
+    <main style={{ minHeight: '100vh', background: '#1A1410', color: '#F5F0E8', padding: '20px 14px' }}>
+      <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500', textDecoration: 'none' }}>HouseShow</a>
-          <a href="/bookings" style={{ color: '#8C7B6B', textDecoration: 'none' }}>Back to Bookings</a>
+          <a href="/bookings" style={{ color: '#8C7B6B', textDecoration: 'none', fontSize: '0.92rem' }}>Back to Bookings</a>
         </nav>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '32px' }}>
-          <section style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '16px', padding: '32px', background: 'rgba(44,34,24,0.35)' }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '12px' }}>
-              Ticket Page
+        <section style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '18px', background: 'rgba(44,34,24,0.35)' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', lineHeight: 1.2, marginBottom: '12px', wordBreak: 'break-word' }}>
+            {show.show_name}
+          </h1>
+          <div style={{ color: '#F5F0E8', fontSize: '0.98rem', lineHeight: 1.6, marginBottom: '6px' }}>
+            {formatDate(show.date)} at {show.time}
+          </div>
+          {venueName ? (
+            <div style={{ color: '#F5F0E8', fontSize: '0.98rem', lineHeight: 1.6, marginBottom: '6px' }}>
+              {venueName}
             </div>
-            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '3rem', marginBottom: '16px' }}>
-              {show.show_name}
-            </h1>
-            <div style={{ color: '#8C7B6B', fontSize: '1rem', marginBottom: '24px', lineHeight: '1.7' }}>
-              <div>{formatDate(show.date)} at {show.time}</div>
-              {venueName ? <div>{venueName}</div> : null}
-              {hasDistinctVenueAddress ? (
-                <div>
-                  <div style={{ color: '#F0A500' }}>{venueAddress}</div>
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: '#D4820A', textDecoration: 'none', fontWeight: 600 }}
-                  >
-                    Get Directions
-                  </a>
-                </div>
-              ) : null}
-            </div>
-            <p style={{ color: '#F5F0E8', lineHeight: '1.7', fontSize: '1rem', marginBottom: '24px' }}>
-              {show.show_description}
-            </p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-              <button
-                onClick={copyLink}
-                style={{
-                  background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                  color: '#1A1410',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '12px 18px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {copied ? 'Link Copied' : 'Copy Show Link'}
-              </button>
-              <button
-                onClick={shareOnX}
-                style={{
-                  background: 'transparent',
-                  color: '#F5F0E8',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  padding: '12px 18px',
-                  cursor: 'pointer'
-                }}
-              >
-                Share on X
-              </button>
-              <button
-                onClick={shareOnFacebook}
-                style={{
-                  background: 'transparent',
-                  color: '#F5F0E8',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  padding: '12px 18px',
-                  cursor: 'pointer'
-                }}
-              >
-                Share on Facebook
-              </button>
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-block',
-                  color: '#F5F0E8',
-                  textDecoration: 'none',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  padding: '12px 18px'
-                }}
-              >
-                Open in Maps
-              </a>
-              <a
-                href={`sms:?body=${encodeURIComponent(`Come to ${show.show_name} on ${formatDate(show.date)} at ${show.venue_name}. ${showUrl}`)}`}
-                style={{
-                  display: 'inline-block',
-                  color: '#F5F0E8',
-                  textDecoration: 'none',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  padding: '12px 18px'
-                }}
-              >
-                Share by Text
-              </a>
-              <button
-                onClick={shareByEmail}
-                style={{
-                  background: 'transparent',
-                  color: '#F5F0E8',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  padding: '12px 18px',
-                  cursor: 'pointer'
-                }}
-              >
-                Share by Email
-              </button>
-            </div>
-            <div style={{ color: '#8C7B6B', lineHeight: '1.6' }}>
-              Use these buttons to promote the show across text, email, X, and Facebook with the same ticket link.
-            </div>
-          </section>
+          ) : null}
+          <div style={{ color: '#8C7B6B', fontSize: '0.95rem', lineHeight: 1.6, wordBreak: 'break-word' }}>
+            {hasDistinctVenueAddress ? venueAddress : venueName}
+          </div>
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-block', marginTop: '8px', color: '#D4820A', textDecoration: 'none', fontWeight: 600 }}
+          >
+            Get Directions
+          </a>
+        </section>
 
-          <aside style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '16px', padding: '24px', background: 'rgba(44,34,24,0.35)', height: 'fit-content' }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '12px' }}>
-              Buy Tickets
-            </div>
-            <div style={{ fontSize: '2rem', color: '#F0A500', fontWeight: 700, marginBottom: '16px' }}>
-              ${Number(show.ticket_price).toFixed(2)}
-            </div>
-            <div style={{ color: '#8C7B6B', marginBottom: '16px' }}>
-              Capacity: {show.max_capacity} people
-            </div>
-            <label style={{ display: 'block', color: '#8C7B6B', marginBottom: '8px' }}>Quantity</label>
-            <input
-              type="number"
-              min={1}
-              max={show.max_capacity}
-              value={ticketQuantity}
-              onChange={(e) => setTicketQuantity(Math.max(1, Number(e.target.value) || 1))}
-              style={{
-                width: '100%',
-                background: 'rgba(26,20,16,0.8)',
-                border: '1px solid rgba(212,130,10,0.25)',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                color: '#F5F0E8',
-                marginBottom: '16px'
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', color: '#F5F0E8' }}>
-              <span>Total</span>
-              <span style={{ color: '#F0A500', fontWeight: 700 }}>${totalPrice.toFixed(2)}</span>
-            </div>
+        <section style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '18px', background: 'rgba(44,34,24,0.35)' }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '10px' }}>
+            Buy Tickets
+          </div>
+          <div style={{ fontSize: '2rem', color: '#F0A500', fontWeight: 700, marginBottom: '12px' }}>
+            ${Number(show.ticket_price).toFixed(2)}
+          </div>
+          <div style={{ color: '#8C7B6B', marginBottom: '14px' }}>
+            Capacity: {show.max_capacity} people
+          </div>
+          <label style={{ display: 'block', color: '#8C7B6B', marginBottom: '8px' }}>Quantity</label>
+          <input
+            type="number"
+            min={1}
+            max={show.max_capacity}
+            value={ticketQuantity}
+            onChange={(e) => setTicketQuantity(Math.max(1, Number(e.target.value) || 1))}
+            style={{
+              width: '100%',
+              background: 'rgba(26,20,16,0.8)',
+              border: '1px solid rgba(212,130,10,0.25)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              color: '#F5F0E8',
+              marginBottom: '14px'
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', color: '#F5F0E8' }}>
+            <span>Total</span>
+            <span style={{ color: '#F0A500', fontWeight: 700 }}>${totalPrice.toFixed(2)}</span>
+          </div>
+          <button
+            onClick={startCheckout}
+            disabled={checkoutLoading}
+            style={{
+              width: '100%',
+              background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+              color: '#1A1410',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '14px 18px',
+              fontWeight: 700,
+              cursor: checkoutLoading ? 'not-allowed' : 'pointer',
+              opacity: checkoutLoading ? 0.7 : 1
+            }}
+          >
+            {checkoutLoading ? 'Opening Checkout...' : 'Continue to Checkout'}
+          </button>
+        </section>
+
+        <section style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '18px', background: 'rgba(44,34,24,0.35)' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button
-              onClick={startCheckout}
-              disabled={checkoutLoading}
+              onClick={copyLink}
               style={{
-                width: '100%',
                 background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                 color: '#1A1410',
                 border: 'none',
                 borderRadius: '8px',
-                padding: '14px 18px',
-                fontWeight: 700,
-                cursor: checkoutLoading ? 'not-allowed' : 'pointer',
-                opacity: checkoutLoading ? 0.7 : 1
+                padding: '11px 14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                flex: '1 1 140px'
               }}
             >
-              {checkoutLoading ? 'Opening Checkout...' : 'Continue to Checkout'}
+              {copied ? 'Link Copied' : 'Copy Show Link'}
             </button>
-          </aside>
-        </div>
+            <button
+              onClick={shareOnX}
+              style={{
+                background: 'transparent',
+                color: '#F5F0E8',
+                border: '1px solid rgba(212,130,10,0.2)',
+                borderRadius: '8px',
+                padding: '11px 14px',
+                cursor: 'pointer',
+                flex: '1 1 120px'
+              }}
+            >
+              Share on X
+            </button>
+            <button
+              onClick={shareOnFacebook}
+              style={{
+                background: 'transparent',
+                color: '#F5F0E8',
+                border: '1px solid rgba(212,130,10,0.2)',
+                borderRadius: '8px',
+                padding: '11px 14px',
+                cursor: 'pointer',
+                flex: '1 1 140px'
+              }}
+            >
+              Share on Facebook
+            </button>
+          </div>
+        </section>
       </div>
     </main>
   )
