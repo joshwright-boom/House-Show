@@ -477,17 +477,16 @@ export default function FanDashboardPage() {
           )}
         </section>
 
-        <section
-          style={{
-            width: '100%',
-            height: '420px',
-            border: '1px solid rgba(212,130,10,0.2)',
-            borderRadius: '14px',
-            overflow: 'hidden',
-            marginBottom: '20px'
-          }}
-          ref={mapContainer}
-        />
+        <section id="following" style={{ marginBottom: '28px' }}>
+          <h2 style={{ margin: '0 0 12px', fontFamily: "'Playfair Display', serif", fontSize: '1.7rem' }}>Following</h2>
+          {followingShows.length === 0 ? (
+            <p style={{ color: '#8C7B6B' }}>Follow artists to see their upcoming shows here.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '14px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
+              {followingShows.map(renderShowCard)}
+            </div>
+          )}
+        </section>
 
         <section style={{ marginBottom: '28px' }}>
           <h2 style={{ margin: '0 0 12px', fontFamily: "'Playfair Display', serif", fontSize: '1.8rem' }}>Upcoming Shows</h2>
@@ -502,16 +501,17 @@ export default function FanDashboardPage() {
           )}
         </section>
 
-        <section id="following" style={{ marginBottom: '28px' }}>
-          <h2 style={{ margin: '0 0 12px', fontFamily: "'Playfair Display', serif", fontSize: '1.7rem' }}>Following</h2>
-          {followingShows.length === 0 ? (
-            <p style={{ color: '#8C7B6B' }}>Follow artists to see their upcoming shows here.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '14px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
-              {followingShows.map(renderShowCard)}
-            </div>
-          )}
-        </section>
+        <section
+          style={{
+            width: '100%',
+            height: '420px',
+            border: '1px solid rgba(212,130,10,0.2)',
+            borderRadius: '14px',
+            overflow: 'hidden',
+            marginBottom: '20px'
+          }}
+          ref={mapContainer}
+        />
 
         <section id="saved">
           <h2 style={{ margin: '0 0 12px', fontFamily: "'Playfair Display', serif", fontSize: '1.7rem' }}>Saved Shows</h2>
