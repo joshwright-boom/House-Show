@@ -8,6 +8,7 @@ export default function Home() {
   const [musicianRevenue, setMusicianRevenue] = useState(0)
   const [hostRevenue, setHostRevenue] = useState(0)
   const [loadingRevenue, setLoadingRevenue] = useState(true)
+  const [isMobileNav, setIsMobileNav] = useState(false)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -21,6 +22,17 @@ export default function Home() {
     }
     
     checkUser()
+  }, [])
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsMobileNav(window.innerWidth < 640)
+    }
+
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+
+    return () => window.removeEventListener('resize', updateViewport)
   }, [])
 
   const fetchRevenue = async (userId: string) => {
@@ -51,9 +63,13 @@ export default function Home() {
         <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', fontWeight: 700, color: '#F0A500' }}>
           HouseShow
         </span>
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-          <a href="#how-it-works" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>How It Works</a>
-          <a href="#revenue" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>Revenue</a>
+        <div style={{ display: 'flex', gap: isMobileNav ? '0' : '32px', alignItems: 'center' }}>
+          {!isMobileNav && (
+            <>
+              <a href="#how-it-works" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>How It Works</a>
+              <a href="#revenue" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>Revenue</a>
+            </>
+          )}
           <a href="/auth/login" style={{
             border: '1px solid rgba(240,165,0,0.4)', color: '#F0A500',
             padding: '8px 20px', borderRadius: '4px', fontSize: '0.85rem',
