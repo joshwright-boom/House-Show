@@ -10,14 +10,17 @@ const HUNDRED_MILES_IN_KM = 160.934
 interface AcceptedRequestRow {
   id: string
   musician_id: string
-  venue_address: string
-  proposed_date: string
-  ticket_price: number
+  venue_address?: string | null
+  proposed_date?: string | null
+  show_date?: string | null
+  date?: string | null
+  created_at?: string | null
+  ticket_price?: number | null
   musician_revenue_percent?: number | null
   host_revenue_percent?: number | null
   musician_split?: number | null
   host_split?: number | null
-  status: 'accepted'
+  status: string
 }
 
 interface MusicianProfile {
@@ -97,9 +100,9 @@ export default function ShowsPage() {
       try {
         const { data: requests, error: requestsError } = await supabase
           .from('booking_requests')
-          .select('id, musician_id, venue_address, proposed_date, ticket_price, musician_revenue_percent, host_revenue_percent, musician_split, host_split, status')
+          .select('*')
           .eq('status', 'accepted')
-          .order('proposed_date', { ascending: true })
+          .order('created_at', { ascending: true })
 
         if (requestsError) {
           console.error('Accepted shows query error:', requestsError)
@@ -137,8 +140,8 @@ export default function ShowsPage() {
               id: request.id,
               musician_id: request.musician_id,
               musician_name: profile.name || 'Musician',
-              venue_address: request.venue_address,
-              proposed_date: request.proposed_date,
+              venue_address: request.venue_address || 'Venue TBD',
+              proposed_date: request.show_date || request.proposed_date || request.date || request.created_at || '',
               ticket_price: Number(request.ticket_price || 0),
               musician_revenue_percent: Number(request.musician_revenue_percent ?? request.musician_split ?? 0),
               host_revenue_percent: Number(request.host_revenue_percent ?? request.host_split ?? 0),
