@@ -68,11 +68,6 @@ export default function Dashboard() {
         .eq('id', user.id)
         .single()
 
-      if (profile?.user_type === 'fan') {
-        window.location.href = '/fan'
-        return
-      }
-
       setUser({ 
         id: user.id,
         email: user.email,
@@ -350,6 +345,69 @@ export default function Dashboard() {
   const getMusicianTicketingHref = (request: BookingRequest) => {
     const matchingShow = findMusicianShowForRequest(request)
     return matchingShow ? `/show/${matchingShow.id}` : `/create-show?requestId=${request.id}`
+  }
+
+  if (user?.user_type === 'fan') {
+    return (
+      <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+          <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={handleSignOut} style={{ background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#8C7B6B', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>
+              Sign Out
+            </button>
+          </div>
+        </nav>
+
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+            Fan Dashboard
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '3rem', color: '#F5F0E8', marginBottom: '16px' }}>
+            Discover Shows Near You
+          </h1>
+          <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '32px' }}>
+            Find upcoming house shows, track your tickets, and follow artists you love.
+          </p>
+
+          <a
+            href="/shows"
+            style={{
+              display: 'inline-block',
+              marginBottom: '28px',
+              background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+              color: '#1A1410',
+              textDecoration: 'none',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              fontFamily: "'DM Sans', sans-serif",
+              fontWeight: 700
+            }}
+          >
+            Browse Upcoming Shows
+          </a>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <a href="/tickets" style={{
+              display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
+              padding: '28px 24px', background: 'rgba(44,34,24,0.3)', cursor: 'pointer',
+            }}>
+              <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>🎟️</div>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '6px' }}>My Tickets</h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>View your purchased tickets and QR codes</p>
+            </a>
+            <a href="/following" style={{
+              display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
+              padding: '28px 24px', background: 'rgba(44,34,24,0.3)', cursor: 'pointer',
+            }}>
+              <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>⭐</div>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '6px' }}>Following</h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>Artists you follow and their upcoming shows</p>
+            </a>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
