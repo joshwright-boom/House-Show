@@ -8,7 +8,7 @@ interface Profile {
   name: string
   bio: string
   photo_url: string
-  user_type: 'musician' | 'host'
+  user_type: 'musician' | 'host' | 'fan'
   zip_code?: string
   latitude?: number
   longitude?: number
@@ -30,7 +30,7 @@ export default function Profile() {
     name: '',
     bio: '',
     photo_url: '',
-    user_type: 'musician' as 'musician' | 'host',
+    user_type: 'musician' as 'musician' | 'host' | 'fan',
     zip_code: '',
     availability_status: 'based_here' as 'based_here' | 'on_tour' | 'open_to_travel',
     tour_dates: '',
@@ -90,6 +90,11 @@ export default function Profile() {
         // Set photo preview if existing photo exists
         if (profileData.photo_url) {
           setPhotoPreview(profileData.photo_url)
+        }
+      } else {
+        const metadataType = session.user.user_metadata?.user_type || session.user.user_metadata?.role
+        if (metadataType === 'fan') {
+          setFormData(prev => ({ ...prev, user_type: 'fan' }))
         }
       }
     }
@@ -367,7 +372,7 @@ export default function Profile() {
             Build Your Profile
           </h1>
           <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '1rem', marginBottom: '48px' }}>
-            Create your {formData.user_type === 'musician' ? 'artist' : 'host'} profile to start connecting with the HouseShow community.
+            Create your {formData.user_type === 'musician' ? 'artist' : formData.user_type === 'host' ? 'host' : 'fan'} profile to start connecting with the HouseShow community.
           </p>
 
           {saveSuccess && (
@@ -417,7 +422,7 @@ export default function Profile() {
                     {profile.name}
                   </h4>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.9rem' }}>
-                    {profile.user_type === 'musician' ? 'Musician 🎸' : 'Host 🏠'}
+                    {profile.user_type === 'musician' ? 'Musician 🎸' : profile.user_type === 'host' ? 'Host 🏠' : 'Fan 🎟️'}
                   </p>
                 </div>
               </div>
@@ -476,6 +481,7 @@ export default function Profile() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             {/* User Type Selection */}
+            {formData.user_type !== 'fan' && (
             <div>
               <label style={{
                 display: 'block',
@@ -519,6 +525,7 @@ export default function Profile() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Name */}
             <div>
@@ -566,7 +573,9 @@ export default function Profile() {
                 onChange={(e) => handleInputChange('bio', e.target.value)}
                 placeholder={formData.user_type === 'musician' 
                   ? 'Tell us about your music, influences, and what kind of shows you\'re looking for...' 
-                  : 'Tell us about your space, what kind of music you enjoy, and what makes your venue special...'
+                  : formData.user_type === 'host'
+                    ? 'Tell us about your space, what kind of music you enjoy, and what makes your venue special...'
+                    : 'Share a little about your music taste and what shows you love...'
                 }
                 rows={4}
                 style={{
@@ -584,6 +593,7 @@ export default function Profile() {
             </div>
 
             {/* Zip Code/Location - For both Musicians and Hosts */}
+            {formData.user_type !== 'fan' && (
             <div>
               <label style={{
                 display: 'block',
@@ -624,6 +634,7 @@ export default function Profile() {
                 }
               </p>
             </div>
+            )}
 
             {/* Photo Upload */}
             <div>

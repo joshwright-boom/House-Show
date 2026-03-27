@@ -55,9 +55,34 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   const [show, setShow] = useState<ShowRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isFanUser, setIsFanUser] = useState(false)
+  const [isFollowingArtist, setIsFollowingArtist] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
   const [ticketQuantity, setTicketQuantity] = useState(1)
   const [copied, setCopied] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+
+  useEffect(() => {
+    const loadViewer = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setCurrentUserId(null)
+        setIsFanUser(false)
+        return
+      }
+
+      setCurrentUserId(user.id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single()
+      setIsFanUser(profile?.user_type === 'fan')
+    }
+
+    loadViewer()
+  }, [])
 
   useEffect(() => {
     const loadShow = async () => {
@@ -96,6 +121,32 @@ export default function ShowPage({ params }: { params: { id: string } }) {
     loadShow()
   }, [params.id])
 
+  useEffect(() => {
+    const loadFollowingStatus = async () => {
+      if (!currentUserId || !show?.artist_user_id || !isFanUser) {
+        setIsFollowingArtist(false)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('fan_id', currentUserId)
+        .eq('musician_id', show.artist_user_id)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Follow status error:', error)
+        setIsFollowingArtist(false)
+        return
+      }
+
+      setIsFollowingArtist(Boolean(data))
+    }
+
+    loadFollowingStatus()
+  }, [currentUserId, isFanUser, show?.artist_user_id])
+
   const showUrl = useMemo(() => {
     if (typeof window === 'undefined') return ''
     return `${window.location.origin}/show/${params.id}`
@@ -133,6 +184,31 @@ export default function ShowPage({ params }: { params: { id: string } }) {
 
   const shareOnFacebook = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(showUrl)}`, '_blank')
+  }
+
+  const handleFollowArtist = async () => {
+    if (!currentUserId || !show?.artist_user_id || !isFanUser || followLoading) return
+    try {
+      setFollowLoading(true)
+      const { error } = await supabase
+        .from('follows')
+        .upsert(
+          {
+            fan_id: currentUserId,
+            musician_id: show.artist_user_id
+          },
+          { onConflict: 'fan_id,musician_id' }
+        )
+
+      if (error) {
+        console.error('Follow artist error:', error)
+        return
+      }
+
+      setIsFollowingArtist(true)
+    } finally {
+      setFollowLoading(false)
+    }
   }
 
   const startCheckout = async () => {
@@ -223,6 +299,26 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           >
             Get Directions
           </a>
+          {isFanUser && show.artist_user_id ? (
+            <button
+              onClick={handleFollowArtist}
+              disabled={isFollowingArtist || followLoading}
+              style={{
+                display: 'inline-block',
+                marginTop: '10px',
+                marginLeft: '10px',
+                background: isFollowingArtist ? 'rgba(212,130,10,0.2)' : 'transparent',
+                border: '1px solid rgba(212,130,10,0.35)',
+                color: '#F5F0E8',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontWeight: 600,
+                cursor: isFollowingArtist || followLoading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {isFollowingArtist ? 'Following' : followLoading ? 'Following...' : 'Follow Artist'}
+            </button>
+          ) : null}
         </section>
 
         <section style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '18px', background: 'rgba(44,34,24,0.35)' }}>
