@@ -11,6 +11,8 @@ function RegisterContent() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [termsError, setTermsError] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState(false)
@@ -25,8 +27,14 @@ function RegisterContent() {
   }, [searchParams])
 
   const handleRegister = async () => {
+    if (!agreedToTerms) {
+      setTermsError('You must agree to the Terms of Service and Privacy Policy.')
+      return
+    }
+
     setLoading(true)
     setMessage('')
+    setTermsError('')
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -129,6 +137,32 @@ function RegisterContent() {
           {message && (
             <p style={{ color: '#ff6b6b', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>{message}</p>
           )}
+
+          <div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#8C7B6B', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', lineHeight: 1.5 }}>
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={e => {
+                  setAgreedToTerms(e.target.checked)
+                  if (e.target.checked) setTermsError('')
+                }}
+                style={{ marginTop: '2px' }}
+              />
+              <span>
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#F0A500' }}>
+                  Terms of Service
+                </a>{' '}
+                and Privacy Policy
+              </span>
+            </label>
+            {termsError && (
+              <p style={{ color: '#ff6b6b', fontFamily: "'DM Sans', sans-serif", fontSize: '0.82rem', marginTop: '6px' }}>
+                {termsError}
+              </p>
+            )}
+          </div>
 
           <button onClick={handleRegister} disabled={loading} style={{
             background: loading ? '#8C7B6B' : 'linear-gradient(135deg, #D4820A, #F0A500)',
