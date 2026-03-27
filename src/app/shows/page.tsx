@@ -7,20 +7,19 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 const TULSA_LOCATION = { lat: 36.1539, lng: -95.9928 }
 const HUNDRED_MILES_IN_KM = 160.934
 
-interface AcceptedRequestRow {
+interface ShowRow {
   id: string
-  musician_id: string
+  artist_user_id?: string | null
+  artist_name?: string | null
   venue_address?: string | null
-  proposed_date?: string | null
   show_date?: string | null
-  date?: string | null
   created_at?: string | null
   ticket_price?: number | null
   musician_revenue_percent?: number | null
   host_revenue_percent?: number | null
   musician_split?: number | null
   host_split?: number | null
-  status: string
+  status?: string | null
 }
 
 interface MusicianProfile {
@@ -141,25 +140,25 @@ export default function ShowsPage() {
   useEffect(() => {
     const loadAcceptedShows = async () => {
       try {
-        const { data: requests, error: requestsError } = await supabase
-          .from('booking_requests')
-          .select('*')
-          .eq('status', 'accepted')
-          .order('created_at', { ascending: true })
+        const { data: shows, error: showsError } = await supabase
+          .from('shows')
+          .select('id, artist_user_id, artist_name, venue_address, show_date, created_at, ticket_price, musician_revenue_percent, host_revenue_percent, musician_split, host_split, status')
+          .eq('status', 'on_sale')
+          .order('show_date', { ascending: true })
 
-        if (requestsError) {
-          console.error('Accepted shows query error:', requestsError)
+        if (showsError) {
+          console.error('Shows query error:', showsError)
           setAllShows([])
           return
         }
 
-        const acceptedRequests = (requests || []) as AcceptedRequestRow[]
-        if (acceptedRequests.length === 0) {
+        const publishedShows = (shows || []) as ShowRow[]
+        if (publishedShows.length === 0) {
           setAllShows([])
           return
         }
 
-        const musicianIds = Array.from(new Set(acceptedRequests.map((request) => request.musician_id).filter(Boolean)))
+        const musicianIds = Array.from(new Set(publishedShows.map((show) => show.artist_user_id).filter(Boolean)))
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('id, name, latitude, longitude')
@@ -174,22 +173,22 @@ export default function ShowsPage() {
           profilesById.set(profile.id, profile as MusicianProfile)
         })
 
-        const mergedShows: ShowCard[] = acceptedRequests
-          .map((request) => {
-            const profile = profilesById.get(request.musician_id)
+        const mergedShows: ShowCard[] = publishedShows
+          .map((show) => {
+            const profile = show.artist_user_id ? profilesById.get(show.artist_user_id) : null
             if (!profile?.latitude || !profile?.longitude) return null
 
             return {
-              id: request.id,
-              musician_id: request.musician_id,
-              musician_name: profile.name || 'Musician',
-              venue_address: request.venue_address || 'Venue TBD',
-              proposed_date: request.proposed_date || null,
-              show_date: request.show_date || request.date || null,
-              created_at: request.created_at || null,
-              ticket_price: Number(request.ticket_price || 0),
-              musician_revenue_percent: Number(request.musician_revenue_percent ?? request.musician_split ?? 0),
-              host_revenue_percent: Number(request.host_revenue_percent ?? request.host_split ?? 0),
+              id: show.id,
+              musician_id: show.artist_user_id || '',
+              musician_name: profile.name || show.artist_name || 'Musician',
+              venue_address: show.venue_address || 'Venue TBD',
+              proposed_date: null,
+              show_date: show.show_date || null,
+              created_at: show.created_at || null,
+              ticket_price: Number(show.ticket_price || 0),
+              musician_revenue_percent: Number(show.musician_revenue_percent ?? show.musician_split ?? 0),
+              host_revenue_percent: Number(show.host_revenue_percent ?? show.host_split ?? 0),
               latitude: profile.latitude,
               longitude: profile.longitude
             }
