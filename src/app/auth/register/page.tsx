@@ -35,7 +35,7 @@ function RegisterContent() {
     setLoading(true)
     setMessage('')
     setTermsError('')
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -45,6 +45,23 @@ function RegisterContent() {
     if (error) {
       setMessage(error.message)
     } else {
+      if (data.user?.id) {
+        const registrationName = `${firstName} ${lastName}`.trim() || firstName.trim() || lastName.trim() || 'HouseShow User'
+        const { error: profileInsertError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: data.user.id,
+              name: registrationName,
+              user_type: role
+            },
+            { onConflict: 'id' }
+          )
+
+        if (profileInsertError) {
+          console.error('Profile insert error after sign up:', profileInsertError)
+        }
+      }
       setSuccess(true)
     }
     setLoading(false)
