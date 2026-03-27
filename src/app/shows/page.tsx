@@ -43,8 +43,8 @@ interface ShowCard {
   ticket_price: number
   musician_revenue_percent: number
   host_revenue_percent: number
-  latitude: number
-  longitude: number
+  latitude?: number | null
+  longitude?: number | null
 }
 
 const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -115,7 +115,9 @@ export default function ShowsPage() {
     if (!hasPreciseLocation || distanceFilter === 'all') return allShows
     const maxKm = distanceFilter === '25' ? 40.234 : distanceFilter === '50' ? 80.467 : HUNDRED_MILES_IN_KM
     return allShows.filter((show) => {
+      if (show.latitude == null || show.longitude == null) return true
       const distance = calculateDistanceKm(userLocation.lat, userLocation.lng, show.latitude, show.longitude)
+      if (!Number.isFinite(distance)) return true
       return distance <= maxKm
     })
   }, [allShows, userLocation, hasPreciseLocation, distanceFilter])
@@ -179,12 +181,11 @@ export default function ShowsPage() {
         const mergedShows: ShowCard[] = publishedShows
           .map((show) => {
             const profile = show.artist_user_id ? profilesById.get(show.artist_user_id) : null
-            if (!profile?.latitude || !profile?.longitude) return null
 
             return {
               id: show.id,
               artist_user_id: show.artist_user_id || '',
-              musician_name: profile.name || show.artist_name || 'Musician',
+              musician_name: profile?.name || show.artist_name || 'Musician',
               venue_name: show.venue_name || null,
               venue_address: show.venue_address || 'Venue TBD',
               proposed_date: null,
@@ -193,8 +194,8 @@ export default function ShowsPage() {
               ticket_price: Number(show.ticket_price || 0),
               musician_revenue_percent: Number(show.musician_revenue_percent ?? show.musician_split ?? 0),
               host_revenue_percent: Number(show.host_revenue_percent ?? show.host_split ?? 0),
-              latitude: profile.latitude,
-              longitude: profile.longitude
+              latitude: profile?.latitude ?? null,
+              longitude: profile?.longitude ?? null
             }
           })
           .filter(Boolean) as ShowCard[]
@@ -264,6 +265,7 @@ export default function ShowsPage() {
     markers.push(userMarker)
 
     showsNearby.forEach((show) => {
+      if (show.latitude == null || show.longitude == null) return
       const pin = document.createElement('div')
       pin.style.cssText = `
         width: 14px; height: 14px; border-radius: 50%;
