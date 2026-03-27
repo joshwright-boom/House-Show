@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
-const OKLAHOMA_DEFAULT = { lat: 36.7, lng: -95.8939 }
+const OKLAHOMA_DEFAULT = { lat: 36.5, lng: -95.8939 }
 
 interface ShowRow {
   id: string
@@ -33,6 +33,14 @@ interface SearchMusician {
   latitude: number
   longitude: number
   photo_url?: string | null
+}
+
+interface MapProfile {
+  id: string
+  name?: string | null
+  user_type: 'musician' | 'host'
+  latitude: number
+  longitude: number
 }
 
 interface FanShow {
@@ -77,6 +85,7 @@ export default function FanDashboardPage() {
   const [searchResults, setSearchResults] = useState<SearchMusician[]>([])
   const [selectedMusician, setSelectedMusician] = useState<SearchMusician | null>(null)
   const [allShows, setAllShows] = useState<FanShow[]>([])
+  const [mapProfiles, setMapProfiles] = useState<MapProfile[]>([])
   const [followedMusicians, setFollowedMusicians] = useState<string[]>([])
   const [savedShowIds, setSavedShowIds] = useState<string[]>([])
 
@@ -233,6 +242,41 @@ export default function FanDashboardPage() {
     loadFollows()
   }, [currentUserId])
 
+  useEffect(() => {
+    const loadMapProfiles = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, user_type, latitude, longitude')
+        .in('user_type', ['musician', 'host'])
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+
+      if (error) {
+        console.error('Fan map profiles query error:', error)
+        setMapProfiles([])
+        return
+      }
+
+      const profiles = (data || [])
+        .map((profile) => ({
+          id: profile.id,
+          name: profile.name || (profile.user_type === 'host' ? 'Host' : 'Musician'),
+          user_type: profile.user_type,
+          latitude: Number(profile.latitude),
+          longitude: Number(profile.longitude)
+        }))
+        .filter((profile) =>
+          (profile.user_type === 'musician' || profile.user_type === 'host') &&
+          Number.isFinite(profile.latitude) &&
+          Number.isFinite(profile.longitude)
+        ) as MapProfile[]
+
+      setMapProfiles(profiles)
+    }
+
+    loadMapProfiles()
+  }, [])
+
   const filteredShows = useMemo(() => allShows, [allShows])
 
   const followingShows = useMemo(
@@ -283,23 +327,31 @@ export default function FanDashboardPage() {
     const map = mapRef.current as any
     const markers: any[] = []
 
-    filteredShows.forEach((show) => {
-      if (!Number.isFinite(show.latitude) || !Number.isFinite(show.longitude)) return
+    mapProfiles.forEach((profile) => {
       const pin = document.createElement('div')
       pin.style.cssText = `
         width: 16px; height: 16px; border-radius: 50%;
-        background: #D4820A;
-        border: 2px solid #F5F0E8;
-        box-shadow: 0 0 12px rgba(212,130,10,0.7);
+        background: ${profile.user_type === 'host' ? '#F5F0E8' : '#D4820A'};
+        border: 2px solid ${profile.user_type === 'host' ? '#D9D2C7' : '#F5F0E8'};
+        box-shadow: 0 0 12px ${profile.user_type === 'host' ? 'rgba(245,240,232,0.7)' : 'rgba(212,130,10,0.7)'};
+        cursor: pointer;
       `
       const marker = new (window as any).mapboxgl.Marker(pin)
-        .setLngLat([show.longitude, show.latitude])
+        .setLngLat([profile.longitude, profile.latitude])
+        .setPopup(
+          new (window as any).mapboxgl.Popup({ offset: 12 }).setHTML(`
+            <div style="color:#1A1410;padding:4px 2px;">
+              <div style="font-weight:700;margin-bottom:6px;">${profile.name || (profile.user_type === 'host' ? 'Host' : 'Musician')}</div>
+              <a href="/${profile.user_type === 'host' ? 'host' : 'artist'}/${profile.id}" style="color:#D4820A;text-decoration:none;font-weight:600;">View Profile</a>
+            </div>
+          `)
+        )
         .addTo(map)
       markers.push(marker)
     })
 
     return () => markers.forEach((marker) => marker.remove())
-  }, [filteredShows])
+  }, [mapProfiles])
 
   useEffect(() => {
     if (!mapRef.current || !selectedMusician || !(window as any).mapboxgl) return
