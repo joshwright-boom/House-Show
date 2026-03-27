@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
-const TULSA_LOCATION = { lat: 36.1539, lng: -95.9928 }
+const OKLAHOMA_DEFAULT = { lat: 36.7, lng: -95.8939 }
 
 interface ShowRow {
   id: string
@@ -25,6 +25,13 @@ interface MusicianProfile {
   genre?: string | null
   latitude?: number | null
   longitude?: number | null
+}
+
+interface SearchMusician {
+  id: string
+  name: string
+  latitude: number
+  longitude: number
 }
 
 interface FanShow {
@@ -62,9 +69,10 @@ const formatDate = (value: string) => {
 export default function FanDashboardPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
-  const [userLocation, setUserLocation] = useState(TULSA_LOCATION)
+  const [userLocation, setUserLocation] = useState(OKLAHOMA_DEFAULT)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchMusician[]>([])
   const [allShows, setAllShows] = useState<FanShow[]>([])
   const [followedMusicians, setFollowedMusicians] = useState<string[]>([])
   const [savedShowIds, setSavedShowIds] = useState<string[]>([])
@@ -109,9 +117,47 @@ export default function FanDashboardPage() {
       (position) => {
         setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
       },
-      () => setUserLocation(TULSA_LOCATION)
+      () => setUserLocation(OKLAHOMA_DEFAULT)
     )
   }, [])
+
+  useEffect(() => {
+    const term = search.trim()
+    if (!term) {
+      setSearchResults([])
+      return
+    }
+
+    const timeout = window.setTimeout(async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, latitude, longitude')
+        .eq('user_type', 'musician')
+        .ilike('name', `%${term}%`)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(8)
+
+      if (error) {
+        console.error('Fan search query error:', error)
+        setSearchResults([])
+        return
+      }
+
+      const results = (data || [])
+        .map((row) => ({
+          id: row.id,
+          name: row.name || 'Musician',
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude)
+        }))
+        .filter((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
+
+      setSearchResults(results)
+    }, 250)
+
+    return () => window.clearTimeout(timeout)
+  }, [search])
 
   useEffect(() => {
     const loadShows = async () => {
@@ -205,7 +251,7 @@ export default function FanDashboardPage() {
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/dark-v11',
         center: [userLocation.lng, userLocation.lat],
-        zoom: 8,
+        zoom: 7,
       })
       mapRef.current = map
     }
@@ -254,6 +300,25 @@ export default function FanDashboardPage() {
       : [...savedShowIds, showId]
     setSavedShowIds(next)
     localStorage.setItem('fan_saved_shows', JSON.stringify(next))
+  }
+
+  const flyToMusician = (musician: SearchMusician) => {
+    const map = mapRef.current as any
+    if (!map) return
+
+    map.flyTo({
+      center: [musician.longitude, musician.latitude],
+      zoom: 10,
+      essential: true
+    })
+
+    new (window as any).mapboxgl.Popup({ offset: 12 })
+      .setLngLat([musician.longitude, musician.latitude])
+      .setText(musician.name)
+      .addTo(map)
+
+    setSearch(musician.name)
+    setSearchResults([])
   }
 
   const renderShowCard = (show: FanShow) => (
@@ -350,7 +415,8 @@ export default function FanDashboardPage() {
             borderRadius: '12px',
             padding: '14px',
             marginBottom: '14px',
-            background: 'rgba(44,34,24,0.35)'
+            background: 'rgba(44,34,24,0.35)',
+            position: 'relative'
           }}
         >
           <input
@@ -368,6 +434,38 @@ export default function FanDashboardPage() {
               outline: 'none'
             }}
           />
+          {searchResults.length > 0 && (
+            <div
+              style={{
+                marginTop: '8px',
+                border: '1px solid rgba(212,130,10,0.2)',
+                borderRadius: '10px',
+                background: 'rgba(26,20,16,0.95)',
+                overflow: 'hidden'
+              }}
+            >
+              {searchResults.map((musician) => (
+                <button
+                  key={musician.id}
+                  type="button"
+                  onClick={() => flyToMusician(musician)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '1px solid rgba(212,130,10,0.15)',
+                    color: '#F5F0E8',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem'
+                  }}
+                >
+                  {musician.name}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         <section
