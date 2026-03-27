@@ -32,6 +32,7 @@ interface SearchMusician {
   name: string
   latitude: number
   longitude: number
+  photo_url?: string | null
 }
 
 interface FanShow {
@@ -69,10 +70,12 @@ const formatDate = (value: string) => {
 export default function FanDashboardPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
-  const [userLocation, setUserLocation] = useState(OKLAHOMA_DEFAULT)
+  const selectedMarkerRef = useRef<any>(null)
   const [loading, setLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<SearchMusician[]>([])
+  const [selectedMusician, setSelectedMusician] = useState<SearchMusician | null>(null)
   const [allShows, setAllShows] = useState<FanShow[]>([])
   const [followedMusicians, setFollowedMusicians] = useState<string[]>([])
   const [savedShowIds, setSavedShowIds] = useState<string[]>([])
@@ -84,6 +87,8 @@ export default function FanDashboardPage() {
         window.location.href = '/auth/login?redirect=/fan'
         return
       }
+
+      setCurrentUserId(user.id)
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -103,22 +108,10 @@ export default function FanDashboardPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      setFollowedMusicians(JSON.parse(localStorage.getItem('fan_following') || '[]'))
       setSavedShowIds(JSON.parse(localStorage.getItem('fan_saved_shows') || '[]'))
     } catch {
-      setFollowedMusicians([])
       setSavedShowIds([])
     }
-  }, [])
-
-  useEffect(() => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
-      },
-      () => setUserLocation(OKLAHOMA_DEFAULT)
-    )
   }, [])
 
   useEffect(() => {
@@ -131,7 +124,7 @@ export default function FanDashboardPage() {
     const timeout = window.setTimeout(async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, latitude, longitude')
+        .select('id, name, latitude, longitude, photo_url')
         .eq('user_type', 'musician')
         .ilike('name', `%${term}%`)
         .not('latitude', 'is', null)
@@ -149,7 +142,8 @@ export default function FanDashboardPage() {
           id: row.id,
           name: row.name || 'Musician',
           latitude: Number(row.latitude),
-          longitude: Number(row.longitude)
+          longitude: Number(row.longitude),
+          photo_url: row.photo_url || null
         }))
         .filter((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
 
@@ -218,6 +212,27 @@ export default function FanDashboardPage() {
     loadShows()
   }, [])
 
+  useEffect(() => {
+    const loadFollows = async () => {
+      if (!currentUserId) return
+
+      const { data, error } = await supabase
+        .from('follows')
+        .select('musician_id')
+        .eq('fan_id', currentUserId)
+
+      if (error) {
+        console.error('Fan follows query error:', error)
+        setFollowedMusicians([])
+        return
+      }
+
+      setFollowedMusicians((data || []).map((row) => row.musician_id).filter(Boolean))
+    }
+
+    loadFollows()
+  }, [currentUserId])
+
   const filteredShows = useMemo(() => allShows, [allShows])
 
   const followingShows = useMemo(
@@ -250,7 +265,7 @@ export default function FanDashboardPage() {
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/dark-v11',
-        center: [userLocation.lng, userLocation.lat],
+        center: [OKLAHOMA_DEFAULT.lng, OKLAHOMA_DEFAULT.lat],
         zoom: 7,
       })
       mapRef.current = map
@@ -261,7 +276,7 @@ export default function FanDashboardPage() {
       if (script.parentNode) script.parentNode.removeChild(script)
       if (link.parentNode) link.parentNode.removeChild(link)
     }
-  }, [userLocation])
+  }, [])
 
   useEffect(() => {
     if (!mapRef.current) return
@@ -286,12 +301,67 @@ export default function FanDashboardPage() {
     return () => markers.forEach((marker) => marker.remove())
   }, [filteredShows])
 
-  const toggleFollow = (musicianId: string) => {
-    const next = followedMusicians.includes(musicianId)
-      ? followedMusicians.filter((id) => id !== musicianId)
-      : [...followedMusicians, musicianId]
-    setFollowedMusicians(next)
-    localStorage.setItem('fan_following', JSON.stringify(next))
+  useEffect(() => {
+    if (!mapRef.current || !selectedMusician || !(window as any).mapboxgl) return
+
+    const map = mapRef.current as any
+    selectedMarkerRef.current?.remove?.()
+
+    const pin = document.createElement('div')
+    pin.style.cssText = `
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #F0A500;
+      border: 3px solid #F5F0E8;
+      box-shadow: 0 0 16px rgba(240,165,0,0.8);
+    `
+
+    selectedMarkerRef.current = new (window as any).mapboxgl.Marker(pin)
+      .setLngLat([selectedMusician.longitude, selectedMusician.latitude])
+      .addTo(map)
+
+    return () => {
+      selectedMarkerRef.current?.remove?.()
+      selectedMarkerRef.current = null
+    }
+  }, [selectedMusician])
+
+  const toggleFollow = async (musicianId: string) => {
+    if (!currentUserId || !musicianId) return
+
+    const isFollowing = followedMusicians.includes(musicianId)
+
+    if (isFollowing) {
+      const { error } = await supabase
+        .from('follows')
+        .delete()
+        .eq('fan_id', currentUserId)
+        .eq('musician_id', musicianId)
+
+      if (error) {
+        console.error('Unfollow musician error:', error)
+        return
+      }
+
+      setFollowedMusicians((prev) => prev.filter((id) => id !== musicianId))
+      return
+    }
+
+    const { error } = await supabase
+      .from('follows')
+      .upsert(
+        {
+          fan_id: currentUserId,
+          musician_id: musicianId
+        },
+        { onConflict: 'fan_id,musician_id' }
+      )
+
+    if (error) {
+      console.error('Follow musician error:', error)
+      return
+    }
+
+    setFollowedMusicians((prev) => prev.includes(musicianId) ? prev : [...prev, musicianId])
   }
 
   const toggleSaved = (showId: string) => {
@@ -317,6 +387,7 @@ export default function FanDashboardPage() {
       .setText(musician.name)
       .addTo(map)
 
+    setSelectedMusician(musician)
     setSearch(musician.name)
     setSearchResults([])
   }
@@ -431,7 +502,7 @@ export default function FanDashboardPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search artist, genre, or city..."
+            placeholder="Search musicians by name..."
             style={{
               width: '100%',
               background: 'rgba(26,20,16,0.85)',

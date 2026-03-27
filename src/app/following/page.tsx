@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface FollowRow {
-  id: string
+  fan_id: string
   musician_id: string
 }
 
@@ -32,7 +32,7 @@ export default function FollowingPage() {
 
         const { data: follows, error: followsError } = await supabase
           .from('follows')
-          .select('id, musician_id')
+          .select('fan_id, musician_id')
           .eq('fan_id', user.id)
 
         if (followsError) {

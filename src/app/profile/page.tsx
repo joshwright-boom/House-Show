@@ -125,22 +125,34 @@ export default function Profile() {
         id: user.id,
         name: formData.name,
         bio: formData.bio,
-        zip_code: formData.zip_code,
         user_type: formData.user_type,
-        availability_status: formData.availability_status,
-        tour_dates: formData.tour_dates,
         photo_url: formData.photo_url,
-        spotify_url: formData.spotify_url || null,
-        soundcloud_url: formData.soundcloud_url || null,
-        instagram_url: formData.instagram_url || null,
-        facebook_url: formData.facebook_url || null,
-        youtube_url: formData.youtube_url || null,
-        website_url: formData.website_url || null,
         updated_at: new Date().toISOString()
+      } as Record<string, any>
+
+      if (formData.user_type !== 'fan') {
+        profileData = {
+          ...profileData,
+          zip_code: formData.zip_code,
+          availability_status: formData.availability_status,
+          tour_dates: formData.tour_dates
+        }
+      }
+
+      if (formData.user_type === 'musician') {
+        profileData = {
+          ...profileData,
+          spotify_url: formData.spotify_url || null,
+          soundcloud_url: formData.soundcloud_url || null,
+          instagram_url: formData.instagram_url || null,
+          facebook_url: formData.facebook_url || null,
+          youtube_url: formData.youtube_url || null,
+          website_url: formData.website_url || null
+        }
       }
 
       // Convert zip code to coordinates if provided
-      if (formData.zip_code && formData.zip_code.length >= 5) {
+      if (formData.user_type !== 'fan' && formData.zip_code && formData.zip_code.length >= 5) {
         try {
           console.log('Converting zip code to coordinates:', formData.zip_code)
           const response = await fetch(`https://api.zippopotam.us/us/${formData.zip_code}`)

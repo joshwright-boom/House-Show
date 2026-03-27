@@ -360,15 +360,9 @@ export default function Dashboard() {
         </nav>
 
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
-            Fan Dashboard
-          </div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '3rem', color: '#F5F0E8', marginBottom: '16px' }}>
             Discover Shows Near You
           </h1>
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '32px' }}>
-            Find upcoming house shows, track your tickets, and follow artists you love.
-          </p>
 
           <a
             href="/shows"
