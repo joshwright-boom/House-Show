@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 function RegisterContent() {
   const searchParams = useSearchParams()
-  const [role, setRole] = useState<'musician' | 'host'>('musician')
+  const [role, setRole] = useState<'musician' | 'host' | 'fan'>('musician')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -19,6 +19,8 @@ function RegisterContent() {
     const roleParam = searchParams.get('role') || searchParams.get('type')
     if (roleParam === 'host') {
       setRole('host')
+    } else if (roleParam === 'fan') {
+      setRole('fan')
     }
   }, [searchParams])
 
@@ -29,7 +31,7 @@ function RegisterContent() {
       email,
       password,
       options: {
-        data: { first_name: firstName, last_name: lastName, role }
+        data: { first_name: firstName, last_name: lastName, role, user_type: role }
       }
     })
     if (error) {
@@ -87,16 +89,18 @@ function RegisterContent() {
         <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.9rem', marginBottom: '32px' }}>Join the HouseShow network. It&apos;s free to start.</p>
 
         {/* Role selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '28px' }}>
-          {(['musician', 'host'] as const).map((r) => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '28px' }}>
+          {(['musician', 'host', 'fan'] as const).map((r) => (
             <div key={r} onClick={() => setRole(r)} style={{
               border: role === r ? '1.5px solid #F0A500' : '1px solid rgba(212,130,10,0.25)',
               borderRadius: '6px', padding: '16px', textAlign: 'center', cursor: 'pointer',
               background: role === r ? 'rgba(240,165,0,0.08)' : 'transparent',
             }}>
-              <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>{r === 'musician' ? '🎸' : '🏠'}</div>
+              <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>
+                {r === 'musician' ? '🎸' : r === 'host' ? '🏠' : '🎟️'}
+              </div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: role === r ? '#F0A500' : '#8C7B6B', fontWeight: 500 }}>
-                I&apos;m a {r === 'musician' ? 'Musician' : 'Host'}
+                I&apos;m a {r === 'musician' ? 'Musician' : r === 'host' ? 'Host' : 'Fan'}
               </div>
             </div>
           ))}
