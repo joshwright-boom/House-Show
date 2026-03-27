@@ -35,7 +35,9 @@ interface ShowCard {
   musician_id: string
   musician_name: string
   venue_address: string
-  proposed_date: string
+  proposed_date?: string | null
+  show_date?: string | null
+  created_at?: string | null
   ticket_price: number
   musician_revenue_percent: number
   host_revenue_percent: number
@@ -64,34 +66,65 @@ const formatDate = (dateString: string) => {
   })
 }
 
+const getGeneralLocation = (address: string) => {
+  if (!address) return 'Location TBD'
+  const cityStateMatch = address.match(/([A-Za-z.\s]+),\s*([A-Z]{2})(?:\s+\d{5})?$/)
+  if (cityStateMatch) {
+    return `${cityStateMatch[1].trim()}, ${cityStateMatch[2].trim()}`
+  }
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean)
+  if (parts.length >= 2) {
+    const city = parts[parts.length - 2]
+    const state = (parts[parts.length - 1].match(/[A-Z]{2}/)?.[0] || parts[parts.length - 1]).trim()
+    return `${city}, ${state}`
+  }
+  return address
+}
+
+const getDisplayDateLabel = (show: ShowCard) => {
+  const actualDate = show.show_date || show.proposed_date
+  if (actualDate) return formatDate(actualDate)
+  if (show.created_at) return `${formatDate(show.created_at)} (Date TBD)`
+  return 'Date TBD'
+}
+
 export default function ShowsPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationError, setLocationError] = useState(false)
+  const [hasPreciseLocation, setHasPreciseLocation] = useState(true)
   const [loading, setLoading] = useState(true)
   const [allShows, setAllShows] = useState<ShowCard[]>([])
+  const [distanceFilter, setDistanceFilter] = useState<'25' | '50' | '100' | 'all'>('100')
 
   const showsNearby = useMemo(() => {
-    if (!userLocation) return []
+    if (!userLocation) return allShows
+    if (!hasPreciseLocation || distanceFilter === 'all') return allShows
+    const maxKm = distanceFilter === '25' ? 40.234 : distanceFilter === '50' ? 80.467 : HUNDRED_MILES_IN_KM
     return allShows.filter((show) => {
       const distance = calculateDistanceKm(userLocation.lat, userLocation.lng, show.latitude, show.longitude)
-      return distance <= HUNDRED_MILES_IN_KM
+      return distance <= maxKm
     })
-  }, [allShows, userLocation])
+  }, [allShows, userLocation, hasPreciseLocation, distanceFilter])
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setHasPreciseLocation(true)
+        },
         () => {
           setUserLocation(TULSA_LOCATION)
           setLocationError(true)
+          setHasPreciseLocation(false)
         }
       )
     } else {
       setUserLocation(TULSA_LOCATION)
       setLocationError(true)
+      setHasPreciseLocation(false)
     }
   }, [])
 
@@ -141,7 +174,9 @@ export default function ShowsPage() {
               musician_id: request.musician_id,
               musician_name: profile.name || 'Musician',
               venue_address: request.venue_address || 'Venue TBD',
-              proposed_date: request.show_date || request.proposed_date || request.date || request.created_at || '',
+              proposed_date: request.proposed_date || null,
+              show_date: request.show_date || request.date || null,
+              created_at: request.created_at || null,
               ticket_price: Number(request.ticket_price || 0),
               musician_revenue_percent: Number(request.musician_revenue_percent ?? request.musician_split ?? 0),
               host_revenue_percent: Number(request.host_revenue_percent ?? request.host_split ?? 0),
@@ -266,6 +301,27 @@ export default function ShowsPage() {
           }}
         />
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
+          <span style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>Distance:</span>
+          {(['25', '50', '100', 'all'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setDistanceFilter(range)}
+              style={{
+                border: distanceFilter === range ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.25)',
+                background: distanceFilter === range ? 'rgba(212,130,10,0.2)' : 'transparent',
+                color: distanceFilter === range ? '#F5F0E8' : '#8C7B6B',
+                borderRadius: '999px',
+                padding: '6px 12px',
+                cursor: 'pointer',
+                fontSize: '0.82rem'
+              }}
+            >
+              {range === 'all' ? 'All' : `${range} miles`}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div style={{ color: '#8C7B6B' }}>Loading shows...</div>
         ) : showsNearby.length === 0 ? (
@@ -276,10 +332,10 @@ export default function ShowsPage() {
             color: '#8C7B6B',
             background: 'rgba(44,34,24,0.2)'
           }}>
-            No accepted shows found within 100 miles.
+            No shows near you yet — check back soon.
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '14px' }}>
+          <div style={{ display: 'grid', gap: '14px', maxHeight: '560px', overflowY: 'auto', paddingRight: '6px' }}>
             {showsNearby.map((show) => (
               <article
                 key={show.id}
@@ -293,8 +349,8 @@ export default function ShowsPage() {
                 <h2 style={{ marginBottom: '8px', fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#F5F0E8' }}>
                   {show.musician_name}
                 </h2>
-                <p style={{ marginBottom: '6px', color: '#8C7B6B' }}>Venue: {show.venue_address}</p>
-                <p style={{ marginBottom: '6px', color: '#8C7B6B' }}>Date: {formatDate(show.proposed_date)}</p>
+                <p style={{ marginBottom: '6px', color: '#8C7B6B' }}>Location: {getGeneralLocation(show.venue_address)}</p>
+                <p style={{ marginBottom: '6px', color: '#8C7B6B' }}>Date: {getDisplayDateLabel(show)}</p>
                 <p style={{ marginBottom: '6px', color: '#8C7B6B' }}>Ticket Price: ${show.ticket_price}</p>
                 <p style={{ marginBottom: '6px', color: '#8C7B6B' }}>
                   Musician Revenue: {show.musician_revenue_percent}% • Host Revenue: {show.host_revenue_percent}%
@@ -312,7 +368,7 @@ export default function ShowsPage() {
                     fontWeight: 700
                   }}
                 >
-                  Sign up to follow this artist
+                  Get Tickets
                 </a>
               </article>
             ))}
