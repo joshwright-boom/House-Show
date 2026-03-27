@@ -374,55 +374,57 @@ export default function Dashboard() {
 
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Mode Toggle */}
-        <div style={{ marginBottom: '48px' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
-            Active Mode
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            gap: '12px'
-          }}>
-            <button
-              onClick={() => switchMode('musician')}
-              disabled={switchingMode}
-              style={{
-                padding: '12px 18px',
-                borderRadius: '6px',
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                border: activeMode === 'musician' ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.3)',
-                cursor: switchingMode ? 'not-allowed' : 'pointer',
-                background: activeMode === 'musician' ? '#D4820A' : 'transparent',
-                color: activeMode === 'musician' ? '#1A1410' : '#F5F0E8',
-              }}
-            >
-              Musician Mode
-            </button>
-            <button
-              onClick={() => switchMode('host')}
-              disabled={switchingMode}
-              style={{
-                padding: '12px 18px',
-                borderRadius: '6px',
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                border: activeMode === 'host' ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.3)',
-                cursor: switchingMode ? 'not-allowed' : 'pointer',
-                background: activeMode === 'host' ? '#D4820A' : 'transparent',
-                color: activeMode === 'host' ? '#1A1410' : '#F5F0E8',
-              }}
-            >
-              Host Mode
-            </button>
-          </div>
-          {switchingMode && (
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: '#D4820A', marginTop: '8px' }}>
-              Switching mode...
+        {user?.user_type !== 'fan' && (
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+              Active Mode
             </div>
-          )}
-        </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px'
+            }}>
+              <button
+                onClick={() => switchMode('musician')}
+                disabled={switchingMode}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: '6px',
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  border: activeMode === 'musician' ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.3)',
+                  cursor: switchingMode ? 'not-allowed' : 'pointer',
+                  background: activeMode === 'musician' ? '#D4820A' : 'transparent',
+                  color: activeMode === 'musician' ? '#1A1410' : '#F5F0E8',
+                }}
+              >
+                Musician Mode
+              </button>
+              <button
+                onClick={() => switchMode('host')}
+                disabled={switchingMode}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: '6px',
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  border: activeMode === 'host' ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.3)',
+                  cursor: switchingMode ? 'not-allowed' : 'pointer',
+                  background: activeMode === 'host' ? '#D4820A' : 'transparent',
+                  color: activeMode === 'host' ? '#1A1410' : '#F5F0E8',
+                }}
+              >
+                Host Mode
+              </button>
+            </div>
+            {switchingMode && (
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: '#D4820A', marginTop: '8px' }}>
+                Switching mode...
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
           You&apos;re in
         </div>
@@ -437,17 +439,26 @@ export default function Dashboard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {[
-            ...(activeMode === 'host' ? [
-              { icon: '🏠', title: 'My Host Profile', desc: 'Build your host profile', href: '/host-profile' },
-              { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' },
-              { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
-              { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
-            ] : [
-              { icon: '🎸', title: 'My Artist Profile', desc: 'Build your musician profile', href: '/profile' },
-              { icon: '🏠', title: 'Find Hosts', desc: 'Discover hosts and venues near you', href: '/find-hosts' },
-              { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
-              { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
-            ])
+            ...(user?.user_type === 'fan'
+              ? [
+                { icon: '🗺️', title: 'Shows Near Me', desc: 'Find upcoming house shows near you', href: '/shows' },
+                { icon: '🎵', title: 'Browse Artists', desc: 'Discover musicians in your area', href: '/browse' },
+                { icon: '🎟️', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
+                { icon: '⭐', title: 'Artists I Follow', desc: 'Artists you\'re keeping up with', href: '/following' },
+              ]
+              : activeMode === 'host'
+                ? [
+                  { icon: '🏠', title: 'My Host Profile', desc: 'Build your host profile', href: '/host-profile' },
+                  { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' },
+                  { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
+                  { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
+                ]
+                : [
+                  { icon: '🎸', title: 'My Artist Profile', desc: 'Build your musician profile', href: '/profile' },
+                  { icon: '🏠', title: 'Find Hosts', desc: 'Discover hosts and venues near you', href: '/find-hosts' },
+                  { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
+                  { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
+                ])
           ].flat().map((card) => (
             <a key={card.title} href={card.href} style={{
               display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
@@ -460,7 +471,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {activeMode === 'musician' && (
+        {activeMode === 'musician' && user?.user_type !== 'fan' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
               Sent Booking Requests
