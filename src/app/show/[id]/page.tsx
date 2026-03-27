@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 interface ShowRecord {
   id: string
   show_name: string
+  artist_name: string
   venue_name: string
   venue_address: string
   date: string
@@ -100,6 +101,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
         setShow({
           id: data.id,
           show_name: getShowNameValue(data),
+          artist_name: data.artist_name || getShowNameValue(data),
           venue_name: getVenueNameValue(data),
           venue_address: getVenueAddressValue(data),
           date: getShowDateValue(data),
@@ -278,6 +280,14 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', lineHeight: 1.2, marginBottom: '12px', wordBreak: 'break-word' }}>
             {show.show_name}
           </h1>
+          {show.artist_user_id ? (
+            <a
+              href={`/artist/${show.artist_user_id}`}
+              style={{ display: 'inline-block', marginBottom: '10px', color: '#F0A500', textDecoration: 'none', fontWeight: 700 }}
+            >
+              {show.artist_name}
+            </a>
+          ) : null}
           <div style={{ color: '#F5F0E8', fontSize: '0.98rem', lineHeight: 1.6, marginBottom: '6px' }}>
             {formatDate(show.date)} at {formatTime(show.time)}
           </div>

@@ -340,7 +340,16 @@ export default function FanDashboardPage() {
             style={{ width: '40px', height: '40px', borderRadius: '999px', objectFit: 'cover', border: '1px solid rgba(212,130,10,0.35)' }}
           />
           <div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem' }}>{show.musician_name}</div>
+            {show.artist_user_id ? (
+              <a
+                href={`/artist/${show.artist_user_id}`}
+                style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: '#F5F0E8', textDecoration: 'none' }}
+              >
+                {show.musician_name}
+              </a>
+            ) : (
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem' }}>{show.musician_name}</div>
+            )}
             <div style={{ color: '#8C7B6B', fontSize: '0.83rem' }}>{show.genre}</div>
           </div>
         </div>
