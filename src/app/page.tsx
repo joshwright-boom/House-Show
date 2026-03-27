@@ -93,6 +93,11 @@ export default function Home() {
             border: '1.5px solid rgba(240,165,0,0.5)', color: '#F5F0E8',
             padding: '16px 36px', borderRadius: '4px', fontSize: '1rem', display: 'inline-block',
           }}>I Want to Host</a>
+          <a href="/shows" style={{
+            border: '1.5px solid rgba(240,165,0,0.5)', color: '#F0A500',
+            background: 'transparent',
+            padding: '16px 36px', borderRadius: '4px', fontSize: '1rem', display: 'inline-block',
+          }}>I&apos;m a Fan</a>
         </div>
         <div style={{ display: 'flex', gap: '48px', marginTop: '80px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {[{ num: '50%', label: 'GOES TO THE ARTIST' }, { num: '45%', label: 'GOES TO THE HOST' }, { num: '5%', label: 'PLATFORM FEE' }].map((s) => (
