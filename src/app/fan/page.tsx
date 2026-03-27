@@ -6,15 +6,16 @@ import { supabase } from '@/lib/supabase'
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 const TULSA_LOCATION = { lat: 36.1539, lng: -95.9928 }
 
-interface AcceptedRequestRow {
+interface ShowRow {
   id: string
-  musician_id: string
+  artist_user_id?: string | null
+  artist_name?: string | null
+  venue_name?: string | null
   venue_address?: string | null
-  proposed_date?: string | null
   show_date?: string | null
   created_at?: string | null
   ticket_price?: number | null
-  status: string
+  status?: string | null
 }
 
 interface MusicianProfile {
@@ -28,7 +29,7 @@ interface MusicianProfile {
 
 interface FanShow {
   id: string
-  musician_id: string
+  artist_user_id: string
   musician_name: string
   musician_photo?: string | null
   genre: string
@@ -115,20 +116,20 @@ export default function FanDashboardPage() {
   useEffect(() => {
     const loadShows = async () => {
       try {
-        const { data: requests, error: requestsError } = await supabase
-          .from('booking_requests')
-          .select('id, musician_id, venue_address, proposed_date, show_date, created_at, ticket_price, status')
-          .eq('status', 'accepted')
-          .order('created_at', { ascending: true })
+        const { data: shows, error: showsError } = await supabase
+          .from('shows')
+          .select('id, artist_user_id, artist_name, venue_name, venue_address, show_date, created_at, ticket_price, status')
+          .eq('status', 'on_sale')
+          .order('show_date', { ascending: true })
 
-        if (requestsError) {
-          console.error('Fan shows query error:', requestsError)
+        if (showsError) {
+          console.error('Fan shows query error:', showsError)
           setAllShows([])
           return
         }
 
-        const acceptedRequests = (requests || []) as AcceptedRequestRow[]
-        const musicianIds = Array.from(new Set(acceptedRequests.map((request) => request.musician_id).filter(Boolean)))
+        const publishedShows = (shows || []) as ShowRow[]
+        const musicianIds = Array.from(new Set(publishedShows.map((show) => show.artist_user_id).filter(Boolean)))
 
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
@@ -144,25 +145,23 @@ export default function FanDashboardPage() {
           profilesById.set(profile.id, profile as MusicianProfile)
         })
 
-        const merged: FanShow[] = acceptedRequests
-          .map((request) => {
-            const musician = profilesById.get(request.musician_id)
-            if (!musician?.latitude || !musician?.longitude) return null
-
+        const merged: FanShow[] = publishedShows
+          .map((show) => {
+            const musician = show.artist_user_id ? profilesById.get(show.artist_user_id) : null
             return {
-              id: request.id,
-              musician_id: request.musician_id,
-              musician_name: musician.name || 'Musician',
-              musician_photo: musician.photo_url || null,
-              genre: musician.genre || 'Live Music',
-              venue_address: request.venue_address || 'Venue TBD',
-              show_date: request.show_date || request.proposed_date || request.created_at || '',
-              ticket_price: Number(request.ticket_price || 0),
-              latitude: musician.latitude,
-              longitude: musician.longitude
+              id: show.id,
+              artist_user_id: show.artist_user_id || '',
+              musician_name: musician?.name || show.artist_name || 'Musician',
+              musician_photo: musician?.photo_url || null,
+              genre: musician?.genre || 'Live Music',
+              venue_address: show.venue_name || show.venue_address || 'Venue TBD',
+              show_date: show.show_date || show.created_at || '',
+              ticket_price: Number(show.ticket_price || 0),
+              latitude: Number(musician?.latitude ?? NaN),
+              longitude: Number(musician?.longitude ?? NaN)
             }
           })
-          .filter(Boolean) as FanShow[]
+          .filter((show) => Boolean(show.id)) as FanShow[]
 
         setAllShows(merged)
       } finally {
@@ -173,18 +172,10 @@ export default function FanDashboardPage() {
     loadShows()
   }, [])
 
-  const filteredShows = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return allShows
-    return allShows.filter((show) =>
-      show.musician_name.toLowerCase().includes(term) ||
-      show.genre.toLowerCase().includes(term) ||
-      parseCity(show.venue_address).toLowerCase().includes(term)
-    )
-  }, [allShows, search])
+  const filteredShows = useMemo(() => allShows, [allShows])
 
   const followingShows = useMemo(
-    () => filteredShows.filter((show) => followedMusicians.includes(show.musician_id)),
+    () => filteredShows.filter((show) => followedMusicians.includes(show.artist_user_id)),
     [filteredShows, followedMusicians]
   )
 
@@ -232,6 +223,7 @@ export default function FanDashboardPage() {
     const markers: any[] = []
 
     filteredShows.forEach((show) => {
+      if (!Number.isFinite(show.latitude) || !Number.isFinite(show.longitude)) return
       const pin = document.createElement('div')
       pin.style.cssText = `
         width: 16px; height: 16px; border-radius: 50%;
@@ -306,7 +298,7 @@ export default function FanDashboardPage() {
             Get Tickets
           </a>
           <button
-            onClick={() => toggleFollow(show.musician_id)}
+            onClick={() => toggleFollow(show.artist_user_id)}
             style={{
               background: 'transparent',
               color: '#F5F0E8',
@@ -318,7 +310,7 @@ export default function FanDashboardPage() {
               cursor: 'pointer'
             }}
           >
-            {followedMusicians.includes(show.musician_id) ? 'Following' : 'Follow'}
+            {followedMusicians.includes(show.artist_user_id) ? 'Following' : 'Follow'}
           </button>
           <button
             onClick={() => toggleSaved(show.id)}
