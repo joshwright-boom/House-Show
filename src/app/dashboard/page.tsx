@@ -68,6 +68,11 @@ export default function Dashboard() {
         .eq('id', user.id)
         .single()
 
+      if (profile?.user_type === 'fan') {
+        window.location.href = '/fan'
+        return
+      }
+
       setUser({ 
         id: user.id,
         email: user.email,

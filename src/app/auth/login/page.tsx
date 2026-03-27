@@ -19,7 +19,26 @@ export default function Login() {
     if (error) {
       setMessage(error.message)
     } else {
-      window.location.href = '/dashboard'
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        window.location.href = '/auth/login'
+        setLoading(false)
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.user_type === 'fan') {
+        window.location.href = '/fan'
+      } else if (profile?.user_type === 'host') {
+        window.location.href = '/dashboard/host'
+      } else {
+        window.location.href = '/dashboard/musician'
+      }
     }
     setLoading(false)
   }
