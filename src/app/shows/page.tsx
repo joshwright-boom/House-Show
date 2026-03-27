@@ -9,7 +9,9 @@ const HUNDRED_MILES_IN_KM = 160.934
 
 interface ShowRow {
   id: string
+  venue_name?: string | null
   artist_user_id?: string | null
+  host_user_id?: string | null
   artist_name?: string | null
   venue_address?: string | null
   show_date?: string | null
@@ -31,8 +33,9 @@ interface MusicianProfile {
 
 interface ShowCard {
   id: string
-  musician_id: string
+  artist_user_id: string
   musician_name: string
+  venue_name?: string | null
   venue_address: string
   proposed_date?: string | null
   show_date?: string | null
@@ -142,7 +145,7 @@ export default function ShowsPage() {
       try {
         const { data: shows, error: showsError } = await supabase
           .from('shows')
-          .select('id, artist_user_id, artist_name, venue_address, show_date, created_at, ticket_price, musician_revenue_percent, host_revenue_percent, musician_split, host_split, status')
+          .select('id, status, artist_name, venue_name, artist_user_id, host_user_id, venue_address, show_date, created_at, ticket_price, musician_revenue_percent, host_revenue_percent, musician_split, host_split')
           .eq('status', 'on_sale')
           .order('show_date', { ascending: true })
 
@@ -180,8 +183,9 @@ export default function ShowsPage() {
 
             return {
               id: show.id,
-              musician_id: show.artist_user_id || '',
+              artist_user_id: show.artist_user_id || '',
               musician_name: profile.name || show.artist_name || 'Musician',
+              venue_name: show.venue_name || null,
               venue_address: show.venue_address || 'Venue TBD',
               proposed_date: null,
               show_date: show.show_date || null,
