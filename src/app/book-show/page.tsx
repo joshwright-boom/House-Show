@@ -419,6 +419,19 @@ function BookShowContent() {
             />
           </div>
 
+          <p style={{
+            color: '#8C7B6B',
+            fontSize: '0.78rem',
+            lineHeight: 1.6,
+            marginBottom: '16px'
+          }}>
+            By submitting this booking request, you agree to HouseShow&apos;s{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#D4820A', textDecoration: 'none' }}>
+              Terms of Service
+            </a>
+            . You acknowledge that HouseShow is a marketplace platform only and is not responsible for events, conduct, or outcomes at any show booked through this platform.
+          </p>
+
           <div style={{ display: 'flex', gap: '16px' }}>
             <button
               type="submit"
