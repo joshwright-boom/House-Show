@@ -91,12 +91,22 @@ const getDisplayDateLabel = (show: ShowCard) => {
 export default function ShowsPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationError, setLocationError] = useState(false)
   const [hasPreciseLocation, setHasPreciseLocation] = useState(true)
   const [loading, setLoading] = useState(true)
   const [allShows, setAllShows] = useState<ShowCard[]>([])
   const [distanceFilter, setDistanceFilter] = useState<'25' | '50' | '100' | 'all'>('100')
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      setIsLoggedIn(Boolean(data.session))
+    }
+
+    checkSession()
+  }, [])
 
   const showsNearby = useMemo(() => {
     if (!userLocation) return allShows
@@ -356,7 +366,11 @@ export default function ShowsPage() {
                   Musician Revenue: {show.musician_revenue_percent}% • Host Revenue: {show.host_revenue_percent}%
                 </p>
                 <a
-                  href="/auth/register"
+                  href={
+                    isLoggedIn
+                      ? `/shows/${show.id}`
+                      : `/auth/register?redirect=${encodeURIComponent(`/shows/${show.id}`)}`
+                  }
                   style={{
                     display: 'inline-block',
                     marginTop: '10px',
@@ -370,6 +384,9 @@ export default function ShowsPage() {
                 >
                   Get Tickets
                 </a>
+                <p style={{ marginTop: '10px', marginBottom: 0, color: '#8C7B6B', fontSize: '0.82rem' }}>
+                  Free to browse — account required to purchase tickets.
+                </p>
               </article>
             ))}
           </div>
