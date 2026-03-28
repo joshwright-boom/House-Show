@@ -156,7 +156,8 @@ export default function FanDashboardPage() {
         })
         setArtistsError(null)
       },
-      () => {
+      (error) => {
+        console.log('Fan geolocation error:', error)
         setArtistsError('Enable location access to see artists near you.')
         setArtistsLoading(false)
       }
@@ -265,51 +266,53 @@ export default function FanDashboardPage() {
     if (!fanLocation) return
 
     const loadNearbyArtists = async () => {
-      setArtistsLoading(true)
+      try {
+        setArtistsLoading(true)
 
-      const { data, error } = await supabase
-        .from('artist_profiles')
-        .select('id, name, profile_image_url, genre, location, latitude, longitude, instagram_url, youtube_url, soundcloud_url, spotify_url, facebook_url')
-        .eq('available', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
+        const { data, error } = await supabase
+          .from('artist_profiles')
+          .select('*')
+          .eq('available', true)
 
-      if (error) {
-        console.error('Fan nearby artists query error:', error)
+        if (error) {
+          throw error
+        }
+
+        const nearby = (data || [])
+          .map((artist) => ({
+            id: artist.id,
+            name: artist.name || 'Artist',
+            profile_image_url: artist.profile_image_url || null,
+            genre: artist.genre || null,
+            location: artist.location || null,
+            latitude: Number(artist.latitude),
+            longitude: Number(artist.longitude),
+            instagram_url: artist.instagram_url || null,
+            youtube_url: artist.youtube_url || null,
+            soundcloud_url: artist.soundcloud_url || null,
+            spotify_url: artist.spotify_url || null,
+            facebook_url: artist.facebook_url || null,
+            distanceMiles: calculateDistanceMiles(
+              fanLocation.latitude,
+              fanLocation.longitude,
+              Number(artist.latitude),
+              Number(artist.longitude)
+            )
+          }))
+          .filter((artist) => Number.isFinite(artist.latitude) && Number.isFinite(artist.longitude))
+          .filter((artist) => artist.distanceMiles <= 100)
+          .sort((a, b) => a.distanceMiles - b.distanceMiles)
+
+        setNearbyArtists(nearby)
+        setArtistsError(null)
+      } catch (error) {
+        console.log('Fan nearby artists error:', error)
+        console.error('Fan nearby artists error:', error)
         setNearbyArtists([])
         setArtistsError('Unable to load nearby artists right now.')
+      } finally {
         setArtistsLoading(false)
-        return
       }
-
-      const nearby = (data || [])
-        .map((artist) => ({
-          id: artist.id,
-          name: artist.name || 'Artist',
-          profile_image_url: artist.profile_image_url || null,
-          genre: artist.genre || null,
-          location: artist.location || null,
-          latitude: Number(artist.latitude),
-          longitude: Number(artist.longitude),
-          instagram_url: artist.instagram_url || null,
-          youtube_url: artist.youtube_url || null,
-          soundcloud_url: artist.soundcloud_url || null,
-          spotify_url: artist.spotify_url || null,
-          facebook_url: artist.facebook_url || null,
-          distanceMiles: calculateDistanceMiles(
-            fanLocation.latitude,
-            fanLocation.longitude,
-            Number(artist.latitude),
-            Number(artist.longitude)
-          )
-        }))
-        .filter((artist) => Number.isFinite(artist.latitude) && Number.isFinite(artist.longitude))
-        .filter((artist) => artist.distanceMiles <= 100)
-        .sort((a, b) => a.distanceMiles - b.distanceMiles)
-
-      setNearbyArtists(nearby)
-      setArtistsError(null)
-      setArtistsLoading(false)
     }
 
     loadNearbyArtists()
