@@ -34,6 +34,7 @@ interface SearchMusician {
 
 interface NearbyArtist {
   id: string
+  user_id: string
   name: string
   profile_image_url?: string | null
   genre?: string | null
@@ -81,6 +82,15 @@ const formatDate = (value: string) => {
 }
 
 const getArtistInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+const getArtistSocialLinks = (artist: NearbyArtist) => {
+  const links = []
+  if (artist.spotify_url) links.push({ name: 'Spotify', url: artist.spotify_url, icon: '🎵' })
+  if (artist.soundcloud_url) links.push({ name: 'SoundCloud', url: artist.soundcloud_url, icon: '🎧' })
+  if (artist.instagram_url) links.push({ name: 'Instagram', url: artist.instagram_url, icon: '📷' })
+  if (artist.facebook_url) links.push({ name: 'Facebook', url: artist.facebook_url, icon: '📘' })
+  if (artist.youtube_url) links.push({ name: 'YouTube', url: artist.youtube_url, icon: '🎬' })
+  return links
+}
 
 const calculateDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const earthRadiusMiles = 3958.8
@@ -271,27 +281,42 @@ export default function FanDashboardPage() {
 
         const { data, error } = await supabase
           .from('artist_profiles')
-          .select('*')
+          .select('id, user_id, name, genre, location, latitude, longitude, available')
           .eq('available', true)
 
         if (error) {
           throw error
         }
 
+        const userIds = (data || []).map((artist) => artist.user_id).filter(Boolean)
+        const { data: profileRows, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, photo_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
+          .in('id', userIds)
+
+        if (profilesError) {
+          throw profilesError
+        }
+
+        const profilesById = new Map(
+          (profileRows || []).map((profile) => [profile.id, profile])
+        )
+
         const nearby = (data || [])
           .map((artist) => ({
             id: artist.id,
+            user_id: artist.user_id,
             name: artist.name || 'Artist',
-            profile_image_url: artist.profile_image_url || null,
+            profile_image_url: profilesById.get(artist.user_id)?.photo_url || null,
             genre: artist.genre || null,
             location: artist.location || null,
             latitude: Number(artist.latitude),
             longitude: Number(artist.longitude),
-            instagram_url: artist.instagram_url || null,
-            youtube_url: artist.youtube_url || null,
-            soundcloud_url: artist.soundcloud_url || null,
-            spotify_url: artist.spotify_url || null,
-            facebook_url: artist.facebook_url || null,
+            instagram_url: profilesById.get(artist.user_id)?.instagram_url || null,
+            youtube_url: profilesById.get(artist.user_id)?.youtube_url || null,
+            soundcloud_url: profilesById.get(artist.user_id)?.soundcloud_url || null,
+            spotify_url: profilesById.get(artist.user_id)?.spotify_url || null,
+            facebook_url: profilesById.get(artist.user_id)?.facebook_url || null,
             distanceMiles: calculateDistanceMiles(
               fanLocation.latitude,
               fanLocation.longitude,
@@ -632,38 +657,40 @@ export default function FanDashboardPage() {
                       )}
                       <div>
                         <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.15rem', color: '#F5F0E8' }}>{artist.name}</div>
-                        <div style={{ color: '#D9C6A5', fontSize: '0.9rem' }}>{artist.genre || 'Live Music'}</div>
+                        <div style={{ color: '#D9C6A5', fontSize: '0.9rem' }}>{artist.genre ? `Artist • ${artist.genre}` : 'Artist'}</div>
                       </div>
                     </div>
                     <p style={{ color: '#8C7B6B', margin: '0 0 6px' }}>{artist.location || 'Location TBD'}</p>
                     <p style={{ color: '#8C7B6B', margin: '0 0 12px' }}>{Math.round(artist.distanceMiles)} miles away</p>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                      {artist.instagram_url && (
-                        <a href={artist.instagram_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
-                          Instagram
-                        </a>
-                      )}
-                      {artist.spotify_url && (
-                        <a href={artist.spotify_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
-                          Spotify
-                        </a>
-                      )}
-                      {artist.youtube_url && (
-                        <a href={artist.youtube_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
-                          YouTube
-                        </a>
-                      )}
-                      {artist.soundcloud_url && (
-                        <a href={artist.soundcloud_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
-                          SoundCloud
-                        </a>
-                      )}
-                      {artist.facebook_url && (
-                        <a href={artist.facebook_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
-                          Facebook
-                        </a>
-                      )}
-                    </div>
+                    {getArtistSocialLinks(artist).length > 0 && (
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                        {getArtistSocialLinks(artist).map((link) => (
+                          <a
+                            key={link.name}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '8px 12px',
+                              background: 'rgba(240,165,0,0.1)',
+                              border: '1px solid rgba(240,165,0,0.2)',
+                              borderRadius: '6px',
+                              color: '#F0A500',
+                              textDecoration: 'none',
+                              fontSize: '0.85rem',
+                              fontFamily: 'DM Sans, sans-serif',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{ fontSize: '1rem' }}>{link.icon}</span>
+                            {link.name}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     <a
                       href={`/artist/${artist.id}`}
                       style={{

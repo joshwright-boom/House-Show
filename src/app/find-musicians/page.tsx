@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 interface Musician {
   id: string
+  user_id: string
   name: string
   bio: string
   profile_image_url?: string
@@ -12,10 +13,24 @@ interface Musician {
   longitude: number
   location?: string
   genre?: string
+  spotify_url?: string | null
+  soundcloud_url?: string | null
+  facebook_url?: string | null
+  youtube_url?: string | null
+  instagram_url?: string | null
   distanceMiles: number
 }
 
 const getArtistInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+const getArtistSocialLinks = (artist: Musician) => {
+  const links = []
+  if (artist.spotify_url) links.push({ name: 'Spotify', url: artist.spotify_url, icon: '🎵' })
+  if (artist.soundcloud_url) links.push({ name: 'SoundCloud', url: artist.soundcloud_url, icon: '🎧' })
+  if (artist.instagram_url) links.push({ name: 'Instagram', url: artist.instagram_url, icon: '📷' })
+  if (artist.facebook_url) links.push({ name: 'Facebook', url: artist.facebook_url, icon: '📘' })
+  if (artist.youtube_url) links.push({ name: 'YouTube', url: artist.youtube_url, icon: '🎬' })
+  return links
+}
 
 export default function FindMusicians() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
@@ -102,7 +117,7 @@ export default function FindMusicians() {
 
         const { data: musicians, error: musiciansError } = await supabase
           .from('artist_profiles')
-          .select('id, name, bio, profile_image_url, latitude, longitude, location, genre')
+          .select('id, user_id, name, bio, latitude, longitude, location, genre')
           .eq('available', true)
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
@@ -112,8 +127,23 @@ export default function FindMusicians() {
         }
 
         if (musicians) {
+          const userIds = musicians.map((musician) => musician.user_id).filter(Boolean)
+          const { data: profileRows, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, photo_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
+            .in('id', userIds)
+
+          if (profilesError) {
+            throw profilesError
+          }
+
+          const profilesById = new Map(
+            (profileRows || []).map((profile) => [profile.id, profile])
+          )
+
           const nearby = musicians
             .map((musician) => {
+              const linkedProfile = profilesById.get(musician.user_id)
               const distanceMiles = calculateDistance(
               hostLocation.lat, 
               hostLocation.lng, 
@@ -123,6 +153,13 @@ export default function FindMusicians() {
 
               return {
                 ...musician,
+                user_id: musician.user_id,
+                profile_image_url: linkedProfile?.photo_url || undefined,
+                spotify_url: linkedProfile?.spotify_url || null,
+                soundcloud_url: linkedProfile?.soundcloud_url || null,
+                facebook_url: linkedProfile?.facebook_url || null,
+                youtube_url: linkedProfile?.youtube_url || null,
+                instagram_url: linkedProfile?.instagram_url || null,
                 distanceMiles
               }
             })
@@ -296,6 +333,9 @@ export default function FindMusicians() {
                     }}>
                       {musician.name}
                     </div>
+                    <div style={{ color: '#8C7B6B', marginBottom: musician.bio ? '12px' : '10px', fontSize: '0.95rem' }}>
+                      {musician.genre ? `Artist • ${musician.genre}` : 'Artist'}
+                    </div>
                     
                     {musician.bio && (
                       <p style={{
@@ -319,6 +359,35 @@ export default function FindMusicians() {
                       <div>📍 {musician.location?.split(',')[0] || 'Location not listed'}</div>
                       <div>{Math.round(musician.distanceMiles)} miles away</div>
                     </div>
+                    {getArtistSocialLinks(musician).length > 0 && (
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '14px' }}>
+                        {getArtistSocialLinks(musician).map((link) => (
+                          <a
+                            key={link.name}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '8px 12px',
+                              background: 'rgba(240,165,0,0.1)',
+                              border: '1px solid rgba(240,165,0,0.2)',
+                              borderRadius: '6px',
+                              color: '#F0A500',
+                              textDecoration: 'none',
+                              fontSize: '0.85rem',
+                              fontFamily: 'DM Sans, sans-serif',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{ fontSize: '1rem' }}>{link.icon}</span>
+                            {link.name}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
