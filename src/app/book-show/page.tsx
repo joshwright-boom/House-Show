@@ -242,8 +242,8 @@ function BookShowInner() {
       // Insert booking request
       const { data: insertedBookingRequest, error: insertError } = await supabase
         .from('booking_requests')
-        .select()
         .insert([bookingRequest])
+        .select()
         .single()
 
       console.log('Booking request insert response:', {
