@@ -52,23 +52,37 @@ export default function BrowsePage() {
 
         // Fetch musicians from Supabase
         const { data: musiciansData, error: musiciansError } = await supabase
-          .from('profiles')
-          .select('id, name, bio, photo_url, user_type, zip_code, availability_status, location_address')
-          .eq('user_type', 'musician')
+          .from('artist_profiles')
+          .select('id, user_id, name, bio, genre, location, minimum_guarantee')
 
         if (musiciansError) {
           console.error('Error fetching musicians:', musiciansError)
         } else if (musiciansData) {
+          const userIds = musiciansData.map((musician: any) => musician.user_id).filter(Boolean)
+          const { data: profileRows, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, profile_image_url')
+            .in('id', userIds)
+
+          if (profilesError) {
+            console.error('Error fetching musician profile images:', profilesError)
+          }
+
+          const profilesById = new Map(
+            (profileRows || []).map((profile: any) => [profile.id, profile])
+          )
+
           const formattedMusicians = musiciansData.map((musician: any) => ({
             id: musician.id,
             stageName: musician.name || 'Unknown Artist',
-            genre: musician.bio ? 'Other' : 'Other', // Extract genre from bio if needed
-            rate: 0, // Rate not available in profiles table
-            city: musician.location_address?.split(',')[0] || musician.zip_code || 'Unknown Location',
-            image: getGenreEmoji('other'),
+            genre: musician.genre?.trim() || 'Independent',
+            rate: musician.minimum_guarantee && musician.minimum_guarantee > 0
+              ? `$${Number(musician.minimum_guarantee).toFixed(0)}/show`
+              : 'Negotiable',
+            city: musician.location || 'Unknown Location',
+            image: getGenreEmoji(musician.genre?.trim() || 'Independent'),
             bio: musician.bio,
-            photo_url: musician.photo_url,
-            availability_status: musician.availability_status
+            photo_url: profilesById.get(musician.user_id)?.profile_image_url || null
           }))
           setMusicians(formattedMusicians)
         }
@@ -308,7 +322,22 @@ export default function BrowsePage() {
                   marginBottom: '16px',
                   textAlign: 'center'
                 }}>
-                  {musician.image}
+                  {musician.photo_url ? (
+                    <img
+                      src={musician.photo_url}
+                      alt={musician.stageName}
+                      style={{
+                        width: '88px',
+                        height: '88px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        display: 'block',
+                        margin: '0 auto'
+                      }}
+                    />
+                  ) : (
+                    musician.image
+                  )}
                 </div>
                 
                 <h3 style={{
@@ -341,7 +370,7 @@ export default function BrowsePage() {
                   color: '#8C7B6B'
                 }}>
                   <span>📍 {musician.city}</span>
-                  <span>${musician.rate}/show</span>
+                  <span>{musician.rate}</span>
                 </div>
                 
                 <button
