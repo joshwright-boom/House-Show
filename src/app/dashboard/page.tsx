@@ -898,7 +898,7 @@ export default function Dashboard() {
               : activeMode === 'host'
                 ? [
                   { icon: '🏠', title: 'My Host Profile', desc: 'Build your host profile', href: '/host-profile' },
-                  { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/find-musicians' },
+                  { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/browse' },
                   { icon: '📅', title: 'My Bookings', desc: 'Manage your upcoming shows', href: '/bookings' },
                   { icon: '🎫', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
                 ]
