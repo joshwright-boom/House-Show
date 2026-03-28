@@ -61,7 +61,7 @@ export default function BrowsePage() {
           const userIds = musiciansData.map((musician: any) => musician.user_id).filter(Boolean)
           const { data: profileRows, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, profile_image_url')
+            .select('id, profile_image_url, instagram_url, spotify_url, youtube_url, soundcloud_url, facebook_url')
             .in('id', userIds)
 
           if (profilesError) {
@@ -82,7 +82,12 @@ export default function BrowsePage() {
             city: musician.location || 'Unknown Location',
             image: getGenreEmoji(musician.genre?.trim() || 'Independent'),
             bio: musician.bio,
-            photo_url: profilesById.get(musician.user_id)?.profile_image_url || null
+            photo_url: profilesById.get(musician.user_id)?.profile_image_url || null,
+            instagram_url: profilesById.get(musician.user_id)?.instagram_url || null,
+            spotify_url: profilesById.get(musician.user_id)?.spotify_url || null,
+            youtube_url: profilesById.get(musician.user_id)?.youtube_url || null,
+            soundcloud_url: profilesById.get(musician.user_id)?.soundcloud_url || null,
+            facebook_url: profilesById.get(musician.user_id)?.facebook_url || null
           }))
           setMusicians(formattedMusicians)
         }
@@ -305,7 +310,7 @@ export default function BrowsePage() {
               <div key={musician.id} style={{
                 backgroundColor: '#2A1F1A',
                 borderRadius: '16px',
-                padding: '32px',
+                overflow: 'hidden',
                 border: '1px solid rgba(212,130,10,0.1)',
                 transition: 'all 0.3s ease'
               }}
@@ -318,86 +323,124 @@ export default function BrowsePage() {
                 e.currentTarget.style.transform = 'translateY(0)'
               }}>
                 <div style={{
+                  height: '160px',
+                  background: '#1A1410',
+                  borderBottom: '1px solid rgba(212,130,10,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   fontSize: '48px',
-                  marginBottom: '16px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  overflow: 'hidden'
                 }}>
                   {musician.photo_url ? (
                     <img
                       src={musician.photo_url}
                       alt={musician.stageName}
                       style={{
-                        width: '88px',
-                        height: '88px',
-                        borderRadius: '50%',
+                        width: '100%',
+                        height: '100%',
                         objectFit: 'cover',
-                        display: 'block',
-                        margin: '0 auto'
+                        display: 'block'
                       }}
                     />
                   ) : (
                     musician.image
                   )}
                 </div>
-                
-                <h3 style={{
-                  fontSize: '24px',
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  color: '#F5F0E8',
-                  fontFamily: 'Playfair Display, serif',
-                  textAlign: 'center'
-                }}>
-                  {musician.stageName}
-                </h3>
-                
-                <div style={{
-                  fontSize: '14px',
-                  color: '#F0A500',
-                  textAlign: 'center',
-                  marginBottom: '16px',
-                  fontWeight: '500'
-                }}>
-                  {musician.genre}
-                </div>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '20px',
-                  fontSize: '14px',
-                  color: '#8C7B6B'
-                }}>
-                  <span>📍 {musician.city}</span>
-                  <span>{musician.rate}</span>
-                </div>
-                
-                <button
-                  onClick={() => handleBookMusician(musician.id)}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
+                <div style={{ padding: '32px' }}>
+                  <h3 style={{
+                    fontSize: '24px',
                     fontWeight: '600',
-                    backgroundColor: '#D4820A',
-                    color: '#1A1410',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#F0A500'
-                    e.currentTarget.style.transform = 'scale(1.02)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#D4820A'
-                    e.currentTarget.style.transform = 'scale(1)'
-                  }}
-                >
-                  Request to Book
-                </button>
+                    marginBottom: '8px',
+                    color: '#F5F0E8',
+                    fontFamily: 'Playfair Display, serif',
+                    textAlign: 'center'
+                  }}>
+                    {musician.stageName}
+                  </h3>
+                  
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#F0A500',
+                    textAlign: 'center',
+                    marginBottom: '16px',
+                    fontWeight: '500'
+                  }}>
+                    {musician.genre}
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px',
+                    fontSize: '14px',
+                    color: '#8C7B6B'
+                  }}>
+                    <span>📍 {musician.city}</span>
+                    <span>{musician.rate}</span>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center',
+                    marginBottom: '20px',
+                    minHeight: '24px'
+                  }}>
+                    {[
+                      { icon: '📷', url: musician.instagram_url, label: 'Instagram' },
+                      { icon: '🎵', url: musician.spotify_url, label: 'Spotify' },
+                      { icon: '▶️', url: musician.youtube_url, label: 'YouTube' },
+                      { icon: '☁️', url: musician.soundcloud_url, label: 'SoundCloud' },
+                      { icon: '👤', url: musician.facebook_url, label: 'Facebook' }
+                    ]
+                      .filter((link) => Boolean(link.url))
+                      .map((link) => (
+                        <a
+                          key={link.label}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={link.label}
+                          style={{
+                            textDecoration: 'none',
+                            fontSize: '18px',
+                            lineHeight: 1
+                          }}
+                        >
+                          {link.icon}
+                        </a>
+                      ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => handleBookMusician(musician.id)}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      backgroundColor: '#D4820A',
+                      color: '#1A1410',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#F0A500'
+                      e.currentTarget.style.transform = 'scale(1.02)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#D4820A'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                    Request to Book
+                  </button>
+                </div>
               </div>
             ))}
           </div>
