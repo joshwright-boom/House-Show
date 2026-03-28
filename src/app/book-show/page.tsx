@@ -212,11 +212,19 @@ function BookShowInner() {
         return
       }
 
+      const ticketPrice = Number.parseFloat(formData.offer_amount)
+
+      if (!Number.isFinite(ticketPrice)) {
+        console.error('Invalid ticket price for booking request:', formData.offer_amount)
+        setError('Offer amount must be a valid number')
+        return
+      }
+
       const bookingRequest: BookingRequest = {
         musician_id: musician.id,
         host_id: hostProfile.id,
         proposed_date: formData.proposed_date,
-        ticket_price: parseFloat(formData.offer_amount),
+        ticket_price: ticketPrice,
         message: formData.message,
         status: 'pending',
         proposed_musician_pct: 60,
@@ -224,10 +232,24 @@ function BookShowInner() {
         proposed_platform_pct: 7
       }
 
+      console.log('Submitting booking request insert:', {
+        authUserId: authUser.id,
+        hostProfileId: hostProfile.id,
+        musicianId: musician.id,
+        bookingRequest
+      })
+
       // Insert booking request
-      const { error: insertError } = await supabase
+      const { data: insertedBookingRequest, error: insertError } = await supabase
         .from('booking_requests')
+        .select()
         .insert([bookingRequest])
+        .single()
+
+      console.log('Booking request insert response:', {
+        data: insertedBookingRequest,
+        error: insertError
+      })
 
       if (insertError) {
         console.error('Error creating booking request:', insertError)
