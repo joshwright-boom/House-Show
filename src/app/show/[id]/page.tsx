@@ -18,6 +18,11 @@ interface ShowRecord {
   show_description: string
   host_id: string
   artist_user_id?: string | null
+  spotify_url?: string | null
+  youtube_url?: string | null
+  soundcloud_url?: string | null
+  facebook_url?: string | null
+  instagram_url?: string | null
   status: string
 }
 
@@ -58,6 +63,18 @@ const formatTime = (value: string) => {
   const period = rawHour >= 12 ? 'PM' : 'AM'
   const hour12 = rawHour % 12 || 12
   return `${hour12}:${minutes} ${period}`
+}
+
+const getArtistSocialLinks = (show: ShowRecord | null) => {
+  if (!show) return []
+
+  const links = []
+  if (show.spotify_url) links.push({ name: 'Spotify', url: show.spotify_url, icon: '🎵' })
+  if (show.youtube_url) links.push({ name: 'YouTube', url: show.youtube_url, icon: '🎬' })
+  if (show.soundcloud_url) links.push({ name: 'SoundCloud', url: show.soundcloud_url, icon: '🎧' })
+  if (show.facebook_url) links.push({ name: 'Facebook', url: show.facebook_url, icon: '📘' })
+  if (show.instagram_url) links.push({ name: 'Instagram', url: show.instagram_url, icon: '📷' })
+  return links
 }
 
 export default function ShowPage({ params }: { params: { id: string } }) {
@@ -106,6 +123,49 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           setError(error.message || 'Unable to load show.')
           return
         }
+
+        const artistUserId = data.artist_user_id || null
+        const artistProfileId = data.artist_id || data.musician_id || null
+        const artistProfileFilters = [
+          artistProfileId ? `id.eq.${artistProfileId}` : null,
+          artistUserId ? `user_id.eq.${artistUserId}` : null
+        ].filter(Boolean)
+
+        let artistSocials: Pick<
+          ShowRecord,
+          'spotify_url' | 'youtube_url' | 'soundcloud_url' | 'facebook_url' | 'instagram_url'
+        > = {
+          spotify_url: null,
+          youtube_url: null,
+          soundcloud_url: null,
+          facebook_url: null,
+          instagram_url: null
+        }
+
+        if (artistProfileFilters.length > 0) {
+          const { data: artistProfiles, error: artistProfilesError } = await supabase
+            .from('artist_profiles')
+            .select('id, user_id, spotify_url, youtube_url, soundcloud_url, facebook_url, instagram_url')
+            .or(artistProfileFilters.join(','))
+
+          if (artistProfilesError) {
+            console.error('Error loading artist social links:', artistProfilesError)
+          } else if (artistProfiles?.length) {
+            const matchedArtistProfile =
+              artistProfiles.find((profile) => artistProfileId && profile.id === artistProfileId) ||
+              artistProfiles.find((profile) => artistUserId && profile.user_id === artistUserId) ||
+              artistProfiles[0]
+
+            artistSocials = {
+              spotify_url: matchedArtistProfile?.spotify_url || null,
+              youtube_url: matchedArtistProfile?.youtube_url || null,
+              soundcloud_url: matchedArtistProfile?.soundcloud_url || null,
+              facebook_url: matchedArtistProfile?.facebook_url || null,
+              instagram_url: matchedArtistProfile?.instagram_url || null
+            }
+          }
+        }
+
         setShow({
           id: data.id,
           show_name: getShowNameValue(data),
@@ -120,7 +180,12 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           max_capacity: getShowCapacity(data),
           show_description: data.show_description,
           host_id: getShowHostId(data),
-          artist_user_id: data.artist_user_id || data.artist_id || data.musician_id || null,
+          artist_user_id: artistUserId || artistProfileId,
+          spotify_url: artistSocials.spotify_url,
+          youtube_url: artistSocials.youtube_url,
+          soundcloud_url: artistSocials.soundcloud_url,
+          facebook_url: artistSocials.facebook_url,
+          instagram_url: artistSocials.instagram_url,
           status: data.status
         })
       } catch (err) {
@@ -167,6 +232,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   const totalPrice = show ? Number(show.ticket_price) * ticketQuantity : 0
   const venueName = show?.venue_name?.trim() || ''
   const publicArea = formatPublicArea(show?.neighborhood, show?.city)
+  const artistSocialLinks = getArtistSocialLinks(show)
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('en-US', {
@@ -327,6 +393,35 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             >
               {isFollowingArtist ? 'Following' : followLoading ? 'Following...' : 'Follow Artist'}
             </button>
+          ) : null}
+          {artistSocialLinks.length > 0 ? (
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
+              {artistSocialLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '9px 13px',
+                    background: 'rgba(240,165,0,0.08)',
+                    border: '1px solid rgba(212,130,10,0.28)',
+                    borderRadius: '8px',
+                    color: '#F0A500',
+                    textDecoration: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <span>{link.icon}</span>
+                  <span>{link.name}</span>
+                </a>
+              ))}
+            </div>
           ) : null}
         </section>
 
