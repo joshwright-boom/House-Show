@@ -149,7 +149,7 @@ function BookShowContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!user || !musician) return
+    if (!musician) return
 
     try {
       setSubmitting(true)
@@ -161,10 +161,27 @@ function BookShowContent() {
         return
       }
 
+      const {
+        data: { user: authUser },
+        error: authError
+      } = await supabase.auth.getUser()
+
+      if (authError) {
+        console.error('Error loading authenticated user for booking request:', authError)
+        setError('Failed to verify your account')
+        return
+      }
+
+      if (!authUser) {
+        setError('Please log in to send a booking request')
+        router.push('/auth/login')
+        return
+      }
+
       const { data: hostProfile, error: hostProfileError } = await supabase
         .from('host_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', authUser.id)
         .maybeSingle()
 
       if (hostProfileError) {
@@ -175,7 +192,7 @@ function BookShowContent() {
       }
 
       if (!hostProfile?.id) {
-        console.error('Host profile not found for auth user:', user.id)
+        console.error('Host profile not found for auth user:', authUser.id)
         setError('Host profile not found')
         return
       }
