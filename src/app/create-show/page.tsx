@@ -180,25 +180,38 @@ function CreateShowContent() {
 
       setRequestDraft(request as BookingRequestDraft)
 
-      const { data: musician } = await supabase
-        .from('profiles')
-        .select('id, name, bio, photo_url, user_type, zip_code, latitude, longitude, location_address')
+      const { data: artistProfile, error: artistProfileError } = await supabase
+        .from('artist_profiles')
+        .select('id, user_id, name')
         .eq('id', request.musician_id)
-        .single()
+        .maybeSingle()
 
-      if (musician) {
-        setSelectedMusician(musician as Musician)
-        setMusicianSearch(musician.name)
+      if (artistProfileError) {
+        console.error('Error loading artist profile for request draft:', artistProfileError)
+      }
+
+      const { data: hostProfile, error: hostProfileError } = await supabase
+        .from('host_profiles')
+        .select('id, neighborhood')
+        .eq('id', request.host_id)
+        .maybeSingle()
+
+      if (hostProfileError) {
+        console.error('Error loading host profile for request draft:', hostProfileError)
+      }
+
+      if (artistProfile?.name) {
+        setMusicianSearch(artistProfile.name)
       }
 
       setFormData(prev => ({
         ...prev,
-        show_name: musician?.name ? `${musician.name} Live at HouseShow` : prev.show_name,
+        show_name: artistProfile?.name ? `${artistProfile.name} Live` : prev.show_name,
         venue_name: prev.venue_name || request.venue_address,
-        neighborhood: prev.neighborhood || request.venue_address,
+        neighborhood: hostProfile?.neighborhood || prev.neighborhood,
         full_address: prev.full_address || request.venue_address,
         venue_address: request.venue_address,
-        date: normalizeDateForInput(request.show_date || request.proposed_date),
+        date: normalizeDateForInput(request.proposed_date),
         time: prev.time || '19:00',
         ticket_price: String(request.ticket_price ?? ''),
         max_capacity: prev.max_capacity || '40',
