@@ -16,8 +16,10 @@ interface VenueHost {
   location_address?: string
   neighborhood?: string
   availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
+  amenities?: string[] | null
   has_sound_equipment?: boolean | null
   venue_capacity?: number | null
+  venue_description?: string | null
   zip_code?: string
   distanceMiles: number
 }
@@ -78,6 +80,7 @@ export default function VenueRadarPage() {
           address?: string | null
           neighborhood?: string | null
           venue_photo_url?: string | null
+          amenities?: string[] | null
           has_sound_equipment?: boolean | null
           venue_capacity?: number | null
         }>()
@@ -87,11 +90,11 @@ export default function VenueRadarPage() {
           const { data: hostProfiles } = await supabase
             .from('host_profiles')
             .select('*')
-            .in('id', hostIds)
+            .in('user_id', hostIds)
 
           hostProfilesById = new Map(
             (hostProfiles || []).map((profile) => [
-              profile.id,
+              profile.user_id || profile.id,
               {
                 id: profile.id,
                 user_id: profile.user_id || null,
@@ -99,6 +102,7 @@ export default function VenueRadarPage() {
                 address: profile.address || null,
                 neighborhood: profile.neighborhood || null,
                 venue_photo_url: profile.venue_photo_url || null,
+                amenities: profile.amenities || [],
                 has_sound_equipment: profile.has_sound_equipment ?? null,
                 venue_capacity: profile.venue_capacity ?? null
               }
@@ -151,8 +155,10 @@ export default function VenueRadarPage() {
               photo_url: linkedProfile?.photo_url || host.photo_url || null,
               venue_photo_url: hostProfile?.venue_photo_url || null,
               neighborhood: hostProfile?.neighborhood || host.location_address?.split(',')[0]?.trim() || '',
+              amenities: hostProfile?.amenities || [],
               has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
               venue_capacity: hostProfile?.venue_capacity ?? null,
+              venue_description: hostProfile?.venue_description || null,
               distanceMiles
             })
           })
@@ -305,9 +311,9 @@ export default function VenueRadarPage() {
                             <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#F5F0E8', marginBottom: '8px' }}>
                               {venue.name}
                             </h3>
-                            {venue.bio && (
+                            {venue.venue_description && (
                               <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', lineHeight: '1.5', margin: 0 }}>
-                                {venue.bio}
+                                {venue.venue_description}
                               </p>
                             )}
                           </div>
@@ -324,6 +330,9 @@ export default function VenueRadarPage() {
                           </span>
                           <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>
                             Capacity: {venue.venue_capacity ? `${venue.venue_capacity} people` : 'Not listed'}
+                          </span>
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>
+                            Amenities: {venue.amenities && venue.amenities.length > 0 ? venue.amenities.join(', ') : 'Not listed'}
                           </span>
                           {typeof venue.distanceMiles === 'number' && (
                             <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>

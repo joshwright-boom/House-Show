@@ -5,9 +5,16 @@ import { supabase } from '@/lib/supabase'
 
 interface HostProfile {
   id: string
+  user_id?: string
   venue_name: string
+  description?: string
   venue_description: string
+  neighborhood?: string
+  full_address?: string
   address: string
+  available?: boolean
+  has_sound_equipment?: boolean
+  venue_capacity?: number
   capacity: number
   venue_photo_url?: string
   photo_urls: string[]
@@ -23,8 +30,14 @@ export default function HostProfile() {
   const [profile, setProfile] = useState<HostProfile | null>(null)
   const [formData, setFormData] = useState({
     venue_name: '',
+    description: '',
     venue_description: '',
+    neighborhood: '',
+    full_address: '',
     address: '',
+    available: true,
+    has_sound_equipment: false,
+    venue_capacity: '',
     capacity: '',
     venue_photo_url: '',
     photo_urls: ['', '', '', '', ''],
@@ -59,15 +72,21 @@ export default function HostProfile() {
       const { data: profileData } = await supabase
         .from('host_profiles')
         .select('*')
-        .eq('id', user.id)
-        .single()
+        .eq('user_id', user.id)
+        .maybeSingle()
       
       if (profileData) {
         setProfile(profileData)
         setFormData({
           venue_name: profileData.venue_name || '',
+          description: profileData.description || '',
           venue_description: profileData.venue_description || '',
+          neighborhood: profileData.neighborhood || '',
+          full_address: profileData.full_address || profileData.address || '',
           address: profileData.address || '',
+          available: profileData.available ?? true,
+          has_sound_equipment: profileData.has_sound_equipment ?? false,
+          venue_capacity: profileData.venue_capacity?.toString() || profileData.capacity?.toString() || '',
           capacity: profileData.capacity?.toString() || '',
           venue_photo_url: profileData.venue_photo_url || '',
           photo_urls: profileData.photo_urls || ['', '', '', '', ''],
@@ -89,11 +108,27 @@ export default function HostProfile() {
     setSaveSuccess(false)
     
     try {
+      const {
+        data: { user: authUser }
+      } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        console.error('Unable to save host profile: no authenticated user found')
+        return
+      }
+
       const profileData = {
-        id: user.id,
+        id: profile?.id || user.id,
+        user_id: authUser.id,
         venue_name: formData.venue_name,
+        description: formData.description || null,
+        neighborhood: formData.neighborhood || null,
+        full_address: formData.full_address || null,
         venue_description: formData.venue_description,
-        address: formData.address,
+        address: formData.full_address || formData.address,
+        available: formData.available,
+        has_sound_equipment: formData.has_sound_equipment,
+        venue_capacity: parseInt(formData.venue_capacity) || parseInt(formData.capacity) || 0,
         capacity: parseInt(formData.capacity) || 0,
         venue_photo_url: formData.venue_photo_url || null,
         photo_urls: formData.photo_urls.filter(url => url.trim() !== ''),
@@ -102,19 +137,20 @@ export default function HostProfile() {
         contact_preference: formData.contact_preference,
         updated_at: new Date().toISOString()
       }
-      
-      if (profile) {
-        // Update existing profile
-        await supabase
-          .from('host_profiles')
-          .update(profileData)
-          .eq('id', user.id)
-      } else {
-        // Create new profile
-        await supabase
-          .from('host_profiles')
-          .insert({ ...profileData, created_at: new Date().toISOString() })
+
+      const { data: savedProfile, error: saveError } = await supabase
+        .from('host_profiles')
+        .upsert({ ...profileData, created_at: profile?.created_at || new Date().toISOString() }, { onConflict: 'user_id' })
+        .select()
+        .single()
+
+      console.log('Host profile upsert response:', { data: savedProfile, error: saveError })
+
+      if (saveError) {
+        throw saveError
       }
+
+      setProfile(savedProfile as HostProfile)
       
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -126,6 +162,10 @@ export default function HostProfile() {
   }
 
   const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleBooleanChange = (field: 'available' | 'has_sound_equipment', value: boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -283,16 +323,24 @@ export default function HostProfile() {
                     {profile.venue_name}
                   </h4>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.9rem' }}>
-                    Capacity: {profile.capacity} guests
+                    Capacity: {profile.venue_capacity || profile.capacity} guests
                   </p>
                 </div>
                 
                 <div>
+                  {profile.description ? (
+                    <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#D9C6A5', fontSize: '0.95rem', marginBottom: '8px' }}>
+                      {profile.description}
+                    </p>
+                  ) : null}
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#F5F0E8', fontSize: '0.95rem', marginBottom: '8px' }}>
                     {profile.venue_description}
                   </p>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.85rem' }}>
-                    📍 {profile.address}
+                    📍 {profile.neighborhood ? `${profile.neighborhood} • ` : ''}{profile.full_address || profile.address}
+                  </p>
+                  <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.85rem', marginTop: '6px' }}>
+                    Sound Equipment: {profile.has_sound_equipment ? 'Yes' : 'No'} • Status: {profile.available ? 'Available' : 'Unavailable'}
                   </p>
                 </div>
 
@@ -428,6 +476,63 @@ export default function HostProfile() {
               />
             </div>
 
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Host Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Share a little about yourself as a host and the kind of shows you love to put on."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: 'DM Sans, sans-serif',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Neighborhood
+              </label>
+              <input
+                type="text"
+                value={formData.neighborhood}
+                onChange={(e) => handleInputChange('neighborhood', e.target.value)}
+                placeholder="Brooklyn Heights, East Nashville, South Congress..."
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: 'DM Sans, sans-serif'
+                }}
+              />
+            </div>
+
             {/* Address */}
             <div>
               <label style={{
@@ -441,8 +546,11 @@ export default function HostProfile() {
               </label>
               <input
                 type="text"
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
+                value={formData.full_address}
+                onChange={(e) => {
+                  handleInputChange('full_address', e.target.value)
+                  handleInputChange('address', e.target.value)
+                }}
                 placeholder="123 Main St, City, State, ZIP"
                 required
                 style={{
@@ -456,6 +564,79 @@ export default function HostProfile() {
                   fontFamily: 'DM Sans, sans-serif'
                 }}
               />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: 'Playfair Display, serif',
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Venue Capacity
+                </label>
+                <input
+                  type="number"
+                  value={formData.venue_capacity}
+                  onChange={(e) => handleInputChange('venue_capacity', e.target.value)}
+                  placeholder="25, 40, 80..."
+                  min="1"
+                  max="500"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
+                    borderRadius: '8px',
+                    background: 'rgba(44,34,24,0.3)',
+                    color: '#F5F0E8',
+                    fontSize: '1rem',
+                    fontFamily: 'DM Sans, sans-serif'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: 'Playfair Display, serif',
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Sound Equipment
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {[
+                    { label: 'Yes', value: true },
+                    { label: 'No', value: false }
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => handleBooleanChange('has_sound_equipment', option.value)}
+                      style={{
+                        flex: 1,
+                        padding: '16px',
+                        border: formData.has_sound_equipment === option.value
+                          ? '2px solid #F0A500'
+                          : '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '8px',
+                        background: formData.has_sound_equipment === option.value
+                          ? 'rgba(240,165,0,0.1)'
+                          : 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        cursor: 'pointer',
+                        fontFamily: 'DM Sans, sans-serif',
+                        fontSize: '0.95rem'
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Capacity */}
@@ -689,6 +870,50 @@ export default function HostProfile() {
                         : '1px solid rgba(212,130,10,0.2)',
                       borderRadius: '8px',
                       background: formData.contact_preference === option.value
+                        ? 'rgba(240,165,0,0.1)'
+                        : 'rgba(44,34,24,0.3)',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '4px', color: '#F5F0E8' }}>
+                      {option.label}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#8C7B6B' }}>
+                      {option.desc}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Availability
+              </label>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                {[
+                  { label: 'Available', value: true, desc: 'Shown as open for new booking requests' },
+                  { label: 'Unavailable', value: false, desc: 'Temporarily hide yourself from booking requests' }
+                ].map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => handleBooleanChange('available', option.value)}
+                    style={{
+                      flex: 1,
+                      padding: '16px',
+                      border: formData.available === option.value
+                        ? '2px solid #F0A500'
+                        : '1px solid rgba(212,130,10,0.2)',
+                      borderRadius: '8px',
+                      background: formData.available === option.value
                         ? 'rgba(240,165,0,0.1)'
                         : 'rgba(44,34,24,0.3)',
                       cursor: 'pointer',
