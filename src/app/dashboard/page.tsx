@@ -85,6 +85,7 @@ export default function Dashboard() {
   const [requestsError, setRequestsError] = useState<string | null>(null)
   const [hostRequestsError, setHostRequestsError] = useState<string | null>(null)
   const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(null)
+  const [expandedBookingRequestId, setExpandedBookingRequestId] = useState<string | null>(null)
   const [activeCounterOfferId, setActiveCounterOfferId] = useState<string | null>(null)
   const [counterOfferValues, setCounterOfferValues] = useState({
     musician: String(DEFAULT_COUNTER_SPLIT.musician),
@@ -1164,37 +1165,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
-                    <div>
-                      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem', marginBottom: '4px' }}>
-                        Revenue Split
-                      </div>
-                      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
-                        You: {request.musician_split ?? 60}% • Host: {request.host_split ?? 33}% • Platform: 7%
-                      </div>
-                      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.9rem', marginTop: '6px' }}>
-                        Guaranteed minimum: {request.minimum_guarantee != null ? `$${Number(request.minimum_guarantee).toFixed(2)}` : 'Not set'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem', marginBottom: '6px' }}>
-                      Message
-                    </div>
-                    <div style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      color: '#F5F0E8',
-                      fontSize: '0.95rem',
-                      lineHeight: '1.5',
-                      background: 'rgba(26,20,16,0.35)',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}>
-                      {request.message || 'No message provided.'}
-                    </div>
-                  </div>
-
                   {request.status === 'pending' && (
                     <div style={{
                       marginBottom: '16px',
@@ -1225,22 +1195,22 @@ export default function Dashboard() {
                   )}
 
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <a
-                      href={`/bookings?requestId=${request.id}`}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedBookingRequestId((prev) => prev === request.id ? null : request.id)}
                       style={{
-                        display: 'inline-block',
                         background: 'transparent',
                         color: '#F5F0E8',
                         border: '1px solid rgba(212,130,10,0.35)',
                         borderRadius: '6px',
                         padding: '10px 16px',
-                        textDecoration: 'none',
+                        cursor: 'pointer',
                         fontFamily: "'DM Sans', sans-serif",
                         fontWeight: '600'
                       }}
                     >
-                      View Details
-                    </a>
+                      {expandedBookingRequestId === request.id ? 'Hide Details' : 'View Details'}
+                    </button>
                     {request.status === 'pending' && (
                       <>
                         <button
@@ -1334,6 +1304,52 @@ export default function Dashboard() {
                       </a>
                     )}
                   </div>
+                  {expandedBookingRequestId === request.id && (
+                    <div style={{
+                      marginTop: '16px',
+                      paddingTop: '16px',
+                      borderTop: '1px solid rgba(212,130,10,0.16)',
+                      display: 'grid',
+                      gap: '16px'
+                    }}>
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                          <span style={{ color: '#8C7B6B' }}>Host:</span> {request.requester_name || 'Host'}
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                          <span style={{ color: '#8C7B6B' }}>Venue/Address:</span> {request.venue_address}
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                          <span style={{ color: '#8C7B6B' }}>Proposed Date:</span> {formatDate(request.proposed_date)}
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                          <span style={{ color: '#8C7B6B' }}>Ticket Price:</span> ${request.ticket_price ?? 0}
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                          <span style={{ color: '#8C7B6B' }}>Revenue Split:</span> You: {request.musician_split ?? 60}% • Host: {request.host_split ?? 33}% • Platform: 7%
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
+                          <span style={{ color: '#8C7B6B' }}>Guaranteed Minimum:</span> {request.minimum_guarantee != null ? `$${Number(request.minimum_guarantee).toFixed(2)}` : 'Not set'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem', marginBottom: '6px' }}>
+                          Message
+                        </div>
+                        <div style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          color: '#F5F0E8',
+                          fontSize: '0.95rem',
+                          lineHeight: '1.5',
+                          background: 'rgba(26,20,16,0.35)',
+                          borderRadius: '8px',
+                          padding: '12px'
+                        }}>
+                          {request.message || 'No message provided.'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {activeCounterOfferId === request.id && renderCounterOfferForm(request.id)}
                 </div>
               ))}

@@ -143,10 +143,44 @@ export default function Bookings() {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
+      const hostIds = Array.from(
+        new Set((shows || []).map((show) => getShowHostId(show)).filter(Boolean))
+      ) as string[]
+
+      let hostProfilesByKey = new Map<string, { neighborhood?: string | null; full_address?: string | null }>()
+
+      if (hostIds.length > 0) {
+        const { data: hostProfiles, error: hostProfilesError } = await supabase
+          .from('host_profiles')
+          .select('id, user_id, neighborhood, full_address')
+          .or(`id.in.(${hostIds.join(',')}),user_id.in.(${hostIds.join(',')})`)
+
+        if (hostProfilesError) {
+          console.error('Error fetching host profiles for bookings:', hostProfilesError)
+        } else {
+          const hostProfileEntries: Array<[string, { neighborhood?: string | null; full_address?: string | null }]> = []
+
+          ;(hostProfiles || []).forEach((profile: any) => {
+            const value = {
+              neighborhood: profile.neighborhood || null,
+              full_address: profile.full_address || null
+            }
+
+            hostProfileEntries.push([profile.id, value])
+            if (profile.user_id) {
+              hostProfileEntries.push([profile.user_id, value])
+            }
+          })
+
+          hostProfilesByKey = new Map(hostProfileEntries)
+        }
+      }
+
       const transformedBookings: Booking[] = (shows || []).map(show => {
         const resolvedDate = getShowDateValue(show)
         const showDate = new Date(resolvedDate)
         showDate.setHours(0, 0, 0, 0)
+        const hostProfile = hostProfilesByKey.get(getShowHostId(show) || '')
 
         const status: Booking['status'] =
           show.status === 'cancelled'
@@ -158,8 +192,8 @@ export default function Bookings() {
         return {
           id: show.id,
           show_name: show.show_name || show.artist_name || 'HouseShow Event',
-          venue_name: show.venue_name || show.venue_address || 'Venue',
-          venue_address: show.venue_address,
+          venue_name: hostProfile?.neighborhood || show.venue_name || 'Venue',
+          venue_address: hostProfile?.full_address || show.full_address || show.venue_address,
           date: resolvedDate,
           time: show.show_time || show.time || 'TBD',
           price: show.ticket_price,
