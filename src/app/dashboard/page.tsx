@@ -1156,22 +1156,41 @@ export default function Dashboard() {
                       View Details
                     </a>
                     {request.status === 'pending' && (
-                      <button
-                        type="button"
-                        onClick={() => openCounterOffer(request.id)}
-                        style={{
-                          background: 'transparent',
-                          color: '#F5F0E8',
-                          border: '1px solid rgba(212,130,10,0.35)',
-                          borderRadius: '6px',
-                          padding: '10px 16px',
-                          cursor: 'pointer',
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontWeight: '600'
-                        }}
-                      >
-                        Counter Offer
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateBookingRequestStatus(request.id, 'accepted')}
+                          disabled={updatingRequestId === request.id}
+                          style={{
+                            background: '#D4820A',
+                            color: '#1A1410',
+                            border: '1px solid #D4820A',
+                            borderRadius: '6px',
+                            padding: '10px 16px',
+                            cursor: updatingRequestId === request.id ? 'not-allowed' : 'pointer',
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontWeight: '600'
+                          }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openCounterOffer(request.id)}
+                          style={{
+                            background: 'transparent',
+                            color: '#F5F0E8',
+                            border: '1px solid rgba(212,130,10,0.35)',
+                            borderRadius: '6px',
+                            padding: '10px 16px',
+                            cursor: 'pointer',
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontWeight: '600'
+                          }}
+                        >
+                          Counter Offer
+                        </button>
+                      </>
                     )}
                     {request.status === 'negotiating' && (
                       <>
