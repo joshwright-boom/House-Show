@@ -176,15 +176,37 @@ export default function Dashboard() {
 
         if (hostIds.length > 0) {
           const { data: hostProfiles, error: hostProfilesError } = await supabase
-            .from('profiles')
-            .select('id, name')
+            .from('host_profiles')
+            .select('id, user_id')
             .in('id', hostIds)
 
           if (hostProfilesError) {
             console.error('Booking requests host profile lookup error:', hostProfilesError)
           } else {
+            const hostUserIds = Array.from(
+              new Set((hostProfiles || []).map((profile: any) => profile.user_id).filter(Boolean))
+            )
+
+            let hostUserNameById: Record<string, string> = {}
+
+            if (hostUserIds.length > 0) {
+              const { data: profileRows, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, name')
+                .in('id', hostUserIds)
+
+              if (profilesError) {
+                console.error('Booking requests host user profile lookup error:', profilesError)
+              } else {
+                hostUserNameById = (profileRows || []).reduce((acc: Record<string, string>, profile: any) => {
+                  acc[profile.id] = profile.name || 'Host'
+                  return acc
+                }, {})
+              }
+            }
+
             hostNameById = (hostProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
-              acc[profile.id] = profile.name || 'Host'
+              acc[profile.id] = hostUserNameById[profile.user_id] || 'Host'
               return acc
             }, {})
           }
@@ -218,10 +240,29 @@ export default function Dashboard() {
       }
 
       try {
+        const { data: hostProfile, error: hostProfileError } = await supabase
+          .from('host_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (hostProfileError) {
+          console.error('Host profile lookup error:', hostProfileError)
+          setHostRequestsError(hostProfileError.message || 'Unable to load host profile')
+          setHostRequests([])
+          return
+        }
+
+        if (!hostProfile?.id) {
+          setHostRequestsError(null)
+          setHostRequests([])
+          return
+        }
+
         const { data: requests, error } = await supabase
           .from('booking_requests')
           .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, message, status, host_id, musician_id')
-          .eq('host_id', user.id)
+          .eq('host_id', hostProfile.id)
           .order('created_at', { ascending: false })
 
         if (error) {

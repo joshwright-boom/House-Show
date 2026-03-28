@@ -210,10 +210,26 @@ export default function Bookings() {
 
   const fetchHostRequests = async (userId: string) => {
     try {
+      const { data: hostProfile, error: hostProfileError } = await supabase
+        .from('host_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (hostProfileError) {
+        console.error('Error fetching host profile for booking requests:', hostProfileError)
+        return
+      }
+
+      if (!hostProfile?.id) {
+        setHostRequests([])
+        return
+      }
+
       const { data: requests, error } = await supabase
         .from('booking_requests')
-        .select('*, musician_profile:profiles!musician_id(name)')
-        .eq('host_id', userId)
+        .select('*')
+        .eq('host_id', hostProfile.id)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -221,9 +237,31 @@ export default function Bookings() {
         return
       }
 
+      const musicianIds = Array.from(
+        new Set((requests || []).map((request: any) => request.musician_id).filter(Boolean))
+      ) as string[]
+
+      let musicianNameById: Record<string, string> = {}
+
+      if (musicianIds.length > 0) {
+        const { data: musicianProfiles, error: musicianProfilesError } = await supabase
+          .from('artist_profiles')
+          .select('id, name')
+          .in('id', musicianIds)
+
+        if (musicianProfilesError) {
+          console.error('Error fetching musician profiles for host requests:', musicianProfilesError)
+        } else {
+          musicianNameById = (musicianProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
+            acc[profile.id] = profile.name || 'Musician'
+            return acc
+          }, {})
+        }
+      }
+
       const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
         ...request,
-        musician_name: request.musician_profile?.[0]?.name || 'Musician'
+        musician_name: musicianNameById[request.musician_id] || 'Musician'
       }))
 
       setHostRequests(transformedRequests)
