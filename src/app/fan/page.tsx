@@ -596,7 +596,7 @@ export default function FanDashboardPage() {
                 >
                   <div style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      {artist.profile_image_url ? (
+                      {artist.profile_image_url?.trim() ? (
                         <img
                           src={artist.profile_image_url}
                           alt={artist.name}

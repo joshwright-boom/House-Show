@@ -252,7 +252,7 @@ export default function FindMusicians() {
                     flexWrap: 'wrap'
                   }}
                 >
-                  {musician.profile_image_url ? (
+                  {musician.profile_image_url?.trim() ? (
                     <img
                       src={musician.profile_image_url}
                       alt={musician.name}

@@ -7,15 +7,18 @@ interface VenueHost {
   id: string
   name: string
   bio: string
-  photo_url?: string
+  venue_photo_url?: string | null
   user_type: 'host'
   latitude: number
   longitude: number
   location_address?: string
+  neighborhood?: string
   availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
   zip_code?: string
   distanceMiles: number
 }
+
+const getHostInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
 
 export default function VenueRadarPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -56,10 +59,31 @@ export default function VenueRadarPage() {
       try {
         const { data: hosts } = await supabase
           .from('profiles')
-          .select('id, name, bio, photo_url, user_type, latitude, longitude, location_address, availability_status, zip_code')
+          .select('id, name, bio, user_type, latitude, longitude, location_address, availability_status, zip_code')
           .eq('user_type', 'host')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
+
+        const hostIds = (hosts || []).map((host) => host.id).filter(Boolean)
+        let hostProfilesById = new Map<string, { venue_description?: string | null; address?: string | null; venue_photo_url?: string | null }>()
+
+        if (hostIds.length > 0) {
+          const { data: hostProfiles } = await supabase
+            .from('host_profiles')
+            .select('id, venue_description, address, venue_photo_url')
+            .in('id', hostIds)
+
+          hostProfilesById = new Map(
+            (hostProfiles || []).map((profile) => [
+              profile.id,
+              {
+                venue_description: profile.venue_description || null,
+                address: profile.address || null,
+                venue_photo_url: profile.venue_photo_url || null
+              }
+            ])
+          )
+        }
 
         if (hosts) {
           const nearby: VenueHost[] = []
@@ -73,8 +97,14 @@ export default function VenueRadarPage() {
 
             if (!isAvailable || (distanceMiles > 100 && distanceMiles >= 0.01)) return
 
+            const hostProfile = hostProfilesById.get(host.id)
+            const neighborhood = hostProfile?.address?.split(',')[0]?.trim() || host.location_address?.split(',')[0]?.trim() || ''
+
             nearby.push({
               ...host,
+              bio: hostProfile?.venue_description || host.bio || '',
+              venue_photo_url: hostProfile?.venue_photo_url || null,
+              neighborhood,
               distanceMiles
             })
           })
@@ -148,50 +178,83 @@ export default function VenueRadarPage() {
                   style={{
                     border: '1px solid rgba(212,130,10,0.2)',
                     borderRadius: '12px',
-                    padding: '20px',
+                    overflow: 'hidden',
                     background: 'rgba(44,34,24,0.3)'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
-                    <div>
-                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#F5F0E8', marginBottom: '6px' }}>
-                        {venue.name}
-                      </h3>
-                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#22c55e', letterSpacing: '1px' }}>
-                          AVAILABLE
-                        </span>
-                        {venue.location_address && (
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#8C7B6B', letterSpacing: '1px' }}>
-                            {venue.location_address.split(',')[0]}
-                          </span>
-                        )}
-                        {typeof venue.distanceMiles === 'number' && (
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#8C7B6B', letterSpacing: '1px' }}>
-                            {Math.round(venue.distanceMiles)} MI
-                          </span>
-                        )}
-                      </div>
+                  {venue.venue_photo_url?.trim() ? (
+                    <img
+                      src={venue.venue_photo_url}
+                      alt={venue.name}
+                      style={{
+                        width: '100%',
+                        height: '180px',
+                        objectFit: 'cover',
+                        display: 'block',
+                        borderBottom: '1px solid rgba(212,130,10,0.15)'
+                      }}
+                    />
+                  ) : (
+                    <div
+                      aria-label={venue.name}
+                      style={{
+                        width: '100%',
+                        height: '180px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(26,20,16,0.95)',
+                        borderBottom: '1px solid rgba(212,130,10,0.15)',
+                        color: '#D4820A',
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '3rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      {getHostInitial(venue.name)}
                     </div>
-                    <a href={`/request-show/${venue.id}`} style={{
-                      background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                      color: '#1A1410',
-                      padding: '10px 16px',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      fontFamily: "'DM Sans', sans-serif",
-                      display: 'inline-block',
-                      textDecoration: 'none'
-                    }}>
-                      Request Show
-                    </a>
-                  </div>
-                  {venue.bio && (
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', lineHeight: '1.5', margin: 0 }}>
-                      {venue.bio}
-                    </p>
                   )}
+                  <div style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                      <div>
+                        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                          {venue.name}
+                        </h3>
+                        <div style={{ display: 'grid', gap: '6px' }}>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#22c55e', letterSpacing: '1px' }}>
+                            {venue.availability_status === 'open_to_travel' ? 'OPEN TO TRAVEL' : 'AVAILABLE'}
+                          </span>
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#D9C6A5' }}>
+                            {venue.neighborhood || 'Area not listed'}
+                          </span>
+                          {typeof venue.distanceMiles === 'number' && (
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>
+                              {Math.round(venue.distanceMiles)} miles away
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <a href={`/request-show/${venue.id}`} style={{
+                        background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                        color: '#1A1410',
+                        padding: '10px 16px',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        fontFamily: "'DM Sans', sans-serif",
+                        display: 'inline-block',
+                        textDecoration: 'none',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        Request Show
+                      </a>
+                    </div>
+                    {venue.bio && (
+                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', lineHeight: '1.5', margin: 0 }}>
+                        {venue.bio}
+                      </p>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>
