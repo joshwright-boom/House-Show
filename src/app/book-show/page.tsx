@@ -63,6 +63,10 @@ function BookShowInner() {
     offer_amount: '',
     message: ''
   })
+  const liveOfferAmount = Number.parseFloat(formData.offer_amount)
+  const formattedMinimumGuarantee = Number.isFinite(liveOfferAmount) && liveOfferAmount > 0
+    ? liveOfferAmount.toFixed(2)
+    : '0.00'
 
   useEffect(() => {
     const musicianId = searchParams.get('musician_id')
@@ -582,7 +586,7 @@ function BookShowInner() {
                 Minimum Guarantee
               </div>
               <div style={{ color: '#8C7B6B', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                You agree to guarantee this artist a minimum of ${Number(musician.minimum_guarantee).toFixed(2)}. If your 60% ticket split exceeds this, the artist earns the split instead.
+                You agree to guarantee this artist a minimum of ${formattedMinimumGuarantee}. If your 60% ticket split exceeds this, the artist earns the split instead.
               </div>
             </div>
           )}
