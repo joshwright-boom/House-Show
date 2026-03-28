@@ -46,6 +46,8 @@ const getSocialLinks = (musician: Musician) => {
 function BookShowContent() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [musician, setMusician] = useState<Musician | null>(null)
+  const [musicianId, setMusicianId] = useState<string | null>(null)
+  const [searchParamsReady, setSearchParamsReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -53,7 +55,6 @@ function BookShowContent() {
   
   const router = useRouter()
   const searchParams = useSearchParams()
-  const musicianId = searchParams.get('musician_id')
 
   const [formData, setFormData] = useState({
     proposed_date: '',
@@ -64,7 +65,17 @@ function BookShowContent() {
   })
 
   useEffect(() => {
+    const musicianId = searchParams.get('musician_id')
+    setMusicianId(musicianId)
+    setSearchParamsReady(true)
+  }, [searchParams])
+
+  useEffect(() => {
     const loadData = async () => {
+      if (!searchParamsReady) {
+        return
+      }
+
       try {
         // Check user authentication
         const { data: { user } } = await supabase.auth.getUser()
@@ -136,7 +147,7 @@ function BookShowContent() {
     }
     
     loadData()
-  }, [musicianId, router])
+  }, [musicianId, router, searchParamsReady])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
