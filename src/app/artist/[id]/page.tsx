@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 
 interface ArtistProfile {
   id: string
+  user_id?: string | null
   name?: string | null
   bio?: string | null
   genre?: string | null
@@ -16,6 +17,7 @@ interface ArtistProfile {
   soundcloud_url?: string | null
   instagram_url?: string | null
   available?: boolean | null
+  minimum_guarantee?: number | null
 }
 
 interface ArtistShow {
@@ -53,7 +55,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
       try {
         const { data: profileData, error: profileError } = await supabase
           .from('artist_profiles')
-          .select('id, name, bio, genre, location, latitude, longitude, profile_image_url, youtube_url, soundcloud_url, instagram_url, available')
+          .select('id, user_id, name, bio, genre, location, latitude, longitude, profile_image_url, youtube_url, soundcloud_url, instagram_url, available, minimum_guarantee')
           .eq('id', params.id)
           .maybeSingle()
 
@@ -137,6 +139,9 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
     { name: 'Instagram', icon: '📷', url: profile?.instagram_url }
   ].filter((link) => Boolean(link.url))
 
+  const isOwnArtistProfile = Boolean(currentUserId && profile?.user_id && currentUserId === profile.user_id)
+  const minimumGuarantee = Number(profile?.minimum_guarantee || 0)
+
   if (loading) {
     return (
       <main style={{ minHeight: '100vh', background: '#1A1410', color: '#F5F0E8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -171,24 +176,62 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
               <h1 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: '2rem' }}>
                 {profile.name || 'Artist'}
               </h1>
-              {isFanUser ? (
-                <button
-                  onClick={followArtist}
-                  disabled={isFollowing || followLoading}
-                  style={{
-                    marginTop: '8px',
-                    background: isFollowing ? 'rgba(212,130,10,0.2)' : 'transparent',
-                    border: '1px solid rgba(212,130,10,0.35)',
-                    color: '#F5F0E8',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    fontWeight: 600,
-                    cursor: isFollowing || followLoading ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {isFollowing ? 'Following' : followLoading ? 'Following...' : 'Follow'}
-                </button>
-              ) : null}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+                {isFanUser ? (
+                  <button
+                    onClick={followArtist}
+                    disabled={isFollowing || followLoading}
+                    style={{
+                      background: isFollowing ? 'rgba(212,130,10,0.2)' : 'transparent',
+                      border: '1px solid rgba(212,130,10,0.35)',
+                      color: '#F5F0E8',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontWeight: 600,
+                      cursor: isFollowing || followLoading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isFollowing ? 'Following' : followLoading ? 'Following...' : 'Follow'}
+                  </button>
+                ) : null}
+                {isOwnArtistProfile ? (
+                  <a
+                    href="/profile"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'transparent',
+                      border: '1px solid rgba(212,130,10,0.35)',
+                      color: '#F5F0E8',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontWeight: 600,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    Edit Profile
+                  </a>
+                ) : (
+                  <a
+                    href={`/book-show?musician_id=${profile.id}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                      border: '1px solid rgba(212,130,10,0.35)',
+                      color: '#1A1410',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontWeight: 700,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    Book This Artist
+                  </a>
+                )}
+              </div>
             </div>
           </div>
           {profile.bio ? (
@@ -196,6 +239,19 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
               {profile.bio}
             </p>
           ) : null}
+
+          <div style={{ display: 'grid', gap: '8px', marginBottom: links.length > 0 ? '16px' : '18px' }}>
+            <p style={{ margin: 0, color: '#D9C6A5' }}>
+              <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Genre:</span> {profile.genre || 'Not listed'}
+            </p>
+            <p style={{ margin: 0, color: '#D9C6A5' }}>
+              <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Location:</span> {profile.location || 'Not listed'}
+            </p>
+            <p style={{ margin: 0, color: '#D9C6A5' }}>
+              <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Minimum Guarantee:</span>{' '}
+              {minimumGuarantee > 0 ? `$${minimumGuarantee}` : 'Not set'}
+            </p>
+          </div>
 
           {links.length > 0 && (
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

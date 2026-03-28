@@ -78,6 +78,8 @@ const formatDate = (value: string) => {
   })
 }
 
+const getArtistInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+
 const calculateDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const earthRadiusMiles = 3958.8
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -407,11 +409,33 @@ export default function FanDashboardPage() {
       <div style={{ height: '132px', background: 'linear-gradient(135deg, rgba(212,130,10,0.4), rgba(245,240,232,0.06))' }} />
       <div style={{ padding: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-          <img
-            src={show.musician_photo || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=200&q=60'}
-            alt={show.musician_name}
-            style={{ width: '40px', height: '40px', borderRadius: '999px', objectFit: 'cover', border: '1px solid rgba(212,130,10,0.35)' }}
-          />
+          {show.musician_photo ? (
+            <img
+              src={show.musician_photo}
+              alt={show.musician_name}
+              style={{ width: '40px', height: '40px', borderRadius: '999px', objectFit: 'cover', border: '1px solid rgba(212,130,10,0.35)' }}
+            />
+          ) : (
+            <div
+              aria-label={show.musician_name}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '999px',
+                border: '1px solid rgba(212,130,10,0.35)',
+                background: 'rgba(26,20,16,0.95)',
+                color: '#D4820A',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1rem',
+                fontWeight: 700
+              }}
+            >
+              {getArtistInitial(show.musician_name)}
+            </div>
+          )}
           <div>
             {show.artist_user_id ? (
               <a
@@ -572,11 +596,33 @@ export default function FanDashboardPage() {
                 >
                   <div style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      <img
-                        src={artist.profile_image_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=200&q=60'}
-                        alt={artist.name}
-                        style={{ width: '56px', height: '56px', borderRadius: '999px', objectFit: 'cover', border: '1px solid rgba(212,130,10,0.35)' }}
-                      />
+                      {artist.profile_image_url ? (
+                        <img
+                          src={artist.profile_image_url}
+                          alt={artist.name}
+                          style={{ width: '56px', height: '56px', borderRadius: '999px', objectFit: 'cover', border: '1px solid rgba(212,130,10,0.35)' }}
+                        />
+                      ) : (
+                        <div
+                          aria-label={artist.name}
+                          style={{
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '999px',
+                            border: '1px solid rgba(212,130,10,0.35)',
+                            background: 'rgba(26,20,16,0.95)',
+                            color: '#D4820A',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '1.35rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          {getArtistInitial(artist.name)}
+                        </div>
+                      )}
                       <div>
                         <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.15rem', color: '#F5F0E8' }}>{artist.name}</div>
                         <div style={{ color: '#D9C6A5', fontSize: '0.9rem' }}>{artist.genre || 'Live Music'}</div>

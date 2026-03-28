@@ -15,6 +15,8 @@ interface Musician {
   distanceMiles: number
 }
 
+const getArtistInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+
 export default function FindMusicians() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -250,7 +252,7 @@ export default function FindMusicians() {
                     flexWrap: 'wrap'
                   }}
                 >
-                  {musician.profile_image_url && (
+                  {musician.profile_image_url ? (
                     <img
                       src={musician.profile_image_url}
                       alt={musician.name}
@@ -262,6 +264,27 @@ export default function FindMusicians() {
                         flexShrink: 0
                       }}
                     />
+                  ) : (
+                    <div
+                      aria-label={musician.name}
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(26,20,16,0.95)',
+                        border: '1px solid rgba(212,130,10,0.35)',
+                        color: '#D4820A',
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '2rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      {getArtistInitial(musician.name)}
+                    </div>
                   )}
                   
                   <div style={{ flex: 1 }}>
