@@ -8,12 +8,12 @@ interface BookingRequest {
   musician_id: string
   host_id: string
   proposed_date: string
-  show_date: string
-  proposed_time: string
-  venue_address: string
-  offer_amount: number
+  ticket_price: number
   message: string
   status: 'pending'
+  proposed_musician_pct: 60
+  proposed_host_pct: 33
+  proposed_platform_pct: 7
 }
 
 interface Musician {
@@ -156,21 +156,40 @@ function BookShowContent() {
       setError(null)
 
       // Validate form
-      if (!formData.proposed_date || !formData.proposed_time || !formData.venue_address || !formData.offer_amount) {
+      if (!formData.proposed_date || !formData.offer_amount) {
         setError('Please fill in all required fields')
+        return
+      }
+
+      const { data: hostProfile, error: hostProfileError } = await supabase
+        .from('host_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (hostProfileError) {
+        console.error('Error loading host profile for booking request:', hostProfileError)
+        console.error('Host profile lookup details:', JSON.stringify(hostProfileError, null, 2))
+        setError('Failed to load host profile')
+        return
+      }
+
+      if (!hostProfile?.id) {
+        console.error('Host profile not found for auth user:', user.id)
+        setError('Host profile not found')
         return
       }
 
       const bookingRequest: BookingRequest = {
         musician_id: musician.id,
-        host_id: user.id,
+        host_id: hostProfile.id,
         proposed_date: formData.proposed_date,
-        show_date: formData.proposed_date,
-        proposed_time: formData.proposed_time,
-        venue_address: formData.venue_address,
-        offer_amount: parseFloat(formData.offer_amount),
+        ticket_price: parseFloat(formData.offer_amount),
         message: formData.message,
-        status: 'pending'
+        status: 'pending',
+        proposed_musician_pct: 60,
+        proposed_host_pct: 33,
+        proposed_platform_pct: 7
       }
 
       // Insert booking request
@@ -180,6 +199,8 @@ function BookShowContent() {
 
       if (insertError) {
         console.error('Error creating booking request:', insertError)
+        console.error('Booking request payload:', bookingRequest)
+        console.error('Booking request error details:', JSON.stringify(insertError, null, 2))
         setError('Failed to send booking request')
         return
       }
