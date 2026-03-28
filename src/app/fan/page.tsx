@@ -1,10 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
-const OKLAHOMA_DEFAULT = { lat: 36.5, lng: -95.8939 }
 
 interface ShowRow {
   id: string
@@ -33,14 +30,6 @@ interface SearchMusician {
   latitude: number
   longitude: number
   photo_url?: string | null
-}
-
-interface MapProfile {
-  id: string
-  name?: string | null
-  user_type: 'musician' | 'host'
-  latitude: number
-  longitude: number
 }
 
 interface FanShow {
@@ -76,16 +65,11 @@ const formatDate = (value: string) => {
 }
 
 export default function FanDashboardPage() {
-  const mapContainer = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<unknown>(null)
-  const selectedMarkerRef = useRef<any>(null)
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<SearchMusician[]>([])
-  const [selectedMusician, setSelectedMusician] = useState<SearchMusician | null>(null)
   const [allShows, setAllShows] = useState<FanShow[]>([])
-  const [mapProfiles, setMapProfiles] = useState<MapProfile[]>([])
   const [followedMusicians, setFollowedMusicians] = useState<string[]>([])
   const [savedShowIds, setSavedShowIds] = useState<string[]>([])
 
@@ -242,41 +226,6 @@ export default function FanDashboardPage() {
     loadFollows()
   }, [currentUserId])
 
-  useEffect(() => {
-    const loadMapProfiles = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, user_type, latitude, longitude')
-        .in('user_type', ['musician', 'host'])
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
-
-      if (error) {
-        console.error('Fan map profiles query error:', error)
-        setMapProfiles([])
-        return
-      }
-
-      const profiles = (data || [])
-        .map((profile) => ({
-          id: profile.id,
-          name: profile.name || (profile.user_type === 'host' ? 'Host' : 'Musician'),
-          user_type: profile.user_type,
-          latitude: Number(profile.latitude),
-          longitude: Number(profile.longitude)
-        }))
-        .filter((profile) =>
-          (profile.user_type === 'musician' || profile.user_type === 'host') &&
-          Number.isFinite(profile.latitude) &&
-          Number.isFinite(profile.longitude)
-        ) as MapProfile[]
-
-      setMapProfiles(profiles)
-    }
-
-    loadMapProfiles()
-  }, [])
-
   const filteredShows = useMemo(() => allShows, [allShows])
 
   const followingShows = useMemo(
@@ -288,94 +237,6 @@ export default function FanDashboardPage() {
     () => filteredShows.filter((show) => savedShowIds.includes(show.id)),
     [filteredShows, savedShowIds]
   )
-
-  useEffect(() => {
-    if (!mapContainer.current || mapRef.current || !MAPBOX_TOKEN) return
-
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css'
-    document.head.appendChild(link)
-
-    const script = document.createElement('script')
-    script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'
-    script.onload = () => {
-      const mapboxgl = (window as unknown as Window & {
-        mapboxgl: { accessToken: string; Map: new (config: object) => unknown }
-      }).mapboxgl
-      mapboxgl.accessToken = MAPBOX_TOKEN
-      if (!mapContainer.current) return
-
-      const map = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
-        center: [OKLAHOMA_DEFAULT.lng, OKLAHOMA_DEFAULT.lat],
-        zoom: 7,
-      })
-      mapRef.current = map
-    }
-
-    document.head.appendChild(script)
-    return () => {
-      if (script.parentNode) script.parentNode.removeChild(script)
-      if (link.parentNode) link.parentNode.removeChild(link)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!mapRef.current) return
-    const map = mapRef.current as any
-    const markers: any[] = []
-
-    mapProfiles.forEach((profile) => {
-      const pin = document.createElement('div')
-      pin.style.cssText = `
-        width: 16px; height: 16px; border-radius: 50%;
-        background: ${profile.user_type === 'host' ? '#F5F0E8' : '#D4820A'};
-        border: 2px solid ${profile.user_type === 'host' ? '#D9D2C7' : '#F5F0E8'};
-        box-shadow: 0 0 12px ${profile.user_type === 'host' ? 'rgba(245,240,232,0.7)' : 'rgba(212,130,10,0.7)'};
-        cursor: pointer;
-      `
-      const marker = new (window as any).mapboxgl.Marker(pin)
-        .setLngLat([profile.longitude, profile.latitude])
-        .setPopup(
-          new (window as any).mapboxgl.Popup({ offset: 12 }).setHTML(`
-            <div style="color:#1A1410;padding:4px 2px;">
-              <div style="font-weight:700;margin-bottom:6px;">${profile.name || (profile.user_type === 'host' ? 'Host' : 'Musician')}</div>
-              <a href="/${profile.user_type === 'host' ? 'host' : 'artist'}/${profile.id}" style="color:#D4820A;text-decoration:none;font-weight:600;">View Profile</a>
-            </div>
-          `)
-        )
-        .addTo(map)
-      markers.push(marker)
-    })
-
-    return () => markers.forEach((marker) => marker.remove())
-  }, [mapProfiles])
-
-  useEffect(() => {
-    if (!mapRef.current || !selectedMusician || !(window as any).mapboxgl) return
-
-    const map = mapRef.current as any
-    selectedMarkerRef.current?.remove?.()
-
-    const pin = document.createElement('div')
-    pin.style.cssText = `
-      width: 20px; height: 20px; border-radius: 50%;
-      background: #F0A500;
-      border: 3px solid #F5F0E8;
-      box-shadow: 0 0 16px rgba(240,165,0,0.8);
-    `
-
-    selectedMarkerRef.current = new (window as any).mapboxgl.Marker(pin)
-      .setLngLat([selectedMusician.longitude, selectedMusician.latitude])
-      .addTo(map)
-
-    return () => {
-      selectedMarkerRef.current?.remove?.()
-      selectedMarkerRef.current = null
-    }
-  }, [selectedMusician])
 
   const toggleFollow = async (musicianId: string) => {
     if (!currentUserId || !musicianId) return
@@ -425,21 +286,6 @@ export default function FanDashboardPage() {
   }
 
   const flyToMusician = (musician: SearchMusician) => {
-    const map = mapRef.current as any
-    if (!map) return
-
-    map.flyTo({
-      center: [musician.longitude, musician.latitude],
-      zoom: 10,
-      essential: true
-    })
-
-    new (window as any).mapboxgl.Popup({ offset: 12 })
-      .setLngLat([musician.longitude, musician.latitude])
-      .setText(musician.name)
-      .addTo(map)
-
-    setSelectedMusician(musician)
     setSearch(musician.name)
     setSearchResults([])
   }
@@ -481,7 +327,7 @@ export default function FanDashboardPage() {
         <p style={{ color: '#F0A500', margin: '0 0 12px', fontWeight: 700 }}>${show.ticket_price.toFixed(2)}</p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <a
-            href={`/shows/${show.id}`}
+            href={`/show/${show.id}`}
             style={{
               background: 'linear-gradient(135deg, #D4820A, #F0A500)',
               color: '#1A1410',
@@ -623,18 +469,6 @@ export default function FanDashboardPage() {
             </div>
           )}
         </section>
-
-        <section
-          style={{
-            width: '100%',
-            height: '420px',
-            border: '1px solid rgba(212,130,10,0.2)',
-            borderRadius: '14px',
-            overflow: 'hidden',
-            marginBottom: '20px'
-          }}
-          ref={mapContainer}
-        />
 
         <section id="saved">
           <h2 style={{ margin: '0 0 12px', fontFamily: "'Playfair Display', serif", fontSize: '1.7rem' }}>Saved Shows</h2>

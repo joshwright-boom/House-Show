@@ -11,6 +11,8 @@ interface Show {
   show_name: string
   venue_name: string
   venue_address: string
+  neighborhood?: string
+  full_address?: string
   date: string
   time: string
   ticket_price: number
@@ -92,6 +94,8 @@ function CreateShowContent() {
   const [formData, setFormData] = useState({
     show_name: '',
     venue_name: '',
+    neighborhood: '',
+    full_address: '',
     venue_address: '',
     date: '',
     time: '',
@@ -142,6 +146,8 @@ function CreateShowContent() {
           setFormData(prev => ({
             ...prev,
             venue_name: prev.venue_name || hostProfile.venue_name || '',
+            neighborhood: prev.neighborhood || hostProfile.address || '',
+            full_address: prev.full_address || hostProfile.address || '',
             venue_address: prev.venue_address || hostProfile.address || '',
             max_capacity: prev.max_capacity || (hostProfile.capacity ? String(hostProfile.capacity) : '')
           }))
@@ -189,6 +195,8 @@ function CreateShowContent() {
         ...prev,
         show_name: musician?.name ? `${musician.name} Live at HouseShow` : prev.show_name,
         venue_name: prev.venue_name || request.venue_address,
+        neighborhood: prev.neighborhood || request.venue_address,
+        full_address: prev.full_address || request.venue_address,
         venue_address: request.venue_address,
         date: normalizeDateForInput(request.show_date || request.proposed_date),
         time: prev.time || '19:00',
@@ -206,7 +214,7 @@ function CreateShowContent() {
   }
 
   useEffect(() => {
-    const query = formData.venue_address.trim()
+    const query = formData.full_address.trim()
     if (query.length < 3 || !MAPBOX_TOKEN) {
       setAddressSuggestions([])
       setShowAddressSuggestions(false)
@@ -238,10 +246,10 @@ function CreateShowContent() {
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [formData.venue_address])
+  }, [formData.full_address])
 
   const handleSelectAddress = (address: string) => {
-    setFormData(prev => ({ ...prev, venue_address: address }))
+    setFormData(prev => ({ ...prev, full_address: address, venue_address: prev.neighborhood || address }))
     setAddressSuggestions([])
     setShowAddressSuggestions(false)
   }
@@ -315,15 +323,15 @@ function CreateShowContent() {
     const loadVenueLocationAndMusicians = async () => {
       try {
         // Only load map when venue address is provided
-        if (!formData.venue_address || formData.venue_address.length < 5) {
+        if (!formData.full_address || formData.full_address.length < 5) {
           setMapError(true)
           return
         }
 
         // Use Mapbox Geocoding API to convert venue address to coordinates
-        console.log('Geocoding venue address:', formData.venue_address)
+        console.log('Geocoding venue address:', formData.full_address)
         const geocodeResponse = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(formData.venue_address)}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&country=us`
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(formData.full_address)}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&country=us`
         )
         const geocodeData = await geocodeResponse.json()
         
@@ -361,7 +369,7 @@ function CreateShowContent() {
             setNearbyMusicians([])
           }
         } else {
-          console.log('Geocoding failed for address:', formData.venue_address)
+          console.log('Geocoding failed for address:', formData.full_address)
           setMapError(true)
         }
       } catch (error) {
@@ -373,7 +381,7 @@ function CreateShowContent() {
     }
 
     loadVenueLocationAndMusicians()
-  }, [user, formData.venue_address])
+  }, [user, formData.full_address])
 
   // Calculate distance between two points (Haversine formula)
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -428,7 +436,7 @@ function CreateShowContent() {
           border: 3px solid #fff;
           box-shadow: 0 0 16px rgba(240,165,0,0.7);
         `
-        new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(hostEl)
+        new (window as unknown as Window & { mapboxgl: { Marker: new (options: { element: HTMLElement; anchor: string }) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker({ element: hostEl, anchor: 'bottom' })
           .setLngLat([hostLocation.lng, hostLocation.lat])
           .addTo(map)
 
@@ -453,7 +461,7 @@ function CreateShowContent() {
             document.getElementById('musician-search-field')?.scrollIntoView({ behavior: 'smooth' })
           })
 
-          new (window as unknown as Window & { mapboxgl: { Marker: new (el: HTMLElement) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker(musicianEl)
+          new (window as unknown as Window & { mapboxgl: { Marker: new (options: { element: HTMLElement; anchor: string }) => { setLngLat: (coords: [number, number]) => { addTo: (map: unknown) => void } } } }).mapboxgl.Marker({ element: musicianEl, anchor: 'bottom' })
             .setLngLat([musician.longitude, musician.latitude])
             .addTo(map)
         })
@@ -568,13 +576,19 @@ function CreateShowContent() {
 
           {submitError && (
             <div style={{
-              marginBottom: '24px',
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
               padding: '14px 16px',
               borderRadius: '10px',
               border: '1px solid rgba(180,70,70,0.4)',
               background: 'rgba(100,25,25,0.22)',
               color: '#F5B5B5',
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              width: 'calc(100% - 32px)',
+              maxWidth: '560px'
             }}>
               Error creating show: {submitError}
             </div>
@@ -641,7 +655,7 @@ function CreateShowContent() {
               />
             </div>
 
-            {/* Venue Address */}
+            {/* Neighborhood */}
             <div style={{ position: 'relative' }}>
               <label style={{
                 display: 'block',
@@ -650,13 +664,46 @@ function CreateShowContent() {
                 color: '#F5F0E8',
                 marginBottom: '12px'
               }}>
-                Venue Address
+                Neighborhood or Area
               </label>
               <input
                 type="text"
-                value={formData.venue_address}
+                value={formData.neighborhood}
                 onChange={(e) => {
+                  handleInputChange('neighborhood', e.target.value)
                   handleInputChange('venue_address', e.target.value)
+                }}
+                placeholder="e.g., North Tulsa"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              />
+            </div>
+
+            {/* Full Address */}
+            <div style={{ position: 'relative' }}>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Full Address
+              </label>
+              <input
+                type="text"
+                value={formData.full_address}
+                onChange={(e) => {
+                  handleInputChange('full_address', e.target.value)
                   setShowAddressSuggestions(true)
                 }}
                 onBlur={() => {

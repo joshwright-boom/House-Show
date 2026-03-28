@@ -100,7 +100,18 @@ function ResetPasswordContent() {
 
           {message && (
             <p style={{ 
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
               color: message.includes('successful') ? '#22c55e' : '#ff6b6b', 
+              background: message.includes('successful') ? 'rgba(34, 197, 94, 0.1)' : 'rgba(127,29,29,0.2)',
+              border: message.includes('successful') ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(248,113,113,0.35)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px',
               fontFamily: "'DM Sans', sans-serif", 
               fontSize: '0.85rem' 
             }}>

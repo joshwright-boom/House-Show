@@ -139,8 +139,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
 
     // Create revenue records
     const paymentAmount = paymentIntent.amount / 100
-    const musicianRevenue = paymentAmount * 0.7 // 70% to musician
-    const hostRevenue = paymentAmount * 0.3 // 30% to host
+    const musicianRevenue = paymentAmount * 0.6 // 60% to musician
+    const hostRevenue = paymentAmount * 0.33 // 33% to host
 
     // Update musician revenue
     await supabase

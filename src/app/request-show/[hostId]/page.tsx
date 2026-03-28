@@ -79,11 +79,11 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
         show_date: formData.proposed_date,
         message: formData.message,
         status: 'pending',
-        musician_percentage: 55,
-        host_percentage: 45,
-        platform_percentage: 5,
-        musician_split: 55,
-        host_split: 45,
+        musician_percentage: 60,
+        host_percentage: 33,
+        platform_percentage: 7,
+        musician_split: 60,
+        host_split: 33,
         created_at: new Date().toISOString()
       }
 
@@ -140,12 +140,18 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
 
           {successMessage && (
             <div style={{
-              marginBottom: '20px',
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
               padding: '12px 14px',
               borderRadius: '8px',
               background: 'rgba(34,197,94,0.12)',
               border: '1px solid rgba(34,197,94,0.35)',
-              color: '#86efac'
+              color: '#86efac',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px'
             }}>
               {successMessage}
             </div>
@@ -153,12 +159,18 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
 
           {error && (
             <div style={{
-              marginBottom: '20px',
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
               padding: '12px 14px',
               borderRadius: '8px',
               background: 'rgba(127,29,29,0.2)',
               border: '1px solid rgba(248,113,113,0.35)',
-              color: '#fecaca'
+              color: '#fecaca',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px'
             }}>
               {error}
             </div>

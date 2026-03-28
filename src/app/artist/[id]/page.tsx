@@ -247,7 +247,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
                   <p style={{ margin: '0 0 6px', color: '#8C7B6B' }}>Date: {formatDate(show.show_date)}</p>
                   <p style={{ margin: '0 0 12px', color: '#F0A500', fontWeight: 700 }}>${Number(show.ticket_price || 0).toFixed(2)}</p>
                   <a
-                    href={`/shows/${show.id}`}
+                    href={`/show/${show.id}`}
                     style={{
                       display: 'inline-block',
                       background: 'linear-gradient(135deg, #D4820A, #F0A500)',

@@ -116,7 +116,7 @@ export default function Home() {
           }}>I&apos;m a Fan</a>
         </div>
         <div style={{ display: 'flex', gap: '48px', marginTop: '80px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[{ num: '50%', label: 'GOES TO THE ARTIST' }, { num: '45%', label: 'GOES TO THE HOST' }, { num: '5%', label: 'PLATFORM FEE' }].map((s) => (
+          {[{ num: '60%', label: 'GOES TO THE ARTIST' }, { num: '33%', label: 'GOES TO THE HOST' }, { num: '7%', label: 'PLATFORM FEE' }].map((s) => (
             <div key={s.label} style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontWeight: 700, color: '#F0A500' }}>{s.num}</div>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '4px' }}>{s.label}</div>
@@ -128,8 +128,8 @@ export default function Home() {
       {/* TWO PATHS */}
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', background: 'rgba(212,130,10,0.1)' }}>
         {[
-          { role: 'Musicians', tagline: 'Play intimate shows. Keep the money.', features: ['Build a profile with your Spotify, YouTube & SoundCloud', 'Set your rate and availability', 'Get booked by hosts in your area', 'Sell tickets directly — 70% of every door goes to you', '100-mile venue radar shows every opportunity nearby'], cta: 'Create Artist Profile', href: '/auth/register?type=musician' },
-          { role: 'Hosts', tagline: 'Turn your space into a venue.', features: ['List your home, backyard, or small venue', 'Browse artists by genre, price, and availability', 'Handle tickets and RSVPs in one place', 'Keep 30% of every ticket sold at your show', 'Build a reputation as the best house show host in town'], cta: 'List Your Space', href: '/auth/register?role=host' },
+          { role: 'Musicians', tagline: 'Play intimate shows. Keep the money.', features: ['Build a profile with your Spotify, YouTube & SoundCloud', 'Set your rate and availability', 'Get booked by hosts in your area', 'Sell tickets directly — 60% of every door goes to you', '100-mile venue radar shows every opportunity nearby'], cta: 'Create Artist Profile', href: '/auth/register?type=musician' },
+          { role: 'Hosts', tagline: 'Turn your space into a venue.', features: ['List your home, backyard, or small venue', 'Browse artists by genre, price, and availability', 'Handle tickets and RSVPs in one place', 'Keep 33% of every ticket sold at your show', 'Build a reputation as the best house show host in town'], cta: 'List Your Space', href: '/auth/register?role=host' },
         ].map((p) => (
           <div key={p.role} style={{ background: '#1A1410', padding: '64px 48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>For {p.role}</div>
@@ -155,7 +155,7 @@ export default function Home() {
           { n: '02', title: 'Get matched', body: 'Artists browse the 100-mile venue radar. Hosts browse available artists by genre and price.' },
           { n: '03', title: 'Book the show', body: 'Send a booking request. Both parties confirm the date, rate, and ticket price.' },
           { n: '04', title: 'Sell tickets', body: 'HouseShow handles the ticketing page. Both parties promote to their audiences.' },
-          { n: '05', title: 'Get paid', body: 'Show ends. Stripe splits automatically: 70% artist, 30% host, 10% platform. Instant payouts.' },
+          { n: '05', title: 'Get paid', body: 'Show ends. Stripe splits automatically: 60% artist, 33% host, 7% platform. Instant payouts.' },
         ].map((step, i) => (
           <div key={step.n} style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', padding: '32px 0', borderBottom: i < 4 ? '1px solid rgba(212,130,10,0.1)' : 'none' }}>
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '3rem', fontWeight: 900, color: 'rgba(240,165,0,0.15)', lineHeight: 1, flexShrink: 0, width: '80px' }}>{step.n}</div>

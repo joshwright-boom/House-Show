@@ -110,11 +110,41 @@ export default function Login() {
           </div>
 
           {message && (
-            <p style={{ color: '#ff6b6b', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>{message}</p>
+            <p style={{
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
+              color: '#ff6b6b',
+              background: 'rgba(127,29,29,0.2)',
+              border: '1px solid rgba(248,113,113,0.35)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px',
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: '0.85rem'
+            }}>{message}</p>
           )}
 
           {resetMessage && (
-            <p style={{ color: '#22c55e', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>{resetMessage}</p>
+            <p style={{
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
+              color: '#22c55e',
+              background: 'rgba(34, 197, 94, 0.1)',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px',
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: '0.85rem'
+            }}>{resetMessage}</p>
           )}
 
           <button onClick={handleLogin} disabled={loading} style={{

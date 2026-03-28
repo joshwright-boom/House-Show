@@ -200,14 +200,20 @@ export default function Profile() {
         Number.isFinite(Number(profileData.longitude))
       ) {
         const { error: musicianProfileError } = await supabase
-          .from('musician_profiles')
+          .from('artist_profiles')
           .upsert(
             {
               id: user.id,
-              zip_code: formData.zip_code,
-              lat: Number(profileData.latitude),
-              lng: Number(profileData.longitude),
-              updated_at: new Date().toISOString()
+              user_id: user.id,
+              name: formData.name,
+              bio: formData.bio || null,
+              location: formData.zip_code,
+              youtube_url: formData.youtube_url || null,
+              soundcloud_url: formData.soundcloud_url || null,
+              instagram_url: formData.instagram_url || null,
+              profile_image_url: formData.photo_url || null,
+              latitude: Number(profileData.latitude),
+              longitude: Number(profileData.longitude)
             },
             { onConflict: 'id' }
           )
@@ -416,11 +422,17 @@ export default function Profile() {
 
           {saveSuccess && (
             <div style={{
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
               background: 'rgba(34, 197, 94, 0.1)',
               border: '1px solid rgba(34, 197, 94, 0.3)',
               borderRadius: '8px',
               padding: '16px',
-              marginBottom: '32px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px',
               color: '#22c55e',
               fontFamily: 'DM Sans, sans-serif',
               fontSize: '0.9rem'

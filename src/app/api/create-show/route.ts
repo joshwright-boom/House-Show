@@ -145,7 +145,9 @@ export async function POST(request: NextRequest) {
     const showInsertPayload = {
       artist_name: (artist_name || formData?.artist_name || '').trim(),
       venue_name: formData?.venue_name,
-      venue_address: formData?.venue_address,
+      venue_address: formData?.neighborhood || formData?.venue_address,
+      neighborhood: formData?.neighborhood || formData?.venue_address,
+      full_address: formData?.full_address || formData?.venue_address,
       show_date: normalizedDate,
       show_time: formData?.time,
       ticket_price: parseFloat(formData?.ticket_price),

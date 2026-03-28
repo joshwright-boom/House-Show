@@ -9,6 +9,7 @@ interface HostProfile {
   venue_description: string
   address: string
   capacity: number
+  venue_photo_url?: string
   photo_urls: string[]
   amenities: string[]
   house_rules: string
@@ -25,6 +26,7 @@ export default function HostProfile() {
     venue_description: '',
     address: '',
     capacity: '',
+    venue_photo_url: '',
     photo_urls: ['', '', '', '', ''],
     amenities: [] as string[],
     house_rules: '',
@@ -32,6 +34,7 @@ export default function HostProfile() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   const amenityOptions = [
     { id: 'pa_system', label: 'PA System', icon: '🎤' },
@@ -66,6 +69,7 @@ export default function HostProfile() {
           venue_description: profileData.venue_description || '',
           address: profileData.address || '',
           capacity: profileData.capacity?.toString() || '',
+          venue_photo_url: profileData.venue_photo_url || '',
           photo_urls: profileData.photo_urls || ['', '', '', '', ''],
           amenities: profileData.amenities || [],
           house_rules: profileData.house_rules || '',
@@ -91,6 +95,7 @@ export default function HostProfile() {
         venue_description: formData.venue_description,
         address: formData.address,
         capacity: parseInt(formData.capacity) || 0,
+        venue_photo_url: formData.venue_photo_url || null,
         photo_urls: formData.photo_urls.filter(url => url.trim() !== ''),
         amenities: formData.amenities,
         house_rules: formData.house_rules,
@@ -141,6 +146,62 @@ export default function HostProfile() {
     }))
   }
 
+  const handleVenuePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    setUploadingPhoto(true)
+
+    try {
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets()
+        const venuePhotosBucket = buckets?.find((bucket) => bucket.name === 'venue-photos')
+
+        if (!venuePhotosBucket) {
+          const { error: createBucketError } = await supabase.storage.createBucket('venue-photos', {
+            public: true,
+            allowedMimeTypes: ['image/*']
+          })
+
+          if (createBucketError) {
+            console.error('Error creating venue-photos bucket:', createBucketError)
+          }
+        }
+      } catch (bucketError) {
+        console.error('Error checking venue-photos bucket:', bucketError)
+      }
+
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('venue-photos')
+        .upload(fileName, file, { upsert: true, contentType: file.type })
+
+      if (uploadError) {
+        console.error('Venue photo upload error:', uploadError)
+        alert(`Upload failed: ${uploadError.message}`)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('venue-photos')
+        .getPublicUrl(fileName)
+
+      setFormData((prev) => ({ ...prev, venue_photo_url: publicUrl }))
+    } catch (error) {
+      console.error('Error uploading venue photo:', error)
+      alert(error instanceof Error ? error.message : 'Failed to upload venue photo.')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
   if (!user) {
     return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#8C7B6B' }}>Loading...</p>
@@ -184,11 +245,17 @@ export default function HostProfile() {
 
           {saveSuccess && (
             <div style={{
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
               background: 'rgba(34, 197, 94, 0.1)',
               border: '1px solid rgba(34, 197, 94, 0.3)',
               borderRadius: '8px',
               padding: '16px',
-              marginBottom: '32px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px',
               color: '#22c55e',
               fontFamily: 'DM Sans, sans-serif',
               fontSize: '0.9rem'
@@ -228,6 +295,25 @@ export default function HostProfile() {
                     📍 {profile.address}
                   </p>
                 </div>
+
+                {profile.venue_photo_url && (
+                  <div>
+                    <h5 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#F5F0E8', marginBottom: '12px' }}>
+                      Featured Venue Photo
+                    </h5>
+                    <img
+                      src={profile.venue_photo_url}
+                      alt={`${profile.venue_name} venue`}
+                      style={{
+                        width: '100%',
+                        maxWidth: '360px',
+                        height: '220px',
+                        borderRadius: '12px',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                )}
 
                 {profile.amenities.length > 0 && (
                   <div>
@@ -402,6 +488,54 @@ export default function HostProfile() {
                   fontFamily: 'DM Sans, sans-serif'
                 }}
               />
+            </div>
+
+            {/* Venue Photo Upload */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Venue Photo
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleVenuePhotoUpload}
+                disabled={uploadingPhoto}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  color: '#8C7B6B',
+                  fontFamily: 'DM Sans, sans-serif',
+                  marginBottom: '12px'
+                }}
+              />
+              {formData.venue_photo_url && (
+                <img
+                  src={formData.venue_photo_url}
+                  alt="Venue preview"
+                  style={{
+                    width: '100%',
+                    maxWidth: '360px',
+                    height: '220px',
+                    borderRadius: '12px',
+                    objectFit: 'cover',
+                    border: '1px solid rgba(212,130,10,0.25)'
+                  }}
+                />
+              )}
+              <p style={{
+                color: '#8C7B6B',
+                fontSize: '0.82rem',
+                fontFamily: 'DM Sans, sans-serif',
+                marginTop: '10px'
+              }}>
+                {uploadingPhoto ? 'Uploading venue photo...' : 'Upload a primary photo for your venue.'}
+              </p>
             </div>
 
             {/* Photo URLs */}

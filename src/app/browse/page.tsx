@@ -262,13 +262,19 @@ export default function BrowsePage() {
         {/* Error State */}
         {error && !loading && (
           <div style={{
+            position: 'fixed',
+            top: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
             backgroundColor: 'rgba(220, 38, 38, 0.1)',
             border: '1px solid rgba(220, 38, 38, 0.3)',
             borderRadius: '8px',
             padding: '16px',
-            marginBottom: '32px',
             textAlign: 'center',
-            color: '#FCA5A5'
+            color: '#FCA5A5',
+            width: 'calc(100% - 32px)',
+            maxWidth: '520px'
           }}>
             {error}
           </div>

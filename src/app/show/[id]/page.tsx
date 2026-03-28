@@ -8,7 +8,9 @@ interface ShowRecord {
   show_name: string
   artist_name: string
   venue_name: string
-  venue_address: string
+  full_address?: string | null
+  neighborhood?: string | null
+  city?: string | null
   date: string
   time: string
   ticket_price: number
@@ -37,8 +39,14 @@ const getShowHostId = (show: Record<string, any>) =>
 const getVenueNameValue = (show: Record<string, any>) =>
   show.venue_name || show.location_name || show.space_name || 'Venue'
 
-const getVenueAddressValue = (show: Record<string, any>) =>
-  show.venue_address || show.location_address || show.address || ''
+const getPublicAreaValue = (show: Record<string, any>) =>
+  show.neighborhood || show.city || show.venue_address || show.location_address || ''
+
+const formatPublicArea = (neighborhood?: string | null, city?: string | null) => {
+  if (neighborhood?.trim()) return `${neighborhood.trim()} area`
+  if (city?.trim()) return city.trim()
+  return ''
+}
 
 const formatTime = (value: string) => {
   if (!value || value === 'TBD') return 'TBD'
@@ -103,7 +111,9 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           show_name: getShowNameValue(data),
           artist_name: data.artist_name || getShowNameValue(data),
           venue_name: getVenueNameValue(data),
-          venue_address: getVenueAddressValue(data),
+          full_address: data.full_address || null,
+          neighborhood: data.neighborhood || getPublicAreaValue(data),
+          city: data.city || null,
           date: getShowDateValue(data),
           time: getShowTimeValue(data),
           ticket_price: data.ticket_price,
@@ -156,10 +166,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
 
   const totalPrice = show ? Number(show.ticket_price) * ticketQuantity : 0
   const venueName = show?.venue_name?.trim() || ''
-  const venueAddress = show?.venue_address?.trim() || ''
-  const mapsUrl = show
-    ? `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`
-    : ''
+  const publicArea = formatPublicArea(show?.neighborhood, show?.city)
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('en-US', {
@@ -228,7 +235,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           showDate: show.date,
           showTime: show.time,
           venueName: show.venue_name,
-          venueAddress: show.venue_address,
+          venueAddress: show.full_address || '',
           ticketPrice: show.ticket_price,
           quantity: ticketQuantity
         })
@@ -296,19 +303,11 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               {venueName}
             </div>
           ) : null}
-          {venueAddress ? (
+          {publicArea ? (
             <div style={{ color: '#8C7B6B', fontSize: '0.95rem', lineHeight: 1.6, wordBreak: 'break-word' }}>
-              {venueAddress}
+              {publicArea}
             </div>
           ) : null}
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: 'inline-block', marginTop: '8px', color: '#D4820A', textDecoration: 'none', fontWeight: 600 }}
-          >
-            Get Directions
-          </a>
           {isFanUser && show.artist_user_id ? (
             <button
               onClick={handleFollowArtist}

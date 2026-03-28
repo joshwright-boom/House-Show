@@ -152,7 +152,22 @@ function RegisterContent() {
           </div>
 
           {message && (
-            <p style={{ color: '#ff6b6b', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>{message}</p>
+            <p style={{
+              position: 'fixed',
+              top: '1.5rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
+              color: '#ff6b6b',
+              background: 'rgba(127,29,29,0.2)',
+              border: '1px solid rgba(248,113,113,0.35)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              width: 'calc(100% - 32px)',
+              maxWidth: '520px',
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: '0.85rem'
+            }}>{message}</p>
           )}
 
           <div>
@@ -175,7 +190,22 @@ function RegisterContent() {
               </span>
             </label>
             {termsError && (
-              <p style={{ color: '#ff6b6b', fontFamily: "'DM Sans', sans-serif", fontSize: '0.82rem', marginTop: '6px' }}>
+              <p style={{
+                position: 'fixed',
+                top: '1.5rem',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 9999,
+                color: '#ff6b6b',
+                background: 'rgba(127,29,29,0.2)',
+                border: '1px solid rgba(248,113,113,0.35)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                width: 'calc(100% - 32px)',
+                maxWidth: '520px',
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: '0.82rem'
+              }}>
                 {termsError}
               </p>
             )}

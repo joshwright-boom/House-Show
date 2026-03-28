@@ -694,7 +694,7 @@ export default function Bookings() {
             color: '#F5F0E8', 
             fontSize: '0.95rem' 
           }}>
-            You: {request.musician_split}% • Host: {request.host_split}% • Platform: 5%
+            You: {request.musician_split}% • Host: {request.host_split}% • Platform: 7%
           </div>
         </div>
       </div>

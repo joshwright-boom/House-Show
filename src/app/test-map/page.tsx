@@ -69,7 +69,7 @@ export default function TestMap() {
             `
             pinEl.title = 'Test Pin - Tulsa, OK'
             
-            new mapboxgl.Marker(pinEl)
+            new mapboxgl.Marker({ element: pinEl, anchor: 'bottom' })
               .setLngLat([-95.9928, 36.1539])
               .addTo(map)
             

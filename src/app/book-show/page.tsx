@@ -256,13 +256,19 @@ function BookShowContent() {
 
         {error && (
           <div style={{
+            position: 'fixed',
+            top: '1.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
             background: 'rgba(252,165,165,0.1)',
             border: '1px solid rgba(252,165,165,0.3)',
             borderRadius: '8px',
             padding: '16px',
-            marginBottom: '24px',
             color: '#FCA5A5',
-            textAlign: 'center'
+            textAlign: 'center',
+            width: 'calc(100% - 32px)',
+            maxWidth: '520px'
           }}>
             {error}
           </div>
