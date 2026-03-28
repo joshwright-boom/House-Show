@@ -18,10 +18,29 @@ interface BookingRequest {
 
 interface Musician {
   id: string
+  user_id: string
   name: string
   bio: string
   photo_url?: string
+  genre?: string | null
+  location?: string | null
+  spotify_url?: string | null
+  soundcloud_url?: string | null
+  facebook_url?: string | null
+  youtube_url?: string | null
+  instagram_url?: string | null
   minimum_guarantee?: number | null
+}
+
+const getArtistInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+const getSocialLinks = (musician: Musician) => {
+  const links = []
+  if (musician.spotify_url) links.push({ name: 'Spotify', url: musician.spotify_url, icon: '🎵' })
+  if (musician.soundcloud_url) links.push({ name: 'SoundCloud', url: musician.soundcloud_url, icon: '🎧' })
+  if (musician.instagram_url) links.push({ name: 'Instagram', url: musician.instagram_url, icon: '📷' })
+  if (musician.facebook_url) links.push({ name: 'Facebook', url: musician.facebook_url, icon: '📘' })
+  if (musician.youtube_url) links.push({ name: 'YouTube', url: musician.youtube_url, icon: '🎬' })
+  return links
 }
 
 function BookShowContent() {
@@ -72,30 +91,37 @@ function BookShowContent() {
         // Load musician details
         if (musicianId) {
           const { data: musicianData, error } = await supabase
-            .from('profiles')
-            .select('id, name, bio, photo_url')
+            .from('artist_profiles')
+            .select('id, user_id, name, bio, genre, location, minimum_guarantee')
             .eq('id', musicianId)
-            .eq('user_type', 'musician')
-            .single()
+            .maybeSingle()
           
           if (error) {
             console.error('Error loading musician:', error)
             setError('Musician not found')
           } else if (musicianData) {
-            const { data: artistProfile, error: artistProfileError } = await supabase
-              .from('artist_profiles')
-              .select('minimum_guarantee')
-              .eq('id', musicianId)
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('id, photo_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
+              .eq('id', musicianData.user_id)
               .maybeSingle()
 
-            if (artistProfileError) {
-              console.error('Error loading musician minimum guarantee:', artistProfileError)
+            if (profileError) {
+              console.error('Error loading musician profile details:', profileError)
             }
 
             setMusician({
               ...musicianData,
-              minimum_guarantee: artistProfile?.minimum_guarantee ?? null
+              photo_url: profileData?.photo_url || undefined,
+              spotify_url: profileData?.spotify_url || null,
+              soundcloud_url: profileData?.soundcloud_url || null,
+              facebook_url: profileData?.facebook_url || null,
+              youtube_url: profileData?.youtube_url || null,
+              instagram_url: profileData?.instagram_url || null,
+              minimum_guarantee: musicianData.minimum_guarantee ?? null
             })
+          } else {
+            setError('Musician not found')
           }
         } else {
           setError('No musician specified')
@@ -244,27 +270,83 @@ function BookShowContent() {
             marginBottom: '24px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: '#2A1F1A',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.5rem'
-              }}>
-                🎵
-              </div>
+              {musician.photo_url ? (
+                <img
+                  src={musician.photo_url}
+                  alt={musician.name}
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '1px solid rgba(212,130,10,0.25)'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  background: '#2A1F1A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.5rem',
+                  color: '#D4820A',
+                  border: '1px solid rgba(212,130,10,0.25)',
+                  fontFamily: "'Playfair Display', serif",
+                  fontWeight: 700
+                }}>
+                  {getArtistInitial(musician.name)}
+                </div>
+              )}
               <div>
                 <h2 style={{ color: '#F5F0E8', marginBottom: '4px', fontSize: '1.3rem' }}>
                   {musician.name}
                 </h2>
                 <p style={{ color: '#8C7B6B', fontSize: '0.9rem', margin: 0 }}>
-                  {musician.bio || 'Musician'}
+                  {musician.genre ? `Artist • ${musician.genre}` : 'Artist'}
                 </p>
               </div>
             </div>
+            {musician.location && (
+              <p style={{ color: '#8C7B6B', fontSize: '0.95rem', margin: '14px 0 0' }}>
+                {musician.location}
+              </p>
+            )}
+            {musician.bio && (
+              <p style={{ color: '#F5F0E8', fontSize: '0.95rem', margin: '10px 0 0', lineHeight: 1.5 }}>
+                {musician.bio}
+              </p>
+            )}
+            {getSocialLinks(musician).length > 0 && (
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
+                {getSocialLinks(musician).map((link) => (
+                  <a
+                    key={link.name}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      background: 'rgba(240,165,0,0.1)',
+                      border: '1px solid rgba(240,165,0,0.2)',
+                      borderRadius: '6px',
+                      color: '#F0A500',
+                      textDecoration: 'none',
+                      fontSize: '0.85rem',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}
+                  >
+                    <span style={{ fontSize: '1rem' }}>{link.icon}</span>
+                    {link.name}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
