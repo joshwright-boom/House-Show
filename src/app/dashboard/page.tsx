@@ -97,6 +97,108 @@ export default function Dashboard() {
   const counterOfferTotal = getCounterOfferTotal(counterOfferValues)
   const isCounterOfferTotalValid = counterOfferTotal === 100
 
+  const loadMusicianBookingRequests = async (authUserId: string) => {
+    try {
+      const { data: musicianProfile, error: musicianProfileError } = await supabase
+        .from('artist_profiles')
+        .select('id, minimum_guarantee')
+        .eq('user_id', authUserId)
+        .maybeSingle()
+
+      if (musicianProfileError) {
+        console.error('Musician profile lookup error:', musicianProfileError)
+        setRequestsError(musicianProfileError.message || 'Unable to load musician profile')
+        setBookingRequests([])
+        return null
+      }
+
+      if (!musicianProfile?.id) {
+        setRequestsError(null)
+        setBookingRequests([])
+        return null
+      }
+
+      const { data: requests, error } = await supabase
+        .from('booking_requests')
+        .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, message, status, host_id, musician_id')
+        .eq('musician_id', musicianProfile.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Booking requests error:', error)
+        setRequestsError(error.message || 'Unknown booking request error')
+        setBookingRequests([])
+        return musicianProfile
+      }
+
+      const requestsList = requests || []
+      const hostIds = Array.from(
+        new Set(
+          requestsList
+            .map((request: any) => request.host_id)
+            .filter(Boolean)
+        )
+      ) as string[]
+
+      let hostNameById: Record<string, string> = {}
+
+      if (hostIds.length > 0) {
+        const { data: hostProfiles, error: hostProfilesError } = await supabase
+          .from('host_profiles')
+          .select('id, user_id')
+          .in('id', hostIds)
+
+        if (hostProfilesError) {
+          console.error('Booking requests host profile lookup error:', hostProfilesError)
+        } else {
+          const hostUserIds = Array.from(
+            new Set((hostProfiles || []).map((profile: any) => profile.user_id).filter(Boolean))
+          )
+
+          let hostUserNameById: Record<string, string> = {}
+
+          if (hostUserIds.length > 0) {
+            const { data: profileRows, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, name')
+              .in('id', hostUserIds)
+
+            if (profilesError) {
+              console.error('Booking requests host user profile lookup error:', profilesError)
+            } else {
+              hostUserNameById = (profileRows || []).reduce((acc: Record<string, string>, profile: any) => {
+                acc[profile.id] = profile.name || 'Host'
+                return acc
+              }, {})
+            }
+          }
+
+          hostNameById = (hostProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
+            acc[profile.id] = hostUserNameById[profile.user_id] || 'Host'
+            return acc
+          }, {})
+        }
+      }
+
+      const normalizedRequests = requestsList.map((request: any) => ({
+        ...request,
+        requester_name: hostNameById[request.host_id] || 'Host',
+        minimum_guarantee: musicianProfile.minimum_guarantee ?? null
+      }))
+
+      setRequestsError(null)
+      setBookingRequests(normalizedRequests)
+      return musicianProfile
+    } catch (error) {
+      console.error('Error loading booking requests:', error)
+      setRequestsError(error instanceof Error ? error.message : 'Unknown booking request error')
+      setBookingRequests([])
+      return null
+    } finally {
+      setRequestsLoading(false)
+    }
+  }
+
   useEffect(() => {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -129,104 +231,7 @@ export default function Dashboard() {
         setRequestsLoading(false)
         return
       }
-
-      try {
-        const { data: musicianProfile, error: musicianProfileError } = await supabase
-          .from('artist_profiles')
-          .select('id, minimum_guarantee')
-          .eq('user_id', user.id)
-          .maybeSingle()
-
-        if (musicianProfileError) {
-          console.error('Musician profile lookup error:', musicianProfileError)
-          setRequestsError(musicianProfileError.message || 'Unable to load musician profile')
-          setBookingRequests([])
-          return
-        }
-
-        if (!musicianProfile?.id) {
-          setRequestsError(null)
-          setBookingRequests([])
-          return
-        }
-
-        const { data: requests, error } = await supabase
-          .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, message, status, host_id, musician_id')
-          .eq('musician_id', musicianProfile.id)
-          .order('created_at', { ascending: false })
-
-        if (error) {
-          console.error('Booking requests error:', error)
-          setRequestsError(error.message || 'Unknown booking request error')
-          setBookingRequests([])
-          return
-        }
-
-        const requestsList = requests || []
-        const hostIds = Array.from(
-          new Set(
-            requestsList
-              .map((request: any) => request.host_id)
-              .filter(Boolean)
-          )
-        ) as string[]
-
-        let hostNameById: Record<string, string> = {}
-
-        if (hostIds.length > 0) {
-          const { data: hostProfiles, error: hostProfilesError } = await supabase
-            .from('host_profiles')
-            .select('id, user_id')
-            .in('id', hostIds)
-
-          if (hostProfilesError) {
-            console.error('Booking requests host profile lookup error:', hostProfilesError)
-          } else {
-            const hostUserIds = Array.from(
-              new Set((hostProfiles || []).map((profile: any) => profile.user_id).filter(Boolean))
-            )
-
-            let hostUserNameById: Record<string, string> = {}
-
-            if (hostUserIds.length > 0) {
-              const { data: profileRows, error: profilesError } = await supabase
-                .from('profiles')
-                .select('id, name')
-                .in('id', hostUserIds)
-
-              if (profilesError) {
-                console.error('Booking requests host user profile lookup error:', profilesError)
-              } else {
-                hostUserNameById = (profileRows || []).reduce((acc: Record<string, string>, profile: any) => {
-                  acc[profile.id] = profile.name || 'Host'
-                  return acc
-                }, {})
-              }
-            }
-
-            hostNameById = (hostProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
-              acc[profile.id] = hostUserNameById[profile.user_id] || 'Host'
-              return acc
-            }, {})
-          }
-        }
-
-        const normalizedRequests = requestsList.map((request: any) => ({
-          ...request,
-          requester_name: hostNameById[request.host_id] || 'Host',
-          minimum_guarantee: musicianProfile.minimum_guarantee ?? null
-        }))
-
-        setRequestsError(null)
-        setBookingRequests(normalizedRequests)
-      } catch (error) {
-        console.error('Error loading booking requests:', error)
-        setRequestsError(error instanceof Error ? error.message : 'Unknown booking request error')
-        setBookingRequests([])
-      } finally {
-        setRequestsLoading(false)
-      }
+      await loadMusicianBookingRequests(user.id)
     }
 
     loadBookingRequests()
@@ -506,6 +511,41 @@ export default function Dashboard() {
     try {
       setUpdatingRequestId(requestId)
 
+      if (status === 'accepted') {
+        const {
+          data: { user: authUser },
+          error: authError
+        } = await supabase.auth.getUser()
+
+        if (authError || !authUser) {
+          console.error('Error loading authenticated user while accepting booking request:', authError)
+          return
+        }
+
+        const { data: request, error: requestError } = await supabase
+          .from('booking_requests')
+          .select('id, musician_id')
+          .eq('id', requestId)
+          .maybeSingle()
+
+        if (requestError || !request) {
+          console.error('Error loading booking request before accept:', requestError)
+          return
+        }
+
+        const { data: musicianProfile, error: musicianProfileError } = await supabase
+          .from('artist_profiles')
+          .select('id, user_id')
+          .eq('id', request.musician_id)
+          .eq('user_id', authUser.id)
+          .maybeSingle()
+
+        if (musicianProfileError || !musicianProfile) {
+          console.error('Authenticated musician does not match booking request musician profile:', musicianProfileError)
+          return
+        }
+      }
+
       const { error } = await supabase
         .from('booking_requests')
         .update({ status })
@@ -514,6 +554,11 @@ export default function Dashboard() {
       if (error) {
         console.error(`Error updating booking request to ${status}:`, error)
         return
+      }
+
+      if (status === 'accepted' && user?.id) {
+        setRequestsLoading(true)
+        await loadMusicianBookingRequests(user.id)
       }
 
       setBookingRequests(prev =>

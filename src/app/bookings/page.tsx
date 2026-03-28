@@ -825,6 +825,24 @@ export default function Bookings() {
   const HostRequestCard = ({ request }: { request: BookingRequest }) => {
     const matchingShow = findMatchingShow(request)
     const ticketHref = matchingShow ? getShowHref(matchingShow.id) : `/create-show?requestId=${request.id}`
+    const statusBadgeStyles =
+      request.status === 'accepted'
+        ? {
+            background: 'rgba(34,197,94,0.12)',
+            border: '1px solid rgba(34,197,94,0.32)',
+            color: '#86EFAC'
+          }
+        : request.status === 'declined'
+          ? {
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.32)',
+              color: '#FCA5A5'
+            }
+          : {
+              background: 'transparent',
+              border: '1px solid rgba(212,130,10,0.3)',
+              color: '#F5F0E8'
+            }
 
     return (
       <div style={{
@@ -871,8 +889,7 @@ export default function Bookings() {
           <div style={{
             padding: '6px 12px',
             borderRadius: '999px',
-            border: '1px solid rgba(212,130,10,0.3)',
-            color: '#F5F0E8',
+            ...statusBadgeStyles,
             textTransform: 'capitalize'
           }}>
             {request.status}
