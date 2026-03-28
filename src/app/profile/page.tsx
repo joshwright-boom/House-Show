@@ -155,18 +155,27 @@ export default function Profile() {
       if (formData.user_type !== 'fan' && formData.zip_code && formData.zip_code.length >= 5) {
         try {
           console.log('Converting zip code to coordinates:', formData.zip_code)
-          const response = await fetch(`https://api.zippopotam.us/us/${formData.zip_code}`)
-          const data = await response.json()
-          
-          if (data.post_code === '200' && data.lat && data.lng) {
-            profileData = {
-              ...profileData,
-              latitude: data.lat,
-              longitude: data.lng
-            } as any
-            console.log('Converted zip to coordinates:', { lat: data.lat, lng: data.lng })
+          const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+          if (!mapboxToken) {
+            console.error('Missing NEXT_PUBLIC_MAPBOX_TOKEN for profile geocoding')
           } else {
-            console.log('Zip code lookup failed:', data)
+            const response = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(formData.zip_code)}.json?access_token=${mapboxToken}`
+            )
+          const data = await response.json()
+
+            const [longitude, latitude] = data?.features?.[0]?.center || []
+
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+              profileData = {
+                ...profileData,
+                latitude,
+                longitude
+              } as any
+              console.log('Converted zip to coordinates:', { lat: latitude, lng: longitude })
+            } else {
+              console.log('Zip code lookup failed:', data)
+            }
           }
         } catch (error) {
           console.error('Error converting zip code:', error)
