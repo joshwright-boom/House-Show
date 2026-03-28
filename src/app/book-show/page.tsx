@@ -11,9 +11,9 @@ interface BookingRequest {
   ticket_price: number
   message: string
   status: 'pending'
-  proposed_musician_pct: 60
-  proposed_host_pct: 33
-  proposed_platform_pct: 7
+  proposed_musician_pct: number
+  proposed_host_pct: number
+  proposed_platform_pct: number
 }
 
 interface Musician {
