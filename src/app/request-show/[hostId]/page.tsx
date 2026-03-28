@@ -21,6 +21,7 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
     proposed_date: '',
     proposed_venue: '',
     proposed_ticket_price: '',
+    minimum_guarantee: '',
     message: ''
   })
 
@@ -33,6 +34,21 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
           return
         }
         setUser({ id: user.id })
+
+        const { data: artistProfile, error: artistProfileError } = await supabase
+          .from('artist_profiles')
+          .select('minimum_guarantee')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (artistProfileError) {
+          console.error('Error loading artist minimum guarantee:', artistProfileError)
+        } else if (artistProfile?.minimum_guarantee != null) {
+          setFormData((prev) => ({
+            ...prev,
+            minimum_guarantee: String(artistProfile.minimum_guarantee)
+          }))
+        }
 
         const { data: hostProfile } = await supabase
           .from('profiles')
@@ -84,6 +100,7 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
         platform_percentage: 7,
         musician_split: 60,
         host_split: 33,
+        minimum_guarantee: formData.minimum_guarantee ? Number(formData.minimum_guarantee) : null,
         created_at: new Date().toISOString()
       }
 
@@ -100,6 +117,7 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
         proposed_date: '',
         proposed_venue: host?.location_address || '',
         proposed_ticket_price: '',
+        minimum_guarantee: formData.minimum_guarantee,
         message: ''
       })
     } catch (err) {
@@ -137,6 +155,24 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
           <p style={{ color: '#8C7B6B', marginBottom: '24px' }}>
             Fill out the details below and send your request.
           </p>
+
+          <div style={{
+            marginBottom: '24px',
+            padding: '16px',
+            borderRadius: '10px',
+            background: 'rgba(26,20,16,0.35)',
+            border: '1px solid rgba(212,130,10,0.2)'
+          }}>
+            <div style={{ color: '#F5F0E8', fontSize: '0.95rem', fontWeight: 600, marginBottom: '6px' }}>
+              Default Revenue Split
+            </div>
+            <div style={{ color: '#8C7B6B', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '8px' }}>
+              You will receive 60% of ticket sales. Host receives 33%. Platform fee: 7%.
+            </div>
+            <div style={{ color: '#8C7B6B', fontSize: '0.85rem', lineHeight: 1.6 }}>
+              You can negotiate the split after the host responds.
+            </div>
+          </div>
 
           {successMessage && (
             <div style={{
@@ -231,6 +267,31 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
                   color: '#F5F0E8'
                 }}
               />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: '#8C7B6B', marginBottom: '8px' }}>
+                Minimum Guarantee ($)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.minimum_guarantee}
+                onChange={(e) => setFormData(prev => ({ ...prev, minimum_guarantee: e.target.value }))}
+                placeholder="0.00"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid rgba(212,130,10,0.25)',
+                  borderRadius: '8px',
+                  background: 'rgba(26,20,16,0.8)',
+                  color: '#F5F0E8'
+                }}
+              />
+              <p style={{ color: '#8C7B6B', fontSize: '0.82rem', marginTop: '8px', marginBottom: 0, lineHeight: 1.6 }}>
+                I require a minimum of $__ for this show (host pays difference if tickets don&apos;t cover it).
+              </p>
             </div>
 
             <div style={{ marginBottom: '20px' }}>

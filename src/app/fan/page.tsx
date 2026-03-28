@@ -32,6 +32,20 @@ interface SearchMusician {
   photo_url?: string | null
 }
 
+interface NearbyArtist {
+  id: string
+  name: string
+  profile_image_url?: string | null
+  genre?: string | null
+  location?: string | null
+  latitude: number
+  longitude: number
+  instagram_url?: string | null
+  youtube_url?: string | null
+  soundcloud_url?: string | null
+  distanceMiles: number
+}
+
 interface FanShow {
   id: string
   artist_user_id: string
@@ -64,6 +78,17 @@ const formatDate = (value: string) => {
   })
 }
 
+const calculateDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const earthRadiusMiles = 3958.8
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+    * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return earthRadiusMiles * c
+}
+
 export default function FanDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -72,6 +97,10 @@ export default function FanDashboardPage() {
   const [allShows, setAllShows] = useState<FanShow[]>([])
   const [followedMusicians, setFollowedMusicians] = useState<string[]>([])
   const [savedShowIds, setSavedShowIds] = useState<string[]>([])
+  const [fanLocation, setFanLocation] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [nearbyArtists, setNearbyArtists] = useState<NearbyArtist[]>([])
+  const [artistsLoading, setArtistsLoading] = useState(true)
+  const [artistsError, setArtistsError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadUser = async () => {
@@ -106,6 +135,29 @@ export default function FanDashboardPage() {
       setSavedShowIds([])
     }
   }, [])
+
+  useEffect(() => {
+    if (!currentUserId) return
+    if (!navigator.geolocation) {
+      setArtistsError('Enable location access to see artists near you.')
+      setArtistsLoading(false)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFanLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        })
+        setArtistsError(null)
+      },
+      () => {
+        setArtistsError('Enable location access to see artists near you.')
+        setArtistsLoading(false)
+      }
+    )
+  }, [currentUserId])
 
   useEffect(() => {
     const term = search.trim()
@@ -204,6 +256,58 @@ export default function FanDashboardPage() {
 
     loadShows()
   }, [])
+
+  useEffect(() => {
+    if (!fanLocation) return
+
+    const loadNearbyArtists = async () => {
+      setArtistsLoading(true)
+
+      const { data, error } = await supabase
+        .from('artist_profiles')
+        .select('id, name, profile_image_url, genre, location, latitude, longitude, instagram_url, youtube_url, soundcloud_url')
+        .eq('available', true)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+
+      if (error) {
+        console.error('Fan nearby artists query error:', error)
+        setNearbyArtists([])
+        setArtistsError('Unable to load nearby artists right now.')
+        setArtistsLoading(false)
+        return
+      }
+
+      const nearby = (data || [])
+        .map((artist) => ({
+          id: artist.id,
+          name: artist.name || 'Artist',
+          profile_image_url: artist.profile_image_url || null,
+          genre: artist.genre || null,
+          location: artist.location || null,
+          latitude: Number(artist.latitude),
+          longitude: Number(artist.longitude),
+          instagram_url: artist.instagram_url || null,
+          youtube_url: artist.youtube_url || null,
+          soundcloud_url: artist.soundcloud_url || null,
+          distanceMiles: calculateDistanceMiles(
+            fanLocation.latitude,
+            fanLocation.longitude,
+            Number(artist.latitude),
+            Number(artist.longitude)
+          )
+        }))
+        .filter((artist) => Number.isFinite(artist.latitude) && Number.isFinite(artist.longitude))
+        .filter((artist) => artist.distanceMiles <= 100)
+        .sort((a, b) => a.distanceMiles - b.distanceMiles)
+
+      setNearbyArtists(nearby)
+      setArtistsError(null)
+      setArtistsLoading(false)
+    }
+
+    loadNearbyArtists()
+  }, [fanLocation])
 
   useEffect(() => {
     const loadFollows = async () => {
@@ -441,6 +545,81 @@ export default function FanDashboardPage() {
                 >
                   {musician.name}
                 </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section style={{ marginBottom: '28px' }}>
+          <h2 style={{ margin: '0 0 12px', fontFamily: "'Playfair Display', serif", fontSize: '1.8rem' }}>Artists Near You</h2>
+          {artistsLoading ? (
+            <p style={{ color: '#8C7B6B' }}>Finding nearby artists...</p>
+          ) : artistsError ? (
+            <p style={{ color: '#8C7B6B' }}>{artistsError}</p>
+          ) : nearbyArtists.length === 0 ? (
+            <p style={{ color: '#8C7B6B' }}>No available artists found within 100 miles.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '14px', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
+              {nearbyArtists.map((artist) => (
+                <article
+                  key={artist.id}
+                  style={{
+                    border: '1px solid rgba(212,130,10,0.25)',
+                    borderRadius: '14px',
+                    overflow: 'hidden',
+                    background: 'rgba(44,34,24,0.45)'
+                  }}
+                >
+                  <div style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <img
+                        src={artist.profile_image_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=200&q=60'}
+                        alt={artist.name}
+                        style={{ width: '56px', height: '56px', borderRadius: '999px', objectFit: 'cover', border: '1px solid rgba(212,130,10,0.35)' }}
+                      />
+                      <div>
+                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.15rem', color: '#F5F0E8' }}>{artist.name}</div>
+                        <div style={{ color: '#D9C6A5', fontSize: '0.9rem' }}>{artist.genre || 'Live Music'}</div>
+                      </div>
+                    </div>
+                    <p style={{ color: '#8C7B6B', margin: '0 0 6px' }}>{artist.location || 'Location TBD'}</p>
+                    <p style={{ color: '#8C7B6B', margin: '0 0 12px' }}>{Math.round(artist.distanceMiles)} miles away</p>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                      {artist.instagram_url && (
+                        <a href={artist.instagram_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
+                          Instagram
+                        </a>
+                      )}
+                      {artist.youtube_url && (
+                        <a href={artist.youtube_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
+                          YouTube
+                        </a>
+                      )}
+                      {artist.soundcloud_url && (
+                        <a href={artist.soundcloud_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
+                          SoundCloud
+                        </a>
+                      )}
+                    </div>
+                    <a
+                      href={`/artist/${artist.id}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                        color: '#1A1410',
+                        textDecoration: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        fontWeight: 700,
+                        fontSize: '0.88rem'
+                      }}
+                    >
+                      View Profile
+                    </a>
+                  </div>
+                </article>
               ))}
             </div>
           )}
