@@ -43,6 +43,8 @@ interface NearbyArtist {
   instagram_url?: string | null
   youtube_url?: string | null
   soundcloud_url?: string | null
+  spotify_url?: string | null
+  facebook_url?: string | null
   distanceMiles: number
 }
 
@@ -267,7 +269,7 @@ export default function FanDashboardPage() {
 
       const { data, error } = await supabase
         .from('artist_profiles')
-        .select('id, name, profile_image_url, genre, location, latitude, longitude, instagram_url, youtube_url, soundcloud_url')
+        .select('id, name, profile_image_url, genre, location, latitude, longitude, instagram_url, youtube_url, soundcloud_url, spotify_url, facebook_url')
         .eq('available', true)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
@@ -292,6 +294,8 @@ export default function FanDashboardPage() {
           instagram_url: artist.instagram_url || null,
           youtube_url: artist.youtube_url || null,
           soundcloud_url: artist.soundcloud_url || null,
+          spotify_url: artist.spotify_url || null,
+          facebook_url: artist.facebook_url || null,
           distanceMiles: calculateDistanceMiles(
             fanLocation.latitude,
             fanLocation.longitude,
@@ -636,6 +640,11 @@ export default function FanDashboardPage() {
                           Instagram
                         </a>
                       )}
+                      {artist.spotify_url && (
+                        <a href={artist.spotify_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
+                          Spotify
+                        </a>
+                      )}
                       {artist.youtube_url && (
                         <a href={artist.youtube_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
                           YouTube
@@ -644,6 +653,11 @@ export default function FanDashboardPage() {
                       {artist.soundcloud_url && (
                         <a href={artist.soundcloud_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
                           SoundCloud
+                        </a>
+                      )}
+                      {artist.facebook_url && (
+                        <a href={artist.facebook_url} target="_blank" rel="noreferrer" style={{ color: '#F0A500', fontSize: '0.88rem', textDecoration: 'none' }}>
+                          Facebook
                         </a>
                       )}
                     </div>
