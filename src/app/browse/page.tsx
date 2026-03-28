@@ -1,117 +1,115 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-// Helper function to get emoji for genre
-const getGenreEmoji = (genre: string) => {
-  const genreEmojis: { [key: string]: string } = {
-    'rock': '🎸',
-    'indie rock': '🎸',
-    'jazz': '🎺',
-    'folk': '🎻',
-    'electronic': '🎹',
-    'blues': '🎵',
-    'pop': '🎤',
-    'classical': '🎻',
-    'hip hop': '🎧',
-    'country': '🤠',
-    'r&b': '🎵',
-    'metal': '🤘'
-  }
-  return genreEmojis[genre.toLowerCase()] || '🎵'
+interface BrowseArtist {
+  id: string
+  user_id: string
+  name: string
+  genre?: string | null
+  location?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  available?: boolean | null
+  minimum_guarantee?: number | null
+  profile_image_url?: string | null
+  spotify_url?: string | null
+  soundcloud_url?: string | null
+  facebook_url?: string | null
+  youtube_url?: string | null
+  instagram_url?: string | null
 }
 
-// Helper function to get emoji for venue type
-const getVenueEmoji = (type: string) => {
-  const venueEmojis: { [key: string]: string } = {
-    'indoor': '🏛️',
-    'outdoor': '🎪',
-    'theater': '🎭',
-    'club': '🎷',
-    'stadium': '🏟️',
-    'hall': '🎼',
-    'bar': '🍺',
-    'restaurant': '🍽️'
-  }
-  return venueEmojis[type.toLowerCase()] || '🏛️'
+const getArtistSocialLinks = (artist: BrowseArtist) => {
+  const links = []
+  if (artist.spotify_url) links.push({ name: 'Spotify', url: artist.spotify_url, icon: '🎵' })
+  if (artist.soundcloud_url) links.push({ name: 'SoundCloud', url: artist.soundcloud_url, icon: '🎧' })
+  if (artist.instagram_url) links.push({ name: 'Instagram', url: artist.instagram_url, icon: '📷' })
+  if (artist.facebook_url) links.push({ name: 'Facebook', url: artist.facebook_url, icon: '📘' })
+  if (artist.youtube_url) links.push({ name: 'YouTube', url: artist.youtube_url, icon: '🎬' })
+  return links
 }
 
 export default function BrowsePage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [musicians, setMusicians] = useState<any[]>([])
+  const [artists, setArtists] = useState<BrowseArtist[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch data from Supabase on component mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchArtists = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        // Fetch musicians from Supabase
-        const { data: musiciansData, error: musiciansError } = await supabase
+        const { data, error } = await supabase
           .from('artist_profiles')
-          .select('id, user_id, name, bio, genre, location, minimum_guarantee')
+          .select('id, user_id, name, genre, location, latitude, longitude, available, minimum_guarantee')
 
-        if (musiciansError) {
-          console.error('Error fetching musicians:', musiciansError)
-        } else if (musiciansData) {
-          const userIds = musiciansData.map((musician: any) => musician.user_id).filter(Boolean)
-          const { data: profileRows, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, profile_image_url, instagram_url, spotify_url, youtube_url, soundcloud_url, facebook_url')
-            .in('id', userIds)
-
-          if (profilesError) {
-            console.error('Error fetching musician profile images:', profilesError)
-          }
-
-          const profilesById = new Map(
-            (profileRows || []).map((profile: any) => [profile.id, profile])
-          )
-
-          const formattedMusicians = musiciansData.map((musician: any) => ({
-            id: musician.id,
-            stageName: musician.name || 'Unknown Artist',
-            genre: musician.genre?.trim() || 'Independent',
-            rate: musician.minimum_guarantee && musician.minimum_guarantee > 0
-              ? `$${Number(musician.minimum_guarantee).toFixed(0)}/show`
-              : 'Negotiable',
-            city: musician.location || 'Unknown Location',
-            image: getGenreEmoji(musician.genre?.trim() || 'Independent'),
-            bio: musician.bio,
-            photo_url: profilesById.get(musician.user_id)?.profile_image_url || null,
-            instagram_url: profilesById.get(musician.user_id)?.instagram_url || null,
-            spotify_url: profilesById.get(musician.user_id)?.spotify_url || null,
-            youtube_url: profilesById.get(musician.user_id)?.youtube_url || null,
-            soundcloud_url: profilesById.get(musician.user_id)?.soundcloud_url || null,
-            facebook_url: profilesById.get(musician.user_id)?.facebook_url || null
-          }))
-          setMusicians(formattedMusicians)
+        if (error) {
+          throw error
         }
 
+        const userIds = (data || []).map((artist) => artist.user_id).filter(Boolean)
+        const { data: profileRows, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, profile_image_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
+          .in('id', userIds)
+
+        if (profilesError) {
+          throw profilesError
+        }
+
+        const profilesById = new Map(
+          (profileRows || []).map((profile) => [profile.id, profile])
+        )
+
+        const mergedArtists = (data || []).map((artist) => ({
+          id: artist.id,
+          user_id: artist.user_id,
+          name: artist.name || 'Artist',
+          genre: artist.genre || null,
+          location: artist.location || null,
+          latitude: artist.latitude ?? null,
+          longitude: artist.longitude ?? null,
+          available: artist.available ?? null,
+          minimum_guarantee: artist.minimum_guarantee ?? null,
+          profile_image_url: profilesById.get(artist.user_id)?.profile_image_url || null,
+          instagram_url: profilesById.get(artist.user_id)?.instagram_url || null,
+          youtube_url: profilesById.get(artist.user_id)?.youtube_url || null,
+          soundcloud_url: profilesById.get(artist.user_id)?.soundcloud_url || null,
+          spotify_url: profilesById.get(artist.user_id)?.spotify_url || null,
+          facebook_url: profilesById.get(artist.user_id)?.facebook_url || null
+        })) as BrowseArtist[]
+
+        setArtists(mergedArtists)
       } catch (err) {
-        console.error('Error fetching data:', err)
+        console.error('Error fetching artists:', err)
+        setArtists([])
         setError('Failed to load musicians.')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
+    fetchArtists()
   }, [])
 
-  const filteredMusicians = musicians.filter(musician =>
-    musician.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    musician.stageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (musician.bio && musician.bio.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredArtists = artists.filter((artist) => {
+    const normalizedSearch = searchTerm.toLowerCase()
+    const artistName = artist.name.toLowerCase()
+    const artistGenre = (artist.genre || 'Independent').toLowerCase()
+    const artistLocation = (artist.location || '').toLowerCase()
+
+    return (
+      artistLocation.includes(normalizedSearch) ||
+      artistGenre.includes(normalizedSearch) ||
+      artistName.includes(normalizedSearch)
+    )
+  })
 
   const handleBookMusician = (musicianId: string) => {
-    console.log('Request to book musician:', musicianId)
-    // Navigate to booking form with musician ID
     window.location.href = `/book-show?musician_id=${musicianId}`
   }
 
@@ -132,16 +130,11 @@ export default function BrowsePage() {
           color: #F5F0E8;
         }
         
-        .heading {
-          font-family: 'Playfair Display', serif;
-        }
-        
         input, button {
           font-family: 'DM Sans', sans-serif;
         }
       `}</style>
 
-      {/* Sticky Navigation */}
       <div style={{
         position: 'sticky',
         top: 0,
@@ -165,10 +158,7 @@ export default function BrowsePage() {
             color: '#F0A500',
             fontFamily: 'Playfair Display, serif'
           }}>
-            <a href="/dashboard" style={{
-              textDecoration: 'none',
-              color: 'inherit'
-            }}>
+            <a href="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>
               HouseShow
             </a>
           </div>
@@ -179,30 +169,21 @@ export default function BrowsePage() {
             fontSize: '14px',
             color: '#8C7B6B'
           }}>
-            <a href="/browse" style={{
-              color: '#F0A500',
-              textDecoration: 'none',
-              fontWeight: '500'
-            }}>
+            <a href="/browse" style={{ color: '#F0A500', textDecoration: 'none', fontWeight: '500' }}>
               Browse
             </a>
-            <a href="/create-show" style={{
-              color: '#8C7B6B',
-              textDecoration: 'none'
-            }}>
+            <a href="/create-show" style={{ color: '#8C7B6B', textDecoration: 'none' }}>
               Create Show
             </a>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
         padding: '48px 24px'
       }}>
-        {/* Header */}
         <div style={{
           marginBottom: '48px',
           textAlign: 'center'
@@ -227,14 +208,8 @@ export default function BrowsePage() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div style={{
-          marginBottom: '40px'
-        }}>
-          <div style={{
-            maxWidth: '500px',
-            margin: '0 auto'
-          }}>
+        <div style={{ marginBottom: '40px' }}>
+          <div style={{ maxWidth: '500px', margin: '0 auto' }}>
             <input
               type="text"
               placeholder="Search by city, genre, or name..."
@@ -262,7 +237,6 @@ export default function BrowsePage() {
           </div>
         </div>
 
-        {/* Loading State */}
         {loading && (
           <div style={{
             display: 'flex',
@@ -278,7 +252,6 @@ export default function BrowsePage() {
           </div>
         )}
 
-        {/* Error State */}
         {error && !loading && (
           <div style={{
             position: 'fixed',
@@ -299,29 +272,31 @@ export default function BrowsePage() {
           </div>
         )}
 
-        {/* Content Grid */}
         {!loading && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '32px'
           }}>
-            {filteredMusicians.map(musician => (
-              <div key={musician.id} style={{
-                backgroundColor: '#2A1F1A',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                border: '1px solid rgba(212,130,10,0.1)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(212,130,10,0.3)'
-                e.currentTarget.style.transform = 'translateY(-4px)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(212,130,10,0.1)'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}>
+            {filteredArtists.map((artist) => (
+              <div
+                key={artist.id}
+                style={{
+                  backgroundColor: '#2A1F1A',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(212,130,10,0.1)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(212,130,10,0.3)'
+                  e.currentTarget.style.transform = 'translateY(-4px)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(212,130,10,0.1)'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
+              >
                 <div style={{
                   height: '160px',
                   background: '#1A1410',
@@ -329,14 +304,16 @@ export default function BrowsePage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '48px',
-                  textAlign: 'center',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  color: '#D4820A',
+                  fontFamily: 'Playfair Display, serif',
+                  fontSize: '3rem',
+                  fontWeight: 700
                 }}>
-                  {musician.photo_url ? (
+                  {artist.profile_image_url?.trim() ? (
                     <img
-                      src={musician.photo_url}
-                      alt={musician.stageName}
+                      src={artist.profile_image_url}
+                      alt={artist.name}
                       style={{
                         width: '100%',
                         height: '100%',
@@ -345,9 +322,10 @@ export default function BrowsePage() {
                       }}
                     />
                   ) : (
-                    musician.image
+                    '🎵'
                   )}
                 </div>
+
                 <div style={{ padding: '32px' }}>
                   <h3 style={{
                     fontSize: '24px',
@@ -357,9 +335,9 @@ export default function BrowsePage() {
                     fontFamily: 'Playfair Display, serif',
                     textAlign: 'center'
                   }}>
-                    {musician.stageName}
+                    {artist.name}
                   </h3>
-                  
+
                   <div style={{
                     fontSize: '14px',
                     color: '#F0A500',
@@ -367,9 +345,9 @@ export default function BrowsePage() {
                     marginBottom: '16px',
                     fontWeight: '500'
                   }}>
-                    {musician.genre}
+                    {artist.genre?.trim() || 'Independent'}
                   </div>
-                  
+
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -378,45 +356,41 @@ export default function BrowsePage() {
                     fontSize: '14px',
                     color: '#8C7B6B'
                   }}>
-                    <span>📍 {musician.city}</span>
-                    <span>{musician.rate}</span>
+                    <span>📍 {artist.location || 'Unknown Location'}</span>
+                    <span>
+                      {artist.minimum_guarantee && artist.minimum_guarantee > 0
+                        ? `$${Number(artist.minimum_guarantee).toFixed(0)}/show`
+                        : 'Negotiable'}
+                    </span>
                   </div>
 
                   <div style={{
                     display: 'flex',
-                    gap: '12px',
+                    gap: '10px',
                     alignItems: 'center',
                     marginBottom: '20px',
                     minHeight: '24px'
                   }}>
-                    {[
-                      { icon: '📷', url: musician.instagram_url, label: 'Instagram' },
-                      { icon: '🎵', url: musician.spotify_url, label: 'Spotify' },
-                      { icon: '▶️', url: musician.youtube_url, label: 'YouTube' },
-                      { icon: '☁️', url: musician.soundcloud_url, label: 'SoundCloud' },
-                      { icon: '👤', url: musician.facebook_url, label: 'Facebook' }
-                    ]
-                      .filter((link) => Boolean(link.url))
-                      .map((link) => (
-                        <a
-                          key={link.label}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={link.label}
-                          style={{
-                            textDecoration: 'none',
-                            fontSize: '18px',
-                            lineHeight: 1
-                          }}
-                        >
-                          {link.icon}
-                        </a>
-                      ))}
+                    {getArtistSocialLinks(artist).map((link) => (
+                      <a
+                        key={link.name}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={link.name}
+                        style={{
+                          textDecoration: 'none',
+                          fontSize: '18px',
+                          lineHeight: 1
+                        }}
+                      >
+                        {link.icon}
+                      </a>
+                    ))}
                   </div>
-                  
+
                   <button
-                    onClick={() => handleBookMusician(musician.id)}
+                    onClick={() => handleBookMusician(artist.id)}
                     style={{
                       width: '100%',
                       padding: '14px',
@@ -446,17 +420,13 @@ export default function BrowsePage() {
           </div>
         )}
 
-        {/* No Results */}
-        {filteredMusicians.length === 0 && !loading && (
+        {filteredArtists.length === 0 && !loading && (
           <div style={{
             textAlign: 'center',
             padding: '80px 20px',
             color: '#8C7B6B'
           }}>
-            <div style={{
-              fontSize: '48px',
-              marginBottom: '16px'
-            }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>
               🔍
             </div>
             <h3 style={{
