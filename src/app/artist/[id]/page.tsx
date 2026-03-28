@@ -57,7 +57,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
       try {
         const { data: profileData, error: profileError } = await supabase
           .from('artist_profiles')
-          .select('id, user_id, name, bio, genre, location, latitude, longitude, profile_image_url, youtube_url, soundcloud_url, instagram_url, available, minimum_guarantee')
+          .select('id, user_id, name, bio, genre, location, latitude, longitude, available, minimum_guarantee')
           .eq('id', params.id)
           .maybeSingle()
 
@@ -79,12 +79,12 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
           } else if (linkedProfile) {
             mergedProfile = {
               ...(profileData as ArtistProfile),
-              profile_image_url: linkedProfile.profile_image_url || profileData.profile_image_url || null,
+              profile_image_url: linkedProfile.profile_image_url || null,
               spotify_url: linkedProfile.spotify_url || null,
-              youtube_url: linkedProfile.youtube_url || profileData.youtube_url || null,
-              soundcloud_url: linkedProfile.soundcloud_url || profileData.soundcloud_url || null,
+              youtube_url: linkedProfile.youtube_url || null,
+              soundcloud_url: linkedProfile.soundcloud_url || null,
               facebook_url: linkedProfile.facebook_url || null,
-              instagram_url: linkedProfile.instagram_url || profileData.instagram_url || null
+              instagram_url: linkedProfile.instagram_url || null
             }
           }
         }
