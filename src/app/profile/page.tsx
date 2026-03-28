@@ -155,27 +155,21 @@ export default function Profile() {
       if (formData.user_type !== 'fan' && formData.zip_code && formData.zip_code.length >= 5) {
         try {
           console.log('Converting zip code to coordinates:', formData.zip_code)
-          const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-          if (!mapboxToken) {
-            console.error('Missing NEXT_PUBLIC_MAPBOX_TOKEN for profile geocoding')
-          } else {
-            const response = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(formData.zip_code)}.json?access_token=${mapboxToken}`
-            )
+          const response = await fetch(`https://api.zippopotam.us/us/${encodeURIComponent(formData.zip_code)}`)
           const data = await response.json()
+          const place = data?.places?.[0]
+          const latitude = Number(place?.latitude)
+          const longitude = Number(place?.longitude)
 
-            const [longitude, latitude] = data?.features?.[0]?.center || []
-
-            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-              profileData = {
-                ...profileData,
-                latitude,
-                longitude
-              } as any
-              console.log('Converted zip to coordinates:', { lat: latitude, lng: longitude })
-            } else {
-              console.log('Zip code lookup failed:', data)
-            }
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            profileData = {
+              ...profileData,
+              latitude,
+              longitude
+            } as any
+            console.log('Converted zip to coordinates:', { lat: latitude, lng: longitude })
+          } else {
+            console.log('Zip code lookup failed:', data)
           }
         } catch (error) {
           console.error('Error converting zip code:', error)
@@ -197,6 +191,30 @@ export default function Profile() {
         console.error('Profile data being saved:', JSON.stringify(profileData, null, 2))
         alert(`Failed to save profile: ${error.message || 'Unknown error'}. Please check browser console for details.`)
         return
+      }
+
+      if (
+        formData.user_type === 'musician' &&
+        formData.zip_code &&
+        Number.isFinite(Number(profileData.latitude)) &&
+        Number.isFinite(Number(profileData.longitude))
+      ) {
+        const { error: musicianProfileError } = await supabase
+          .from('musician_profiles')
+          .upsert(
+            {
+              id: user.id,
+              zip_code: formData.zip_code,
+              lat: Number(profileData.latitude),
+              lng: Number(profileData.longitude),
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: 'id' }
+          )
+
+        if (musicianProfileError) {
+          console.error('Error saving musician profile coordinates:', musicianProfileError)
+        }
       }
       
       // Update local profile state
