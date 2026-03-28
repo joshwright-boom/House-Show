@@ -13,8 +13,10 @@ interface ArtistProfile {
   latitude?: number | null
   longitude?: number | null
   profile_image_url?: string | null
+  spotify_url?: string | null
   youtube_url?: string | null
   soundcloud_url?: string | null
+  facebook_url?: string | null
   instagram_url?: string | null
   available?: boolean | null
   minimum_guarantee?: number | null
@@ -62,12 +64,44 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
         if (profileError) {
           console.error('Artist profile error:', profileError)
         }
-        setProfile(profileData as ArtistProfile | null)
+
+        let mergedProfile = profileData as ArtistProfile | null
+
+        if (profileData?.user_id) {
+          const { data: linkedProfile, error: linkedProfileError } = await supabase
+            .from('profiles')
+            .select('id, profile_image_url, spotify_url, youtube_url, soundcloud_url, facebook_url, instagram_url')
+            .eq('id', profileData.user_id)
+            .maybeSingle()
+
+          if (linkedProfileError) {
+            console.error('Linked profile error:', linkedProfileError)
+          } else if (linkedProfile) {
+            mergedProfile = {
+              ...(profileData as ArtistProfile),
+              profile_image_url: linkedProfile.profile_image_url || profileData.profile_image_url || null,
+              spotify_url: linkedProfile.spotify_url || null,
+              youtube_url: linkedProfile.youtube_url || profileData.youtube_url || null,
+              soundcloud_url: linkedProfile.soundcloud_url || profileData.soundcloud_url || null,
+              facebook_url: linkedProfile.facebook_url || null,
+              instagram_url: linkedProfile.instagram_url || profileData.instagram_url || null
+            }
+          }
+        }
+
+        setProfile(mergedProfile)
+
+        const artistUserId = profileData?.user_id || null
+        const showFilters = [
+          artistUserId ? `artist_user_id.eq.${artistUserId}` : null,
+          `artist_id.eq.${params.id}`,
+          `musician_id.eq.${params.id}`
+        ].filter(Boolean) as string[]
 
         const { data: showsData, error: showsError } = await supabase
           .from('shows')
           .select('id, artist_name, venue_name, show_date, ticket_price, status')
-          .eq('artist_user_id', params.id)
+          .or(showFilters.join(','))
           .eq('status', 'on_sale')
           .order('show_date', { ascending: true })
 
@@ -134,8 +168,10 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
   }
 
   const links = [
+    { name: 'Spotify', icon: '🎵', url: profile?.spotify_url },
     { name: 'YouTube', icon: '🎬', url: profile?.youtube_url },
     { name: 'SoundCloud', icon: '🎧', url: profile?.soundcloud_url },
+    { name: 'Facebook', icon: '📘', url: profile?.facebook_url },
     { name: 'Instagram', icon: '📷', url: profile?.instagram_url }
   ].filter((link) => Boolean(link.url))
 
@@ -166,17 +202,45 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
         </a>
 
         <section style={{ marginTop: '18px', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '14px', padding: '18px', background: 'rgba(44,34,24,0.35)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-            <img
-              src={profile.profile_image_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=260&q=60'}
-              alt={profile.name || 'Artist'}
-              style={{ width: '84px', height: '84px', borderRadius: '999px', objectFit: 'cover' }}
-            />
-            <div>
-              <h1 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: '2rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '22px', alignItems: 'start' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <img
+                src={profile.profile_image_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=400&q=60'}
+                alt={profile.name || 'Artist'}
+                style={{
+                  width: '160px',
+                  height: '160px',
+                  borderRadius: '999px',
+                  objectFit: 'cover',
+                  border: '2px solid rgba(212,130,10,0.35)',
+                  boxShadow: '0 18px 40px rgba(0,0,0,0.28)'
+                }}
+              />
+            </div>
+            <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+              <h1 style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: '2.4rem', lineHeight: 1.1 }}>
                 {profile.name || 'Artist'}
               </h1>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+              <div style={{ display: 'grid', gap: '8px', marginTop: '14px' }}>
+                <p style={{ margin: 0, color: '#D9C6A5' }}>
+                  <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Genre:</span> {profile.genre || 'Not listed'}
+                </p>
+                <p style={{ margin: 0, color: '#D9C6A5' }}>
+                  <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Location:</span> {profile.location || 'Not listed'}
+                </p>
+                <p style={{ margin: 0, color: '#D9C6A5' }}>
+                  <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Minimum Guarantee:</span>{' '}
+                  {minimumGuarantee > 0 ? `$${minimumGuarantee}` : 'Not set'}
+                </p>
+              </div>
+
+              {profile.bio ? (
+                <p style={{ color: '#8C7B6B', lineHeight: 1.7, margin: '16px 0 0' }}>
+                  {profile.bio}
+                </p>
+              ) : null}
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '18px' }}>
                 {isFanUser ? (
                   <button
                     onClick={followArtist}
@@ -186,7 +250,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
                       border: '1px solid rgba(212,130,10,0.35)',
                       color: '#F5F0E8',
                       borderRadius: '8px',
-                      padding: '8px 12px',
+                      padding: '10px 14px',
                       fontWeight: 600,
                       cursor: isFollowing || followLoading ? 'not-allowed' : 'pointer'
                     }}
@@ -205,7 +269,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
                       border: '1px solid rgba(212,130,10,0.35)',
                       color: '#F5F0E8',
                       borderRadius: '8px',
-                      padding: '8px 12px',
+                      padding: '10px 14px',
                       fontWeight: 600,
                       textDecoration: 'none'
                     }}
@@ -223,7 +287,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
                       border: '1px solid rgba(212,130,10,0.35)',
                       color: '#1A1410',
                       borderRadius: '8px',
-                      padding: '8px 12px',
+                      padding: '10px 14px',
                       fontWeight: 700,
                       textDecoration: 'none'
                     }}
@@ -232,52 +296,35 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
                   </a>
                 )}
               </div>
+
+              {links.length > 0 && (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '18px' }}>
+                  {links.map((link) => (
+                    <a
+                      key={link.name}
+                      href={link.url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: '1px solid rgba(212,130,10,0.25)',
+                        borderRadius: '8px',
+                        padding: '9px 12px',
+                        color: '#F5F0E8',
+                        background: 'rgba(240,165,0,0.08)',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <span>{link.icon}</span>
+                      {link.name}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-          {profile.bio ? (
-            <p style={{ color: '#8C7B6B', lineHeight: 1.6, marginBottom: links.length > 0 ? '14px' : 0 }}>
-              {profile.bio}
-            </p>
-          ) : null}
-
-          <div style={{ display: 'grid', gap: '8px', marginBottom: links.length > 0 ? '16px' : '18px' }}>
-            <p style={{ margin: 0, color: '#D9C6A5' }}>
-              <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Genre:</span> {profile.genre || 'Not listed'}
-            </p>
-            <p style={{ margin: 0, color: '#D9C6A5' }}>
-              <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Location:</span> {profile.location || 'Not listed'}
-            </p>
-            <p style={{ margin: 0, color: '#D9C6A5' }}>
-              <span style={{ color: '#F5F0E8', fontWeight: 700 }}>Minimum Guarantee:</span>{' '}
-              {minimumGuarantee > 0 ? `$${minimumGuarantee}` : 'Not set'}
-            </p>
-          </div>
-
-          {links.length > 0 && (
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              {links.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.url || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    border: '1px solid rgba(212,130,10,0.25)',
-                    borderRadius: '8px',
-                    padding: '8px 10px',
-                    color: '#F5F0E8',
-                    textDecoration: 'none'
-                  }}
-                >
-                  <span>{link.icon}</span>
-                  {link.name}
-                </a>
-              ))}
-            </div>
-          )}
         </section>
 
         <section style={{ marginTop: '20px' }}>
