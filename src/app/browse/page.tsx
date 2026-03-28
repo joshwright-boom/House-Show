@@ -54,7 +54,7 @@ export default function BrowsePage() {
         const userIds = (data || []).map((artist) => artist.user_id).filter(Boolean)
         const { data: profileRows, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, profile_image_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
+          .select('id, photo_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
           .in('id', userIds)
 
         if (profilesError) {
@@ -75,7 +75,7 @@ export default function BrowsePage() {
           longitude: artist.longitude ?? null,
           available: artist.available ?? null,
           minimum_guarantee: artist.minimum_guarantee ?? null,
-          profile_image_url: profilesById.get(artist.user_id)?.profile_image_url || null,
+          profile_image_url: profilesById.get(artist.user_id)?.photo_url || null,
           instagram_url: profilesById.get(artist.user_id)?.instagram_url || null,
           youtube_url: profilesById.get(artist.user_id)?.youtube_url || null,
           soundcloud_url: profilesById.get(artist.user_id)?.soundcloud_url || null,
