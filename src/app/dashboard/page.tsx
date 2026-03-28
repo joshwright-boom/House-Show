@@ -59,6 +59,14 @@ const DEFAULT_COUNTER_SPLIT = {
   platform: 7
 }
 
+const LOCKED_PLATFORM_PCT = DEFAULT_COUNTER_SPLIT.platform
+const NEGOTIABLE_SPLIT_TOTAL = 100 - LOCKED_PLATFORM_PCT
+
+const parseSplitValue = (value: string) => Number.parseInt(value, 10) || 0
+
+const getCounterOfferTotal = (values: { musician: string; host: string; platform: string }) =>
+  parseSplitValue(values.musician) + parseSplitValue(values.host) + parseSplitValue(values.platform)
+
 export default function Dashboard() {
   // Required migration:
   // ALTER TABLE booking_requests
@@ -86,6 +94,8 @@ export default function Dashboard() {
   const [counterOfferError, setCounterOfferError] = useState<string | null>(null)
   const [ticketShows, setTicketShows] = useState<TicketShow[]>([])
   const [ticketShowsLoading, setTicketShowsLoading] = useState(true)
+  const counterOfferTotal = getCounterOfferTotal(counterOfferValues)
+  const isCounterOfferTotalValid = counterOfferTotal === 100
 
   useEffect(() => {
     const loadUser = async () => {
@@ -488,10 +498,25 @@ export default function Dashboard() {
     setCounterOfferError(null)
   }
 
+  const updateCounterOfferSplit = (field: 'musician' | 'host', value: string) => {
+    const nextValue = value.trim()
+    const parsedValue = parseSplitValue(nextValue)
+    const boundedValue = Math.max(0, Math.min(NEGOTIABLE_SPLIT_TOTAL, parsedValue))
+    const pairedValue = NEGOTIABLE_SPLIT_TOTAL - boundedValue
+
+    setCounterOfferValues((prev) => ({
+      ...prev,
+      musician: field === 'musician' ? String(boundedValue) : String(pairedValue),
+      host: field === 'host' ? String(boundedValue) : String(pairedValue),
+      platform: String(LOCKED_PLATFORM_PCT)
+    }))
+    setCounterOfferError(null)
+  }
+
   const submitCounterOffer = async (requestId: string) => {
     const musicianPct = Number.parseInt(counterOfferValues.musician, 10) || 0
     const hostPct = Number.parseInt(counterOfferValues.host, 10) || 0
-    const platformPct = DEFAULT_COUNTER_SPLIT.platform
+    const platformPct = LOCKED_PLATFORM_PCT
 
     if (musicianPct + hostPct + platformPct !== 100) {
       setCounterOfferError('Musician %, Host %, and Platform % must total exactly 100.')
@@ -610,8 +635,7 @@ export default function Dashboard() {
               disabled={field.disabled}
               onChange={(e) => {
                 if (field.disabled) return
-                setCounterOfferValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                setCounterOfferError(null)
+                updateCounterOfferSplit(field.key as 'musician' | 'host', e.target.value)
               }}
               style={{
                 width: '100%',
@@ -636,18 +660,24 @@ export default function Dashboard() {
           {counterOfferError}
         </div>
       )}
+      {!isCounterOfferTotalValid && (
+        <div style={{ color: '#FCA5A5', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', marginBottom: '12px' }}>
+          Musician %, Host %, and Platform % must total exactly 100. Current total: {counterOfferTotal}%.
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => submitCounterOffer(requestId)}
-          disabled={updatingRequestId === requestId}
+          disabled={updatingRequestId === requestId || !isCounterOfferTotalValid}
           style={{
             background: '#D4820A',
             color: '#1A1410',
             border: '1px solid #D4820A',
             borderRadius: '6px',
             padding: '10px 16px',
-            cursor: updatingRequestId === requestId ? 'not-allowed' : 'pointer',
+            cursor: updatingRequestId === requestId || !isCounterOfferTotalValid ? 'not-allowed' : 'pointer',
+            opacity: updatingRequestId === requestId || !isCounterOfferTotalValid ? 0.6 : 1,
             fontFamily: "'DM Sans', sans-serif",
             fontWeight: '600'
           }}
