@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "codex:auto-push": "git add -A && git commit -m \"auto: codex changes\" && git push"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.9.0",
