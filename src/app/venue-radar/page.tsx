@@ -5,8 +5,10 @@ import { supabase } from '@/lib/supabase'
 
 interface VenueHost {
   id: string
+  user_id?: string | null
   name: string
   bio: string
+  photo_url?: string | null
   venue_photo_url?: string | null
   user_type: 'host'
   latitude: number
@@ -14,6 +16,8 @@ interface VenueHost {
   location_address?: string
   neighborhood?: string
   availability_status?: 'based_here' | 'on_tour' | 'open_to_travel'
+  has_sound_equipment?: boolean | null
+  venue_capacity?: number | null
   zip_code?: string
   distanceMiles: number
 }
@@ -57,32 +61,71 @@ export default function VenueRadarPage() {
 
     const loadNearbyVenues = async () => {
       try {
+        // Required host_profiles columns if missing in the database:
+        // user_id UUID, neighborhood TEXT, has_sound_equipment BOOLEAN, venue_capacity INTEGER
         const { data: hosts } = await supabase
           .from('profiles')
-          .select('id, name, bio, user_type, latitude, longitude, location_address, availability_status, zip_code')
+          .select('id, name, bio, user_type, latitude, longitude, location_address, availability_status, zip_code, photo_url')
           .eq('user_type', 'host')
           .not('latitude', 'is', null)
           .not('longitude', 'is', null)
 
         const hostIds = (hosts || []).map((host) => host.id).filter(Boolean)
-        let hostProfilesById = new Map<string, { venue_description?: string | null; address?: string | null; venue_photo_url?: string | null }>()
+        let hostProfilesById = new Map<string, {
+          id: string
+          user_id?: string | null
+          venue_description?: string | null
+          address?: string | null
+          neighborhood?: string | null
+          venue_photo_url?: string | null
+          has_sound_equipment?: boolean | null
+          venue_capacity?: number | null
+        }>()
+        let profilesById = new Map<string, { photo_url?: string | null }>()
 
         if (hostIds.length > 0) {
           const { data: hostProfiles } = await supabase
             .from('host_profiles')
-            .select('id, venue_description, address, venue_photo_url')
+            .select('*')
             .in('id', hostIds)
 
           hostProfilesById = new Map(
             (hostProfiles || []).map((profile) => [
               profile.id,
               {
+                id: profile.id,
+                user_id: profile.user_id || null,
                 venue_description: profile.venue_description || null,
                 address: profile.address || null,
-                venue_photo_url: profile.venue_photo_url || null
+                neighborhood: profile.neighborhood || null,
+                venue_photo_url: profile.venue_photo_url || null,
+                has_sound_equipment: profile.has_sound_equipment ?? null,
+                venue_capacity: profile.venue_capacity ?? null
               }
             ])
           )
+
+          const profileIds = Array.from(
+            new Set(
+              (hostProfiles || [])
+                .map((profile) => profile.user_id || profile.id)
+                .filter(Boolean)
+            )
+          )
+
+          if (profileIds.length > 0) {
+            const { data: profileRows } = await supabase
+              .from('profiles')
+              .select('id, photo_url')
+              .in('id', profileIds)
+
+            profilesById = new Map(
+              (profileRows || []).map((profile) => [
+                profile.id,
+                { photo_url: profile.photo_url || null }
+              ])
+            )
+          }
         }
 
         if (hosts) {
@@ -98,13 +141,18 @@ export default function VenueRadarPage() {
             if (!isAvailable || (distanceMiles > 100 && distanceMiles >= 0.01)) return
 
             const hostProfile = hostProfilesById.get(host.id)
-            const neighborhood = hostProfile?.address?.split(',')[0]?.trim() || host.location_address?.split(',')[0]?.trim() || ''
+            const hostUserId = hostProfile?.user_id || host.id
+            const linkedProfile = profilesById.get(hostUserId)
 
             nearby.push({
               ...host,
+              user_id: hostUserId,
               bio: hostProfile?.venue_description || host.bio || '',
+              photo_url: linkedProfile?.photo_url || host.photo_url || null,
               venue_photo_url: hostProfile?.venue_photo_url || null,
-              neighborhood,
+              neighborhood: hostProfile?.neighborhood || host.location_address?.split(',')[0]?.trim() || '',
+              has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
+              venue_capacity: hostProfile?.venue_capacity ?? null,
               distanceMiles
             })
           })
@@ -216,16 +264,66 @@ export default function VenueRadarPage() {
                   )}
                   <div style={{ padding: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
-                      <div>
-                        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#F5F0E8', marginBottom: '8px' }}>
-                          {venue.name}
-                        </h3>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          {venue.photo_url?.trim() ? (
+                            <img
+                              src={venue.photo_url}
+                              alt={venue.name}
+                              style={{
+                                width: '56px',
+                                height: '56px',
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: '1px solid rgba(212,130,10,0.25)',
+                                flexShrink: 0
+                              }}
+                            />
+                          ) : (
+                            <div
+                              aria-label={venue.name}
+                              style={{
+                                width: '56px',
+                                height: '56px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(26,20,16,0.95)',
+                                border: '1px solid rgba(212,130,10,0.25)',
+                                color: '#D4820A',
+                                fontFamily: "'Playfair Display', serif",
+                                fontSize: '1.5rem',
+                                fontWeight: 700,
+                                flexShrink: 0
+                              }}
+                            >
+                              {getHostInitial(venue.name)}
+                            </div>
+                          )}
+                          <div>
+                            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem', color: '#F5F0E8', marginBottom: '8px' }}>
+                              {venue.name}
+                            </h3>
+                            {venue.bio && (
+                              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', lineHeight: '1.5', margin: 0 }}>
+                                {venue.bio}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                         <div style={{ display: 'grid', gap: '6px' }}>
                           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#22c55e', letterSpacing: '1px' }}>
                             {venue.availability_status === 'open_to_travel' ? 'OPEN TO TRAVEL' : 'AVAILABLE'}
                           </span>
                           <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#D9C6A5' }}>
-                            {venue.neighborhood || 'Area not listed'}
+                            {venue.neighborhood || 'Neighborhood not listed'}
+                          </span>
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>
+                            Sound Equipment: {venue.has_sound_equipment ? 'Yes' : 'No'}
+                          </span>
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>
+                            Capacity: {venue.venue_capacity ? `${venue.venue_capacity} people` : 'Not listed'}
                           </span>
                           {typeof venue.distanceMiles === 'number' && (
                             <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B' }}>
@@ -249,11 +347,6 @@ export default function VenueRadarPage() {
                         Request Show
                       </a>
                     </div>
-                    {venue.bio && (
-                      <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', lineHeight: '1.5', margin: 0 }}>
-                        {venue.bio}
-                      </p>
-                    )}
                   </div>
                 </article>
               ))}
