@@ -43,7 +43,7 @@ const getSocialLinks = (musician: Musician) => {
   return links
 }
 
-function BookShowContent() {
+function BookShowInner() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [musician, setMusician] = useState<Musician | null>(null)
   const [musicianId, setMusicianId] = useState<string | null>(null)
@@ -656,14 +656,10 @@ function BookShowContent() {
   )
 }
 
-export default function BookShow() {
+export default function BookShowPage() {
   return (
-    <Suspense fallback={
-      <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: '#8C7B6B', fontSize: '1.2rem' }}>Loading...</div>
-      </main>
-    }>
-      <BookShowContent />
+    <Suspense fallback={<div>Loading...</div>}>
+      <BookShowInner />
     </Suspense>
   )
 }
