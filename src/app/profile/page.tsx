@@ -20,6 +20,7 @@ interface Profile {
   facebook_url?: string
   youtube_url?: string
   website_url?: string
+  minimum_guarantee?: number
   created_at: string
 }
 
@@ -40,6 +41,8 @@ export default function Profile() {
     facebook_url: '',
     youtube_url: '',
     website_url: ''
+    ,
+    minimum_guarantee: ''
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -85,11 +88,29 @@ export default function Profile() {
           instagram_url: profileData.instagram_url || '',
           facebook_url: profileData.facebook_url || '',
           youtube_url: profileData.youtube_url || '',
-          website_url: profileData.website_url || ''
+          website_url: profileData.website_url || '',
+          minimum_guarantee: ''
         })
         // Set photo preview if existing photo exists
         if (profileData.photo_url) {
           setPhotoPreview(profileData.photo_url)
+        }
+
+        if (profileData.user_type === 'musician') {
+          const { data: artistProfile, error: artistProfileError } = await supabase
+            .from('artist_profiles')
+            .select('minimum_guarantee')
+            .eq('id', session.user.id)
+            .maybeSingle()
+
+          if (artistProfileError) {
+            console.error('Error loading artist minimum guarantee:', artistProfileError)
+          } else if (artistProfile?.minimum_guarantee != null) {
+            setFormData((prev) => ({
+              ...prev,
+              minimum_guarantee: String(artistProfile.minimum_guarantee)
+            }))
+          }
         }
       } else {
         const metadataType = session.user.user_metadata?.user_type || session.user.user_metadata?.role
@@ -212,6 +233,7 @@ export default function Profile() {
               soundcloud_url: formData.soundcloud_url || null,
               instagram_url: formData.instagram_url || null,
               profile_image_url: formData.photo_url || null,
+              minimum_guarantee: formData.minimum_guarantee ? Number(formData.minimum_guarantee) : null,
               latitude: Number(profileData.latitude),
               longitude: Number(profileData.longitude)
             },
@@ -239,6 +261,7 @@ export default function Profile() {
         facebook_url: profileData.facebook_url || null,
         youtube_url: profileData.youtube_url || null,
         website_url: profileData.website_url || null,
+        minimum_guarantee: formData.minimum_guarantee ? Number(formData.minimum_guarantee) : undefined,
         created_at: profile?.created_at || new Date().toISOString()
       } as Profile)
       setSaveSuccess(true)
@@ -575,6 +598,47 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
+            </div>
+            )}
+
+            {formData.user_type === 'musician' && (
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Minimum Guarantee ($)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.minimum_guarantee}
+                onChange={(e) => handleInputChange('minimum_guarantee', e.target.value)}
+                placeholder="e.g., 250"
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: 'DM Sans, sans-serif'
+                }}
+              />
+              <p style={{
+                color: '#8C7B6B',
+                fontSize: '0.8rem',
+                fontFamily: 'DM Sans, sans-serif',
+                marginTop: '8px',
+                marginBottom: 0
+              }}>
+                If ticket sales don&apos;t reach this amount, the host covers the difference.
+              </p>
             </div>
             )}
 

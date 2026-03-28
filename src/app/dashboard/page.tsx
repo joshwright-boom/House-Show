@@ -19,6 +19,7 @@ interface BookingRequest {
   proposed_host_pct?: number | null
   proposed_musician_pct?: number | null
   proposed_platform_pct?: number | null
+  minimum_guarantee?: number | null
   message: string
   status: 'pending' | 'accepted' | 'declined' | 'negotiating'
 }
@@ -122,7 +123,7 @@ export default function Dashboard() {
       try {
         const { data: musicianProfile, error: musicianProfileError } = await supabase
           .from('artist_profiles')
-          .select('id')
+          .select('id, minimum_guarantee')
           .eq('user_id', user.id)
           .maybeSingle()
 
@@ -181,7 +182,8 @@ export default function Dashboard() {
 
         const normalizedRequests = requestsList.map((request: any) => ({
           ...request,
-          requester_name: hostNameById[request.host_id] || 'Host'
+          requester_name: hostNameById[request.host_id] || 'Host',
+          minimum_guarantee: musicianProfile.minimum_guarantee ?? null
         }))
 
         setRequestsError(null)
@@ -229,11 +231,12 @@ export default function Dashboard() {
         ) as string[]
 
         let musicianNameById: Record<string, string> = {}
+        let musicianGuaranteeById: Record<string, number | null> = {}
 
         if (musicianIds.length > 0) {
           const { data: musicianProfiles, error: musicianProfilesError } = await supabase
-            .from('profiles')
-            .select('id, name')
+            .from('artist_profiles')
+            .select('id, name, minimum_guarantee')
             .in('id', musicianIds)
 
           if (musicianProfilesError) {
@@ -243,12 +246,17 @@ export default function Dashboard() {
               acc[profile.id] = profile.name || 'Musician'
               return acc
             }, {})
+            musicianGuaranteeById = (musicianProfiles || []).reduce((acc: Record<string, number | null>, profile: any) => {
+              acc[profile.id] = profile.minimum_guarantee ?? null
+              return acc
+            }, {})
           }
         }
 
         const normalizedRequests = requestsList.map((request: any) => ({
           ...request,
-          musician_name: musicianNameById[request.musician_id] || 'Musician'
+          musician_name: musicianNameById[request.musician_id] || 'Musician',
+          minimum_guarantee: musicianGuaranteeById[request.musician_id] ?? null
         }))
 
         setHostRequests(normalizedRequests)
@@ -617,6 +625,11 @@ export default function Dashboard() {
             />
           </div>
         ))}
+      </div>
+      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem', marginBottom: '12px' }}>
+        Guaranteed minimum: {activeCounterOfferId && ([...bookingRequests, ...hostRequests].find((request) => request.id === activeCounterOfferId)?.minimum_guarantee != null)
+          ? `$${Number([...bookingRequests, ...hostRequests].find((request) => request.id === activeCounterOfferId)?.minimum_guarantee).toFixed(2)}`
+          : 'Not set'}
       </div>
       {counterOfferError && (
         <div style={{ color: '#F5B5B5', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', marginBottom: '12px' }}>
@@ -1043,6 +1056,9 @@ export default function Dashboard() {
                       <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
                         You: {request.musician_split ?? 60}% • Host: {request.host_split ?? 33}% • Platform: 7%
                       </div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.9rem', marginTop: '6px' }}>
+                        Guaranteed minimum: {request.minimum_guarantee != null ? `$${Number(request.minimum_guarantee).toFixed(2)}` : 'Not set'}
+                      </div>
                     </div>
                   </div>
 
@@ -1086,6 +1102,9 @@ export default function Dashboard() {
                       fontFamily: "'DM Sans', sans-serif"
                     }}>
                       Counter offer received: Musician {request.proposed_musician_pct ?? DEFAULT_COUNTER_SPLIT.musician}% • Host {request.proposed_host_pct ?? DEFAULT_COUNTER_SPLIT.host}% • Platform {request.proposed_platform_pct ?? DEFAULT_COUNTER_SPLIT.platform}%
+                      <div style={{ marginTop: '6px', color: '#8C7B6B', fontSize: '0.9rem' }}>
+                        Guaranteed minimum: {request.minimum_guarantee != null ? `$${Number(request.minimum_guarantee).toFixed(2)}` : 'Not set'}
+                      </div>
                     </div>
                   )}
 
@@ -1281,6 +1300,9 @@ export default function Dashboard() {
                         : request.status === 'negotiating'
                           ? `Counter offer proposed: Musician ${request.proposed_musician_pct ?? DEFAULT_COUNTER_SPLIT.musician}% • Host ${request.proposed_host_pct ?? DEFAULT_COUNTER_SPLIT.host}% • Platform ${request.proposed_platform_pct ?? DEFAULT_COUNTER_SPLIT.platform}%`
                         : 'Waiting for your response.'}
+                    <div style={{ marginTop: '6px', color: '#8C7B6B', fontSize: '0.9rem' }}>
+                      Guaranteed minimum: {request.minimum_guarantee != null ? `$${Number(request.minimum_guarantee).toFixed(2)}` : 'Not set'}
+                    </div>
                   </div>
 
                   {request.message && (

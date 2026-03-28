@@ -21,6 +21,7 @@ interface Musician {
   name: string
   bio: string
   photo_url?: string
+  minimum_guarantee?: number | null
 }
 
 function BookShowContent() {
@@ -81,7 +82,20 @@ function BookShowContent() {
             console.error('Error loading musician:', error)
             setError('Musician not found')
           } else if (musicianData) {
-            setMusician(musicianData)
+            const { data: artistProfile, error: artistProfileError } = await supabase
+              .from('artist_profiles')
+              .select('minimum_guarantee')
+              .eq('id', musicianId)
+              .maybeSingle()
+
+            if (artistProfileError) {
+              console.error('Error loading musician minimum guarantee:', artistProfileError)
+            }
+
+            setMusician({
+              ...musicianData,
+              minimum_guarantee: artistProfile?.minimum_guarantee ?? null
+            })
           }
         } else {
           setError('No musician specified')
@@ -424,6 +438,23 @@ function BookShowContent() {
               }}
             />
           </div>
+
+          {musician?.minimum_guarantee != null && (
+            <div style={{
+              marginBottom: '24px',
+              padding: '16px',
+              borderRadius: '10px',
+              background: 'rgba(44,34,24,0.35)',
+              border: '1px solid rgba(212,130,10,0.2)'
+            }}>
+              <div style={{ color: '#F5F0E8', fontSize: '0.95rem', fontWeight: 600, marginBottom: '6px' }}>
+                Minimum Guarantee
+              </div>
+              <div style={{ color: '#8C7B6B', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                You agree to guarantee this artist a minimum of ${Number(musician.minimum_guarantee).toFixed(2)}. If your 60% ticket split exceeds this, the artist earns the split instead.
+              </div>
+            </div>
+          )}
 
           <p style={{
             color: '#8C7B6B',

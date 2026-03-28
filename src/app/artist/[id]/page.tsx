@@ -7,13 +7,15 @@ interface ArtistProfile {
   id: string
   name?: string | null
   bio?: string | null
-  photo_url?: string | null
-  spotify_url?: string | null
+  genre?: string | null
+  location?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  profile_image_url?: string | null
   youtube_url?: string | null
   soundcloud_url?: string | null
   instagram_url?: string | null
-  facebook_url?: string | null
-  website_url?: string | null
+  available?: boolean | null
 }
 
 interface ArtistShow {
@@ -50,10 +52,9 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
     const loadArtist = async () => {
       try {
         const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, name, bio, photo_url, spotify_url, youtube_url, soundcloud_url, instagram_url, facebook_url, website_url')
+          .from('artist_profiles')
+          .select('id, name, bio, genre, location, latitude, longitude, profile_image_url, youtube_url, soundcloud_url, instagram_url, available')
           .eq('id', params.id)
-          .eq('user_type', 'musician')
           .maybeSingle()
 
         if (profileError) {
@@ -131,12 +132,9 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
   }
 
   const links = [
-    { name: 'Spotify', icon: '🎵', url: profile?.spotify_url },
     { name: 'YouTube', icon: '🎬', url: profile?.youtube_url },
     { name: 'SoundCloud', icon: '🎧', url: profile?.soundcloud_url },
-    { name: 'Instagram', icon: '📷', url: profile?.instagram_url },
-    { name: 'Facebook', icon: '📘', url: profile?.facebook_url },
-    { name: 'Website', icon: '🌐', url: profile?.website_url }
+    { name: 'Instagram', icon: '📷', url: profile?.instagram_url }
   ].filter((link) => Boolean(link.url))
 
   if (loading) {
@@ -165,7 +163,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
         <section style={{ marginTop: '18px', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '14px', padding: '18px', background: 'rgba(44,34,24,0.35)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
             <img
-              src={profile.photo_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=260&q=60'}
+              src={profile.profile_image_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=260&q=60'}
               alt={profile.name || 'Artist'}
               style={{ width: '84px', height: '84px', borderRadius: '999px', objectFit: 'cover' }}
             />
