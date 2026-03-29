@@ -341,7 +341,7 @@ export default function VenueRadarPage() {
                           )}
                         </div>
                       </div>
-                      <a href={`/request-show/${venue.id}`} style={{
+                      <a href={`/book-show`} style={{
                         background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                         color: '#1A1410',
                         padding: '10px 16px',

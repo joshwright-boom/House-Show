@@ -10,7 +10,7 @@ interface BookingRequest {
   proposed_date: string
   ticket_price: number
   message: string
-  status: 'pending'
+  status: string
   proposed_musician_pct: number
   proposed_host_pct: number
   proposed_platform_pct: number
