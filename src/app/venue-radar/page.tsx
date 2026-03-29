@@ -152,9 +152,7 @@ export default function VenueRadarPage() {
 
             const distanceKm = calculateDistance(userLocation.lat, userLocation.lng, host.latitude, host.longitude)
             const distanceMiles = distanceKm / 1.60934
-            const isAvailable = host.availability_status === 'based_here' || host.availability_status === 'open_to_travel'
-
-            if (!isAvailable || (distanceMiles > 100 && distanceMiles >= 0.01)) return
+            if (distanceMiles > 100 && distanceMiles >= 0.01) return
 
             const hostProfile = hostProfilesById.get(host.id)
             const hostUserId = hostProfile?.user_id || host.id
