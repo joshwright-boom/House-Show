@@ -245,6 +245,34 @@ function BookShowInner() {
         return
       }
 
+      let resolvedMusicianId = musicianId || musician?.id || null
+
+      if (!resolvedMusicianId) {
+        const { data: musicianProfile, error: musicianProfileError } = await supabase
+          .from('artist_profiles')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .maybeSingle()
+
+        if (musicianProfileError) {
+          console.error('Error loading musician profile for booking request:', musicianProfileError)
+          setError('Failed to load musician profile')
+          return
+        }
+
+        if (!musicianProfile?.id) {
+          setError('Musician profile not found')
+          return
+        }
+
+        resolvedMusicianId = musicianProfile.id
+      }
+
+      if (!resolvedMusicianId) {
+        setError('Musician profile not found')
+        return
+      }
+
       let resolvedHostId = selectedHost?.id || null
 
       if (!resolvedHostId) {
@@ -276,7 +304,7 @@ function BookShowInner() {
       }
 
       const bookingRequest: BookingRequest = {
-        musician_id: musician.id,
+        musician_id: resolvedMusicianId,
         host_id: resolvedHostId,
         proposed_date: formData.proposed_date,
         ticket_price: parseFloat(formData.offer_amount),
