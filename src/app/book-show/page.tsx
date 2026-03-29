@@ -32,6 +32,12 @@ interface Musician {
   minimum_guarantee?: number | null
 }
 
+interface HostProfile {
+  id: string
+  neighborhood?: string | null
+  full_address?: string | null
+}
+
 const getArtistInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
 const getSocialLinks = (musician: Musician) => {
   const links = []
@@ -47,6 +53,8 @@ function BookShowInner() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [musician, setMusician] = useState<Musician | null>(null)
   const [musicianId, setMusicianId] = useState<string | null>(null)
+  const [hostId, setHostId] = useState<string | null>(null)
+  const [selectedHost, setSelectedHost] = useState<HostProfile | null>(null)
   const [searchParamsReady, setSearchParamsReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -70,7 +78,9 @@ function BookShowInner() {
 
   useEffect(() => {
     const musicianId = searchParams.get('musician_id')
+    const hostId = searchParams.get('host_id')
     setMusicianId(musicianId)
+    setHostId(hostId)
     setSearchParamsReady(true)
   }, [searchParams])
 
@@ -89,19 +99,6 @@ function BookShowInner() {
         }
         
         setUser({ id: user.id, email: user.email })
-
-        // Check if user is a host
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('user_type')
-          .eq('id', user.id)
-          .single()
-
-        if (profile?.user_type !== 'host') {
-          setError('Only hosts can send booking requests')
-          setLoading(false)
-          return
-        }
 
         // Load musician details
         if (musicianId) {
@@ -138,8 +135,63 @@ function BookShowInner() {
           } else {
             setError('Musician not found')
           }
-        } else {
-          setError('No musician specified')
+        }
+
+        if (hostId) {
+          const { data: hostData, error: hostError } = await supabase
+            .from('host_profiles')
+            .select('id, neighborhood, full_address')
+            .eq('id', hostId)
+            .maybeSingle()
+
+          if (hostError) {
+            console.error('Error loading host profile:', hostError)
+            setError('Host not found')
+          } else if (hostData) {
+            setSelectedHost(hostData)
+          } else {
+            setError('Host not found')
+          }
+        }
+
+        if (!musicianId && hostId) {
+          const { data: musicianData, error: musicianError } = await supabase
+            .from('artist_profiles')
+            .select('id, user_id, name, bio, genre, location, minimum_guarantee')
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          if (musicianError) {
+            console.error('Error loading logged-in musician profile:', musicianError)
+            setError('Failed to load your musician profile')
+          } else if (musicianData) {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('id, photo_url, spotify_url, soundcloud_url, facebook_url, youtube_url, instagram_url')
+              .eq('id', musicianData.user_id)
+              .maybeSingle()
+
+            if (profileError) {
+              console.error('Error loading logged-in musician profile details:', profileError)
+            }
+
+            setMusician({
+              ...musicianData,
+              photo_url: profileData?.photo_url || undefined,
+              spotify_url: profileData?.spotify_url || null,
+              soundcloud_url: profileData?.soundcloud_url || null,
+              facebook_url: profileData?.facebook_url || null,
+              youtube_url: profileData?.youtube_url || null,
+              instagram_url: profileData?.instagram_url || null,
+              minimum_guarantee: musicianData.minimum_guarantee ?? null
+            })
+          } else {
+            setError('Musician profile not found')
+          }
+        }
+
+        if (!musicianId && !hostId) {
+          setError('No musician or host specified')
         }
         
       } catch (error) {
@@ -151,7 +203,7 @@ function BookShowInner() {
     }
     
     loadData()
-  }, [musicianId, router, searchParamsReady])
+  }, [hostId, musicianId, router, searchParamsReady])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -193,28 +245,39 @@ function BookShowInner() {
         return
       }
 
-      const { data: hostProfile, error: hostProfileError } = await supabase
-        .from('host_profiles')
-        .select('id')
-        .eq('user_id', authUser.id)
-        .maybeSingle()
+      let resolvedHostId = selectedHost?.id || null
 
-      if (hostProfileError) {
-        console.error('Error loading host profile for booking request:', hostProfileError)
-        console.error('Host profile lookup details:', JSON.stringify(hostProfileError, null, 2))
-        setError('Failed to load host profile')
-        return
+      if (!resolvedHostId) {
+        const { data: hostProfile, error: hostProfileError } = await supabase
+          .from('host_profiles')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .maybeSingle()
+
+        if (hostProfileError) {
+          console.error('Error loading host profile for booking request:', hostProfileError)
+          console.error('Host profile lookup details:', JSON.stringify(hostProfileError, null, 2))
+          setError('Failed to load host profile')
+          return
+        }
+
+        if (!hostProfile?.id) {
+          console.error('Host profile not found for auth user:', authUser.id)
+          setError('Host profile not found')
+          return
+        }
+
+        resolvedHostId = hostProfile.id
       }
 
-      if (!hostProfile?.id) {
-        console.error('Host profile not found for auth user:', authUser.id)
+      if (!resolvedHostId) {
         setError('Host profile not found')
         return
       }
 
       const bookingRequest: BookingRequest = {
         musician_id: musician.id,
-        host_id: hostProfile.id,
+        host_id: resolvedHostId,
         proposed_date: formData.proposed_date,
         ticket_price: parseFloat(formData.offer_amount),
         message: formData.message,

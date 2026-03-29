@@ -31,6 +31,17 @@ export default function VenueRadarPage() {
   const [selectedVenue, setSelectedVenue] = useState<VenueHost | null>(null)
   const [locationError, setLocationError] = useState(false)
   const [venues, setVenues] = useState<VenueHost[]>([])
+  const [hostProfilesById, setHostProfilesById] = useState(new Map<string, {
+    id: string
+    user_id?: string | null
+    venue_description?: string | null
+    address?: string | null
+    neighborhood?: string | null
+    venue_photo_url?: string | null
+    amenities?: string[] | null
+    has_sound_equipment?: boolean | null
+    venue_capacity?: number | null
+  }>())
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371
@@ -108,6 +119,7 @@ export default function VenueRadarPage() {
               }
             ])
           )
+          setHostProfilesById(hostProfilesById)
 
           const profileIds = Array.from(
             new Set(
@@ -341,7 +353,7 @@ export default function VenueRadarPage() {
                           )}
                         </div>
                       </div>
-                      <a href={`/book-show`} style={{
+                      <a href={`/book-show?host_id=${hostProfilesById.get(venue.id)?.id || venue.id}`} style={{
                         background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                         color: '#1A1410',
                         padding: '10px 16px',
