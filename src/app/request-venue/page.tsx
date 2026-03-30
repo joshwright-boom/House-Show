@@ -8,7 +8,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 interface HostProfile {
   id: string
   user_id: string
-  neighborhood?: string | null
+  location?: string | null
+  address?: string | null
+  description?: string | null
+  capacity?: number | null
   venue_description?: string | null
   venue_capacity?: number | null
   has_sound_equipment?: boolean | null
@@ -93,7 +96,7 @@ function RequestVenueInner() {
 
         const { data: hostData, error: hostError } = await supabase
           .from('host_profiles')
-          .select('id, user_id, neighborhood, venue_description, venue_capacity, has_sound_equipment, venue_photo_url')
+          .select('id, user_id, venue_description, venue_capacity, has_sound_equipment, venue_photo_url, location, address, description, capacity')
           .eq('id', hostId)
           .maybeSingle()
         console.log('RequestVenue host_profiles query result:', {
@@ -327,7 +330,7 @@ function RequestVenueInner() {
                 {hostProfile?.name || 'Host Venue'}
               </h1>
               <p style={{ color: '#D9C6A5', fontFamily: "'DM Sans', sans-serif", marginTop: 0, marginBottom: '8px' }}>
-                {host?.neighborhood || 'Neighborhood not listed'}
+                {host?.location || host?.address || 'Location not listed'}
               </p>
               {host?.venue_description && (
                 <p style={{ color: '#8C7B6B', lineHeight: 1.6, marginTop: 0, marginBottom: '24px', fontFamily: "'DM Sans', sans-serif" }}>
