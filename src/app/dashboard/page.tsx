@@ -67,6 +67,8 @@ const parseSplitValue = (value: string) => Number.parseInt(value, 10) || 0
 const getCounterOfferTotal = (values: { musician: string; host: string; platform: string }) =>
   parseSplitValue(values.musician) + parseSplitValue(values.host) + parseSplitValue(values.platform)
 
+const ACTIVE_MODE_STORAGE_KEY = 'houseshow_active_mode'
+
 export default function Dashboard() {
   // Required migration:
   // ALTER TABLE booking_requests
@@ -215,12 +217,30 @@ export default function Dashboard() {
         .eq('id', user.id)
         .single()
 
+      const { data: hostProfile } = await supabase
+        .from('host_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const savedActiveMode = typeof window !== 'undefined'
+        ? window.localStorage.getItem(ACTIVE_MODE_STORAGE_KEY)
+        : null
+
+      const resolvedActiveMode: 'musician' | 'host' =
+        savedActiveMode === 'host' || savedActiveMode === 'musician'
+          ? savedActiveMode
+          : hostProfile?.id
+            ? 'host'
+            : 'musician'
+      
       setUser({ 
         id: user.id,
         email: user.email,
         user_type: profile?.user_type || 'musician',
-        active_mode: profile?.active_mode || 'musician'
+        active_mode: resolvedActiveMode
       })
+      setActiveMode(resolvedActiveMode)
     }
 
     loadUser()
@@ -459,17 +479,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadActiveMode = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const savedActiveMode = typeof window !== 'undefined'
+        ? window.localStorage.getItem(ACTIVE_MODE_STORAGE_KEY)
+        : null
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('active_mode')
-        .eq('id', user.id)
-        .single()
-
-      if (profile?.active_mode === 'musician' || profile?.active_mode === 'host') {
-        setActiveMode(profile.active_mode)
+      if (savedActiveMode === 'musician' || savedActiveMode === 'host') {
+        setActiveMode(savedActiveMode)
       }
     }
 
@@ -497,6 +512,10 @@ export default function Dashboard() {
       if (error) {
         console.error('Error switching mode:', error)
         return
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(ACTIVE_MODE_STORAGE_KEY, newMode)
       }
 
       setActiveMode(newMode)
