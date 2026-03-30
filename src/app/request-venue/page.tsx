@@ -15,8 +15,7 @@ interface HostProfile {
   venue_description?: string | null
   venue_capacity?: number | null
   has_sound_equipment?: boolean | null
-  venue_photo_url?: string | null
-}
+  }
 
 interface HostAccountProfile {
   id: string
@@ -96,7 +95,7 @@ function RequestVenueInner() {
 
         const { data: hostData, error: hostError } = await supabase
           .from('host_profiles')
-          .select('id, user_id, description, capacity, venue_photo_url')
+          .select('id, user_id, description, capacity')
           .eq('id', hostId)
           .maybeSingle()
         console.log('RequestVenue host_profiles query result:', {
@@ -300,14 +299,7 @@ function RequestVenueInner() {
             background: 'rgba(44,34,24,0.35)',
             overflow: 'hidden'
           }}>
-            {host?.venue_photo_url?.trim() ? (
-              <img
-                src={host.venue_photo_url}
-                alt={hostProfile?.name || 'Venue'}
-                style={{ width: '100%', height: '220px', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              <div style={{
+            <div style={{
                 width: '100%',
                 height: '220px',
                 background: 'rgba(26,20,16,0.95)',
@@ -320,7 +312,6 @@ function RequestVenueInner() {
               }}>
                 {hostProfile?.name?.trim().charAt(0).toUpperCase() || 'H'}
               </div>
-            )}
 
             <div style={{ padding: '32px' }}>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '10px' }}>
