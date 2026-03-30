@@ -202,7 +202,7 @@ function RequestVenueInner() {
         proposed_date: formData.proposed_date,
         ticket_price: Number.isFinite(ticketPrice) ? ticketPrice : 0,
         message: formData.message,
-        guaranteed_minimum: Number.isFinite(guaranteedMinimum) ? guaranteedMinimum : 0,
+        guaranteed_minimum: Number.isFinite(guaranteedMinimum) ? Math.round(guaranteedMinimum) : 0,
         status: 'pending',
         proposed_musician_pct: 60,
         proposed_host_pct: 33,
