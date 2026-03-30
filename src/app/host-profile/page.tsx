@@ -148,6 +148,7 @@ export default function HostProfile() {
       setProfile(savedProfile as HostProfile)
       
       setSaveSuccess(true)
+      setTimeout(() => { window.location.href = '/dashboard' }, 1500)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error) {
       console.error('Error saving host profile:', error)
