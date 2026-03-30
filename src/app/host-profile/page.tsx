@@ -10,19 +10,14 @@ interface HostProfile {
   description?: string
   venue_description: string
   neighborhood?: string
-  full_address?: string
   address: string
   available?: boolean
   has_sound_equipment?: boolean
   venue_capacity?: number
   capacity: number
   venue_photo_url?: string
-  photo_urls: string[]
   amenities: string[]
-  house_rules: string
   contact_preference: 'email' | 'message'
-  created_at: string
-  updated_at: string
 }
 
 export default function HostProfile() {
@@ -40,9 +35,7 @@ export default function HostProfile() {
     venue_capacity: '',
     capacity: '',
     venue_photo_url: '',
-    photo_urls: ['', '', '', '', ''],
     amenities: [] as string[],
-    house_rules: '',
     contact_preference: 'email' as 'email' | 'message'
   })
   const [isSaving, setIsSaving] = useState(false)
@@ -71,7 +64,7 @@ export default function HostProfile() {
       // Load existing host profile
       const { data: profileData } = await supabase
         .from('host_profiles')
-        .select('*')
+        .select('id, user_id, venue_name, description, venue_description, neighborhood, address, available, has_sound_equipment, venue_capacity, capacity, venue_photo_url, amenities, contact_preference')
         .eq('user_id', user.id)
         .maybeSingle()
       
@@ -82,16 +75,14 @@ export default function HostProfile() {
           description: profileData.description || '',
           venue_description: profileData.venue_description || '',
           neighborhood: profileData.neighborhood || '',
-          full_address: profileData.full_address || profileData.address || '',
+          full_address: profileData.address || '',
           address: profileData.address || '',
           available: profileData.available ?? true,
           has_sound_equipment: profileData.has_sound_equipment ?? false,
           venue_capacity: profileData.venue_capacity?.toString() || profileData.capacity?.toString() || '',
           capacity: profileData.capacity?.toString() || '',
           venue_photo_url: profileData.venue_photo_url || '',
-          photo_urls: profileData.photo_urls || ['', '', '', '', ''],
           amenities: profileData.amenities || [],
-          house_rules: profileData.house_rules || '',
           contact_preference: profileData.contact_preference || 'email'
         })
       }
@@ -123,7 +114,6 @@ export default function HostProfile() {
         venue_name: formData.venue_name,
         description: formData.description || null,
         neighborhood: formData.neighborhood || null,
-        full_address: formData.full_address || null,
         venue_description: formData.venue_description,
         address: formData.full_address || formData.address,
         available: formData.available,
@@ -131,16 +121,13 @@ export default function HostProfile() {
         venue_capacity: parseInt(formData.venue_capacity) || parseInt(formData.capacity) || 0,
         capacity: parseInt(formData.capacity) || 0,
         venue_photo_url: formData.venue_photo_url || null,
-        photo_urls: formData.photo_urls.filter(url => url.trim() !== ''),
         amenities: formData.amenities,
-        house_rules: formData.house_rules,
-        contact_preference: formData.contact_preference,
-        updated_at: new Date().toISOString()
+        contact_preference: formData.contact_preference
       }
 
       const { data: savedProfile, error: saveError } = await supabase
         .from('host_profiles')
-        .upsert({ ...profileData, created_at: profile?.created_at || new Date().toISOString() }, { onConflict: 'user_id' })
+        .upsert(profileData, { onConflict: 'user_id' })
         .select()
         .single()
 
@@ -167,14 +154,6 @@ export default function HostProfile() {
 
   const handleBooleanChange = (field: 'available' | 'has_sound_equipment', value: boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handlePhotoUrlChange = (index: number, value: string) => {
-    setFormData(prev => {
-      const newPhotoUrls = [...prev.photo_urls]
-      newPhotoUrls[index] = value
-      return { ...prev, photo_urls: newPhotoUrls }
-    })
   }
 
   const handleAmenityToggle = (amenityId: string) => {
@@ -337,7 +316,7 @@ export default function HostProfile() {
                     {profile.venue_description}
                   </p>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.85rem' }}>
-                    📍 {profile.neighborhood ? `${profile.neighborhood} • ` : ''}{profile.full_address || profile.address}
+                    📍 {profile.neighborhood ? `${profile.neighborhood} • ` : ''}{profile.address}
                   </p>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.85rem', marginTop: '6px' }}>
                     Sound Equipment: {profile.has_sound_equipment ? 'Yes' : 'No'} • Status: {profile.available ? 'Available' : 'Unavailable'}
@@ -384,29 +363,6 @@ export default function HostProfile() {
                           </span>
                         ) : null
                       })}
-                    </div>
-                  </div>
-                )}
-
-                {profile.photo_urls.length > 0 && (
-                  <div>
-                    <h5 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#F5F0E8', marginBottom: '12px' }}>
-                      Venue Photos
-                    </h5>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                      {profile.photo_urls.filter(url => url.trim() !== '').map((url, index) => (
-                        <img 
-                          key={index}
-                          src={url} 
-                          alt={`Venue photo ${index + 1}`}
-                          style={{ 
-                            width: '100%', 
-                            height: '150px', 
-                            borderRadius: '8px',
-                            objectFit: 'cover'
-                          }}
-                        />
-                      ))}
                     </div>
                   </div>
                 )}
@@ -718,50 +674,6 @@ export default function HostProfile() {
                 {uploadingPhoto ? 'Uploading venue photo...' : 'Upload a primary photo for your venue.'}
               </p>
             </div>
-
-            {/* Photo URLs */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontFamily: 'Playfair Display, serif',
-                fontSize: '1.1rem',
-                color: '#F5F0E8',
-                marginBottom: '12px'
-              }}>
-                Venue Photos (Up to 5)
-              </label>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {formData.photo_urls.map((url, index) => (
-                  <div key={index} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ 
-                      fontFamily: 'Space Mono, monospace', 
-                      color: '#D4820A', 
-                      fontSize: '0.85rem',
-                      minWidth: '60px'
-                    }}>
-                      Photo {index + 1}
-                    </span>
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => handlePhotoUrlChange(index, e.target.value)}
-                      placeholder="https://example.com/venue-photo.jpg"
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        border: '1px solid rgba(212,130,10,0.2)',
-                        borderRadius: '6px',
-                        background: 'rgba(44,34,24,0.3)',
-                        color: '#F5F0E8',
-                        fontSize: '0.9rem',
-                        fontFamily: 'DM Sans, sans-serif'
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Amenities */}
             <div>
               <label style={{
@@ -811,37 +723,6 @@ export default function HostProfile() {
                 ))}
               </div>
             </div>
-
-            {/* House Rules */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontFamily: 'Playfair Display, serif',
-                fontSize: '1.1rem',
-                color: '#F5F0E8',
-                marginBottom: '12px'
-              }}>
-                House Rules
-              </label>
-              <textarea
-                value={formData.house_rules}
-                onChange={(e) => handleInputChange('house_rules', e.target.value)}
-                placeholder="Any rules or guidelines for musicians (e.g., load-in times, noise restrictions, equipment policy, etc.)"
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  background: 'rgba(44,34,24,0.3)',
-                  color: '#F5F0E8',
-                  fontSize: '1rem',
-                  fontFamily: 'DM Sans, sans-serif',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-
             {/* Contact Preference */}
             <div>
               <label style={{
