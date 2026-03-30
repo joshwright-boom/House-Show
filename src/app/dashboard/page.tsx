@@ -123,7 +123,7 @@ export default function Dashboard() {
 
       const { data: requests, error } = await supabase
         .from('booking_requests')
-        .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, message, status, host_id, musician_id')
+        .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id')
         .eq('musician_id', musicianProfile.id)
         .order('created_at', { ascending: false })
 
@@ -287,7 +287,7 @@ export default function Dashboard() {
 
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, message, status, host_id, musician_id')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id')
           .eq('host_id', hostProfile.id)
           .order('created_at', { ascending: false })
 
