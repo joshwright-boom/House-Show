@@ -61,6 +61,10 @@ function RequestVenueInner() {
         setError(null)
 
         const hostId = searchParams.get('host_id')
+        console.log('RequestVenue URL params:', {
+          host_id: hostId,
+          search: searchParams.toString()
+        })
 
         if (!hostId) {
           setError('No host specified')
@@ -71,6 +75,10 @@ function RequestVenueInner() {
           data: { user },
           error: authError
         } = await supabase.auth.getUser()
+        console.log('RequestVenue auth.getUser result:', {
+          user,
+          authError
+        })
 
         if (authError) {
           console.error('Error loading authenticated user:', authError)
@@ -88,6 +96,11 @@ function RequestVenueInner() {
           .select('id, user_id, neighborhood, venue_description, venue_capacity, has_sound_equipment, venue_photo_url')
           .eq('id', hostId)
           .maybeSingle()
+        console.log('RequestVenue host_profiles query result:', {
+          hostId,
+          hostData,
+          hostError
+        })
 
         if (hostError) {
           console.error('Error loading host:', hostError)
@@ -107,6 +120,11 @@ function RequestVenueInner() {
           .select('id, name, photo_url')
           .eq('id', hostData.user_id)
           .maybeSingle()
+        console.log('RequestVenue profiles query result:', {
+          profileUserId: hostData.user_id,
+          profileData,
+          profileError
+        })
 
         if (profileError) {
           console.error('Error loading host profile:', profileError)
@@ -119,6 +137,11 @@ function RequestVenueInner() {
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle()
+        console.log('RequestVenue artist_profiles query result:', {
+          authUserId: user.id,
+          artistProfile,
+          artistProfileError
+        })
 
         if (artistProfileError) {
           console.error('Error loading musician profile:', artistProfileError)
@@ -183,10 +206,15 @@ function RequestVenueInner() {
         proposed_host_pct: 33,
         proposed_platform_pct: 7
       }
+      console.log('RequestVenue booking request payload:', payload)
 
       const { error: insertError } = await supabase
         .from('booking_requests')
         .insert([payload])
+      console.log('RequestVenue booking request insert result:', {
+        insertError,
+        insertErrorDetails: insertError ? JSON.stringify(insertError, null, 2) : null
+      })
 
       if (insertError) {
         console.error('Error creating venue request:', insertError)
