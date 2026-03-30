@@ -106,7 +106,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: requestError?.message || 'Booking request not found.' }, { status: 404 })
       }
 
-      if (bookingRequest.host_id !== user.id && bookingRequest.musician_id !== user.id) {
+      const [{ data: currentHostProfile, error: currentHostProfileError }, { data: currentArtistProfile, error: currentArtistProfileError }] = await Promise.all([
+        dbSupabase
+          .from('host_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        dbSupabase
+          .from('artist_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+      ])
+
+      if (currentHostProfileError || currentArtistProfileError) {
+        return NextResponse.json(
+          {
+            error:
+              currentHostProfileError?.message ||
+              currentArtistProfileError?.message ||
+              'Unable to verify booking ownership.'
+          },
+          { status: 403 }
+        )
+      }
+
+      const isHostOnBooking = currentHostProfile?.id === bookingRequest.host_id
+      const isMusicianOnBooking = currentArtistProfile?.id === bookingRequest.musician_id
+
+      if (!isHostOnBooking && !isMusicianOnBooking) {
         return NextResponse.json({ error: 'Only the host or musician on this booking can create the show.' }, { status: 403 })
       }
 
