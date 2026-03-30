@@ -141,6 +141,20 @@ export async function POST(request: NextRequest) {
       requestDraft = bookingRequest
     }
 
+    let resolvedArtistUserId = selectedMusicianId || user.id
+
+    if (requestDraft?.musician_id) {
+      const { data: artistProfileRow } = await dbSupabase
+        .from('artist_profiles')
+        .select('user_id')
+        .eq('id', requestDraft.musician_id)
+        .maybeSingle()
+
+      if (artistProfileRow?.user_id) {
+        resolvedArtistUserId = artistProfileRow.user_id
+      }
+    }
+
     const normalizedDate = normalizeDateForInsert(formData?.date || requestDraft?.show_date || null)
 
     if (!normalizedDate) {
@@ -168,7 +182,7 @@ export async function POST(request: NextRequest) {
     }
 
     const hostUserId = requestDraft?.host_id || user.id
-    const artistUserId = requestDraft?.musician_id || selectedMusicianId || user.id
+    const artistUserId = resolvedArtistUserId
 
     const showInsertPayload = {
       artist_name: (artist_name || formData?.artist_name || '').trim(),
