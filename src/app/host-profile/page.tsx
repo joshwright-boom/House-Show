@@ -33,7 +33,6 @@ export default function HostProfile() {
     available: true,
     has_sound_equipment: false,
     venue_capacity: '',
-    capacity: '',
     venue_photo_url: '',
     amenities: [] as string[],
     contact_preference: 'email' as 'email' | 'message'
@@ -80,7 +79,6 @@ export default function HostProfile() {
           available: profileData.available ?? true,
           has_sound_equipment: profileData.has_sound_equipment ?? false,
           venue_capacity: profileData.venue_capacity?.toString() || profileData.capacity?.toString() || '',
-          capacity: profileData.capacity?.toString() || '',
           venue_photo_url: profileData.venue_photo_url || '',
           amenities: profileData.amenities || [],
           contact_preference: profileData.contact_preference || 'email'
@@ -118,8 +116,8 @@ export default function HostProfile() {
         address: formData.full_address || formData.address,
         available: formData.available,
         has_sound_equipment: formData.has_sound_equipment,
-        venue_capacity: parseInt(formData.venue_capacity) || parseInt(formData.capacity) || 0,
-        capacity: parseInt(formData.capacity) || 0,
+        venue_capacity: parseInt(formData.venue_capacity) || 0,
+        capacity: parseInt(formData.venue_capacity) || 0,
         venue_photo_url: formData.venue_photo_url || null,
         amenities: formData.amenities,
         contact_preference: formData.contact_preference
@@ -594,39 +592,6 @@ export default function HostProfile() {
                 </div>
               </div>
             </div>
-
-            {/* Capacity */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontFamily: 'Playfair Display, serif',
-                fontSize: '1.1rem',
-                color: '#F5F0E8',
-                marginBottom: '12px'
-              }}>
-                Max Capacity (Guests)
-              </label>
-              <input
-                type="number"
-                value={formData.capacity}
-                onChange={(e) => handleInputChange('capacity', e.target.value)}
-                placeholder="10, 25, 50, etc."
-                min="1"
-                max="500"
-                required
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: '1px solid rgba(212,130,10,0.2)',
-                  borderRadius: '8px',
-                  background: 'rgba(44,34,24,0.3)',
-                  color: '#F5F0E8',
-                  fontSize: '1rem',
-                  fontFamily: 'DM Sans, sans-serif'
-                }}
-              />
-            </div>
-
             {/* Venue Photo Upload */}
             <div>
               <label style={{
