@@ -96,7 +96,7 @@ function RequestVenueInner() {
 
         const { data: hostData, error: hostError } = await supabase
           .from('host_profiles')
-          .select('id, user_id, venue_description, venue_capacity, has_sound_equipment, venue_photo_url, location, address, description, capacity')
+          .select('id, user_id, description, capacity, venue_photo_url')
           .eq('id', hostId)
           .maybeSingle()
         console.log('RequestVenue host_profiles query result:', {
@@ -332,7 +332,7 @@ function RequestVenueInner() {
               <p style={{ color: '#D9C6A5', fontFamily: "'DM Sans', sans-serif", marginTop: 0, marginBottom: '8px' }}>
                 {host?.location || host?.address || 'Location not listed'}
               </p>
-              {host?.venue_description && (
+              {host?.description && (
                 <p style={{ color: '#8C7B6B', lineHeight: 1.6, marginTop: 0, marginBottom: '24px', fontFamily: "'DM Sans', sans-serif" }}>
                   {host.venue_description}
                 </p>
@@ -341,7 +341,7 @@ function RequestVenueInner() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
                 <div style={{ border: '1px solid rgba(212,130,10,0.15)', borderRadius: '10px', padding: '14px', background: 'rgba(26,20,16,0.45)' }}>
                   <div style={{ color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '6px' }}>Venue Capacity</div>
-                  <div style={{ color: '#F5F0E8' }}>{host?.venue_capacity ? `${host.venue_capacity} people` : 'Not listed'}</div>
+                  <div style={{ color: '#F5F0E8' }}>{host?.capacity ? `${host.venue_capacity} people` : 'Not listed'}</div>
                 </div>
                 <div style={{ border: '1px solid rgba(212,130,10,0.15)', borderRadius: '10px', padding: '14px', background: 'rgba(26,20,16,0.45)' }}>
                   <div style={{ color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '6px' }}>Sound Equipment</div>
