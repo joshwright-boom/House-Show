@@ -23,6 +23,7 @@ interface HostProfile {
 export default function HostProfile() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [profile, setProfile] = useState<HostProfile | null>(null)
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [formData, setFormData] = useState({
     venue_name: '',
     description: '',
@@ -40,6 +41,7 @@ export default function HostProfile() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false)
 
   const amenityOptions = [
     { id: 'pa_system', label: 'PA System', icon: '🎤' },
@@ -59,6 +61,14 @@ export default function HostProfile() {
       }
       
       setUser({ id: user.id, email: user.email })
+
+      const { data: accountProfile } = await supabase
+        .from('profiles')
+        .select('photo_url')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      setProfilePhotoUrl(accountProfile?.photo_url || '')
       
       // Load existing host profile
       const { data: profileData } = await supabase
@@ -216,6 +226,73 @@ export default function HostProfile() {
       alert(error instanceof Error ? error.message : 'Failed to upload venue photo.')
     } finally {
       setUploadingPhoto(false)
+    }
+  }
+
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    setUploadingProfilePhoto(true)
+
+    try {
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets()
+        const avatarsBucket = buckets?.find((bucket) => bucket.name === 'avatars')
+
+        if (!avatarsBucket) {
+          const { error: createBucketError } = await supabase.storage.createBucket('avatars', {
+            public: true,
+            allowedMimeTypes: ['image/*']
+          })
+
+          if (createBucketError) {
+            console.error('Error creating avatars bucket:', createBucketError)
+          }
+        }
+      } catch (bucketError) {
+        console.error('Error checking avatars bucket:', bucketError)
+      }
+
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-profile-${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true, contentType: file.type })
+
+      if (uploadError) {
+        console.error('Profile photo upload error:', uploadError)
+        alert(`Upload failed: ${uploadError.message}`)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName)
+
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ photo_url: publicUrl })
+        .eq('id', user.id)
+
+      if (profileUpdateError) {
+        console.error('Profile photo update error:', profileUpdateError)
+        alert(`Profile update failed: ${profileUpdateError.message}`)
+        return
+      }
+
+      setProfilePhotoUrl(publicUrl)
+    } catch (error) {
+      console.error('Error uploading profile photo:', error)
+      alert(error instanceof Error ? error.message : 'Failed to upload profile photo.')
+    } finally {
+      setUploadingProfilePhoto(false)
     }
   }
 
@@ -589,6 +666,73 @@ export default function HostProfile() {
                       {option.label}
                     </button>
                   ))}
+                </div>
+              </div>
+            </div>
+            {/* Profile Photo Upload */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Profile Photo
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                {profilePhotoUrl ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt="Profile preview"
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1px solid rgba(212,130,10,0.25)'
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(44,34,24,0.3)',
+                      border: '1px solid rgba(212,130,10,0.25)',
+                      color: '#F0A500',
+                      fontFamily: 'Playfair Display, serif',
+                      fontSize: '2rem'
+                    }}
+                  >
+                    {(user?.email?.trim().charAt(0) || 'H').toUpperCase()}
+                  </div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePhotoUpload}
+                    disabled={uploadingProfilePhoto}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      color: '#8C7B6B',
+                      fontFamily: 'DM Sans, sans-serif',
+                      marginBottom: '8px'
+                    }}
+                  />
+                  <p style={{
+                    color: '#8C7B6B',
+                    fontSize: '0.82rem',
+                    fontFamily: 'DM Sans, sans-serif'
+                  }}>
+                    {uploadingProfilePhoto ? 'Uploading profile photo...' : 'Upload a circular profile photo for your host account.'}
+                  </p>
                 </div>
               </div>
             </div>
