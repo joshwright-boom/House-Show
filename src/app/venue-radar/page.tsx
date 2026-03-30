@@ -351,7 +351,7 @@ export default function VenueRadarPage() {
                           )}
                         </div>
                       </div>
-                      <a href={`/book-show?host_id=${hostProfilesById.get(venue.id)?.id || ''}`} style={{
+                      <a href={`/request-venue?host_id=${hostProfilesById.get(venue.id)?.id || ''}`} style={{
                         background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                         color: '#1A1410',
                         padding: '10px 16px',
