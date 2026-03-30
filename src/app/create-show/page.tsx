@@ -216,7 +216,7 @@ function CreateShowContent() {
 
       const { data: hostProfile, error: hostProfileError } = await supabase
         .from('host_profiles')
-        .select('id, neighborhood, address, description, venue_description')
+        .select('id, user_id, description, capacity, address')
         .eq('id', request.host_id)
         .maybeSingle()
 
@@ -230,13 +230,12 @@ function CreateShowContent() {
 
       const hostVenueAddress =
         hostProfile?.address ||
-        request.venue_address
+        (request.venue_address?.trim() ?? '')
 
       const hostVenueName =
         hostProfile?.description ||
-        hostProfile?.venue_description ||
         hostProfile?.address ||
-        request.venue_address
+        (request.venue_address?.trim() ?? '')
 
       const artistName = artistProfile?.name || ''
 
@@ -244,7 +243,7 @@ function CreateShowContent() {
         ...prev,
         show_name: artistName ? `${artistName} Live` : prev.show_name,
         venue_name: prev.venue_name || hostVenueName,
-        neighborhood: hostProfile?.neighborhood || prev.neighborhood,
+        neighborhood: hostProfile?.address || prev.neighborhood,
         full_address: prev.full_address || hostVenueAddress,
         venue_address: hostVenueAddress,
         date: normalizeDateForInput(request.proposed_date),
@@ -263,7 +262,7 @@ function CreateShowContent() {
   }
 
   useEffect(() => {
-    const query = formData.full_address.trim()
+    const query = formData.full_address?.trim() ?? ''
     if (query.length < 3 || !MAPBOX_TOKEN) {
       setAddressSuggestions([])
       setShowAddressSuggestions(false)
