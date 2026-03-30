@@ -45,7 +45,7 @@ const getShowDateValue = (show: Record<string, any>) =>
   show.date || show.show_date || show.event_date || show.scheduled_date || ''
 
 const getShowArtistId = (show: Record<string, any>) =>
-  show.artist_user_id || show.artist_id || show.musician_id || null
+  show.artist_user_id || show.musician_id || null
 
 const getShowHostId = (show: Record<string, any>) =>
   show.host_user_id || show.host_id || null
@@ -336,7 +336,7 @@ export default function Dashboard() {
         const { data: shows, error } = await supabase
           .from('shows')
           .select('*')
-          .or(`host_user_id.eq.${user.id},host_id.eq.${user.id},artist_user_id.eq.${user.id},artist_id.eq.${user.id},musician_id.eq.${user.id}`)
+          .or(`host_user_id.eq.${user.id},host_id.eq.${user.id},artist_user_id.eq.${user.id},musician_id.eq.${user.id}`)
 
         if (error) {
           console.error('Error loading host shows:', error)
@@ -366,7 +366,7 @@ export default function Dashboard() {
         const { data: shows, error } = await supabase
           .from('shows')
           .select('*')
-          .or(`artist_user_id.eq.${user.id},artist_id.eq.${user.id},musician_id.eq.${user.id}`)
+          .or(`artist_user_id.eq.${user.id},musician_id.eq.${user.id}`)
 
         if (error) {
           console.error('Error loading musician shows:', error)
@@ -534,15 +534,23 @@ export default function Dashboard() {
           return
         }
 
-        const { data: musicianProfile, error: musicianProfileError } = await supabase
+        const { data: currentMusicianProfile, error: currentMusicianProfileError } = await supabase
           .from('artist_profiles')
-          .select('id, user_id')
-          .eq('id', request.musician_id)
+          .select('id')
           .eq('user_id', authUser.id)
           .maybeSingle()
 
-        if (musicianProfileError || !musicianProfile) {
-          console.error('Authenticated musician does not match booking request musician profile:', musicianProfileError)
+        if (currentMusicianProfileError) {
+          console.error('Error loading authenticated musician profile while accepting booking request:', currentMusicianProfileError)
+          return
+        }
+
+        if (currentMusicianProfile?.id && currentMusicianProfile.id !== request.musician_id) {
+          console.error('Authenticated musician does not match booking request musician profile:', {
+            requestId,
+            requestMusicianId: request.musician_id,
+            authenticatedMusicianProfileId: currentMusicianProfile.id
+          })
           return
         }
       }
