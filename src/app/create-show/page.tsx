@@ -173,7 +173,31 @@ function CreateShowContent() {
         return
       }
 
-      if (request.host_id !== user.id && request.musician_id !== user.id) {
+      const [{ data: currentHostProfile, error: currentHostProfileError }, { data: currentArtistProfile, error: currentArtistProfileError }] = await Promise.all([
+        supabase
+          .from('host_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('artist_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+      ])
+
+      if (currentHostProfileError) {
+        console.error('Error loading current host profile for booking request ownership:', currentHostProfileError)
+      }
+
+      if (currentArtistProfileError) {
+        console.error('Error loading current artist profile for booking request ownership:', currentArtistProfileError)
+      }
+
+      const isHostOnRequest = currentHostProfile?.id === request.host_id
+      const isMusicianOnRequest = currentArtistProfile?.id === request.musician_id
+
+      if (!isHostOnRequest && !isMusicianOnRequest) {
         console.error('Current user is not part of this booking request')
         return
       }
@@ -192,7 +216,7 @@ function CreateShowContent() {
 
       const { data: hostProfile, error: hostProfileError } = await supabase
         .from('host_profiles')
-        .select('id, neighborhood')
+        .select('id, neighborhood, address, description, venue_description')
         .eq('id', request.host_id)
         .maybeSingle()
 
@@ -204,13 +228,25 @@ function CreateShowContent() {
         setMusicianSearch(artistProfile.name)
       }
 
+      const hostVenueAddress =
+        hostProfile?.address ||
+        request.venue_address
+
+      const hostVenueName =
+        hostProfile?.description ||
+        hostProfile?.venue_description ||
+        hostProfile?.address ||
+        request.venue_address
+
+      const artistName = artistProfile?.name || ''
+
       setFormData(prev => ({
         ...prev,
-        show_name: artistProfile?.name ? `${artistProfile.name} Live` : prev.show_name,
-        venue_name: prev.venue_name || request.venue_address,
+        show_name: artistName ? `${artistName} Live` : prev.show_name,
+        venue_name: prev.venue_name || hostVenueName,
         neighborhood: hostProfile?.neighborhood || prev.neighborhood,
-        full_address: prev.full_address || request.venue_address,
-        venue_address: request.venue_address,
+        full_address: prev.full_address || hostVenueAddress,
+        venue_address: hostVenueAddress,
         date: normalizeDateForInput(request.proposed_date),
         time: prev.time || '19:00',
         ticket_price: String(request.ticket_price ?? ''),
