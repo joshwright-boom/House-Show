@@ -802,7 +802,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
+  const formatDate = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric'
