@@ -297,38 +297,38 @@ export default function HostProfile() {
               <div style={{ display: 'grid', gap: '16px', marginBottom: '16px' }}>
                 <div>
                   <h4 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '4px' }}>
-                    {profile.venue_name}
+                    {profile?.venue_name ?? ''}
                   </h4>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.9rem' }}>
-                    Capacity: {profile.venue_capacity || profile.capacity} guests
+                    Capacity: {profile?.venue_capacity || profile?.capacity || ''} guests
                   </p>
                 </div>
                 
                 <div>
-                  {profile.description ? (
+                  {profile?.description ? (
                     <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#D9C6A5', fontSize: '0.95rem', marginBottom: '8px' }}>
-                      {profile.description}
+                      {profile?.description ?? ''}
                     </p>
                   ) : null}
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#F5F0E8', fontSize: '0.95rem', marginBottom: '8px' }}>
-                    {profile.venue_description}
+                    {profile?.venue_description ?? ''}
                   </p>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.85rem' }}>
-                    📍 {profile.neighborhood ? `${profile.neighborhood} • ` : ''}{profile.address}
+                    📍 {profile?.neighborhood ? `${profile.neighborhood} • ` : ''}{profile?.address ?? ''}
                   </p>
                   <p style={{ fontFamily: 'DM Sans, sans-serif', color: '#8C7B6B', fontSize: '0.85rem', marginTop: '6px' }}>
-                    Sound Equipment: {profile.has_sound_equipment ? 'Yes' : 'No'} • Status: {profile.available ? 'Available' : 'Unavailable'}
+                    Sound Equipment: {profile?.has_sound_equipment ? 'Yes' : 'No'} • Status: {profile?.available ? 'Available' : 'Unavailable'}
                   </p>
                 </div>
 
-                {profile.venue_photo_url && (
+                {profile?.venue_photo_url && (
                   <div>
                     <h5 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#F5F0E8', marginBottom: '12px' }}>
                       Featured Venue Photo
                     </h5>
                     <img
-                      src={profile.venue_photo_url}
-                      alt={`${profile.venue_name} venue`}
+                      src={profile?.venue_photo_url}
+                      alt={`${profile?.venue_name ?? ''} venue`}
                       style={{
                         width: '100%',
                         maxWidth: '360px',
@@ -340,13 +340,13 @@ export default function HostProfile() {
                   </div>
                 )}
 
-                {profile.amenities.length > 0 && (
+                {(profile?.amenities ?? []).length > 0 && (
                   <div>
                     <h5 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1rem', color: '#F5F0E8', marginBottom: '8px' }}>
                       Amenities
                     </h5>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {profile.amenities.map(amenityId => {
+                      {(profile?.amenities ?? []).map(amenityId => {
                         const amenity = amenityOptions.find(a => a.id === amenityId)
                         return amenity ? (
                           <span key={amenityId} style={{
