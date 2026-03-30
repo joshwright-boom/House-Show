@@ -7,16 +7,16 @@ interface ShowRow {
   id: string
   artist_name?: string | null
   venue_name?: string | null
+  venue_address?: string | null
   show_date?: string | null
   ticket_price?: number | null
   status?: string | null
   neighborhood?: string | null
-  city?: string | null
 }
 
-const formatPublicArea = (neighborhood?: string | null, city?: string | null) => {
+const formatPublicArea = (neighborhood?: string | null, venueAddress?: string | null) => {
   if (neighborhood?.trim()) return `${neighborhood.trim()} area`
-  if (city?.trim()) return city.trim()
+  if (venueAddress?.trim()) return venueAddress.trim()
   return ''
 }
 
@@ -41,7 +41,7 @@ export default function ShowsPage() {
       try {
         const { data, error } = await supabase
           .from('shows')
-          .select('id, artist_name, venue_name, show_date, ticket_price, status, neighborhood, city')
+          .select('id, artist_name, venue_name, venue_address, show_date, ticket_price, status, neighborhood')
           .eq('status', 'on_sale')
           .order('show_date', { ascending: true })
 
@@ -113,9 +113,9 @@ export default function ShowsPage() {
                   <p style={{ margin: '0 0 6px', color: '#8C7B6B' }}>
                     Venue: {show.venue_name || 'Venue TBD'}
                   </p>
-                  {formatPublicArea(show.neighborhood, show.city) ? (
+                  {formatPublicArea(show.neighborhood, show.venue_address || show.venue_name) ? (
                     <p style={{ margin: '0 0 6px', color: '#8C7B6B' }}>
-                      Area: {formatPublicArea(show.neighborhood, show.city)}
+                      Area: {formatPublicArea(show.neighborhood, show.venue_address || show.venue_name)}
                     </p>
                   ) : null}
                   <p style={{ margin: '0 0 6px', color: '#8C7B6B' }}>
