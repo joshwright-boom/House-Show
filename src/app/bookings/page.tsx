@@ -241,9 +241,45 @@ export default function Bookings() {
         return
       }
 
-      const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
+      const hostIds = Array.from(
+        new Set((requests || []).map((r: any) => r.host_id).filter(Boolean))
+      ) as string[]
+
+      let hostNameById: Record<string, string> = {}
+
+      if (hostIds.length > 0) {
+        const { data: hostProfiles } = await supabase
+          .from('host_profiles')
+          .select('id, user_id, venue_name')
+          .in('id', hostIds)
+
+        const hostUserIds = Array.from(
+          new Set((hostProfiles || []).map((p: any) => p.user_id).filter(Boolean))
+        ) as string[]
+
+        let profileNameById: Record<string, string> = {}
+
+        if (hostUserIds.length > 0) {
+          const { data: profileRows } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', hostUserIds)
+
+          profileNameById = (profileRows || []).reduce((acc: Record<string, string>, p: any) => {
+            acc[p.id] = p.name || ''
+            return acc
+          }, {})
+        }
+
+        hostNameById = (hostProfiles || []).reduce((acc: Record<string, string>, p: any) => {
+          acc[p.id] = profileNameById[p.user_id] || p.venue_name || 'Host'
+          return acc
+        }, {})
+      }
+
+      const transformedRequests: BookingRequest[] = (requests || []).map((request: any) => ({
         ...request,
-        host_name: 'Host',
+        host_name: hostNameById[request.host_id] || 'Host',
         host_email: ''
       }))
 
@@ -324,11 +360,7 @@ export default function Bookings() {
 
       if (error) throw error
 
-      // Refresh booking requests
-      if (user) {
-        await fetchBookingRequests(user.id)
-      }
-      alert('Booking request accepted! The host can now create the ticket page for this show.')
+      window.location.href = `/create-show?requestId=${requestId}`
     } catch (error) {
       console.error('Error accepting request:', error)
       alert('Failed to accept request. Please try again.')
@@ -807,63 +839,86 @@ export default function Bookings() {
         </div>
       )}
 
-      <div style={{
-        marginBottom: '16px',
-        padding: '12px 14px',
-        borderRadius: '8px',
-        background: 'rgba(212,130,10,0.08)',
-        border: '1px solid rgba(212,130,10,0.16)',
-        color: '#F5F0E8',
-        fontSize: '0.9rem'
-      }}>
-        Accepting this invitation sends the host a confirmation through HouseShow so they can publish the ticket page.
-      </div>
+      {request.status === 'accepted' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{
+            padding: '12px 14px',
+            borderRadius: '8px',
+            background: 'rgba(34,197,94,0.08)',
+            border: '1px solid rgba(34,197,94,0.2)',
+            color: '#86EFAC',
+            fontSize: '0.9rem'
+          }}>
+            You accepted this booking. Click below to create the show so tickets can go on sale.
+          </div>
+          <div>
+            <a
+              href={`/create-show?requestId=${request.id}`}
+              style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                color: '#1A1410',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                textDecoration: 'none'
+              }}
+            >
+              Create Show
+            </a>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{
+            marginBottom: '16px',
+            padding: '12px 14px',
+            borderRadius: '8px',
+            background: 'rgba(212,130,10,0.08)',
+            border: '1px solid rgba(212,130,10,0.16)',
+            color: '#F5F0E8',
+            fontSize: '0.9rem'
+          }}>
+            Accepting this invitation will take you to create the show so tickets can go on sale.
+          </div>
 
-      <div style={{ display: 'flex', gap: '12px' }}>
-        <button 
-          onClick={() => handleAcceptRequest(request.id)}
-          style={{
-            background: 'linear-gradient(135deg, #4CAF50, #66BB6A)',
-            color: '#1A1410',
-            padding: '10px 20px',
-            borderRadius: '6px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            fontFamily: "'DM Sans', sans-serif",
-            border: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          Accept
-        </button>
-        <button 
-          onClick={() => handleDeclineRequest(request.id)}
-          style={{
-            background: 'transparent',
-            color: '#D4820A',
-            padding: '10px 20px',
-            borderRadius: '6px',
-            fontSize: '0.85rem',
-            fontFamily: "'DM Sans', sans-serif",
-            border: '1px solid rgba(212,130,10,0.2)',
-            cursor: 'pointer'
-          }}
-        >
-          Decline
-        </button>
-        <button style={{
-          background: 'transparent',
-          color: '#8C7B6B',
-          padding: '10px 20px',
-          borderRadius: '6px',
-          fontSize: '0.85rem',
-          fontFamily: "'DM Sans', sans-serif",
-          border: '1px solid rgba(140,123,107,0.2)',
-          cursor: 'pointer'
-        }}>
-          Counter Offer
-        </button>
-      </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={() => handleAcceptRequest(request.id)}
+              style={{
+                background: 'linear-gradient(135deg, #4CAF50, #66BB6A)',
+                color: '#1A1410',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => handleDeclineRequest(request.id)}
+              style={{
+                background: 'transparent',
+                color: '#D4820A',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontFamily: "'DM Sans', sans-serif",
+                border: '1px solid rgba(212,130,10,0.2)',
+                cursor: 'pointer'
+              }}
+            >
+              Decline
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 

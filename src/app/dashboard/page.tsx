@@ -1155,7 +1155,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {activeMode === 'musician' && user?.user_type !== 'fan' && (
+        {false && activeMode === 'musician' && user?.user_type !== 'fan' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
               Incoming Booking Requests
@@ -1430,7 +1430,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {activeMode === 'host' && (
+        {false && activeMode === 'host' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
               Incoming Booking Requests
