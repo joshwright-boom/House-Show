@@ -72,6 +72,7 @@ function CreateShowContent() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [userRole, setUserRole] = useState<'host' | 'musician' | null>(null)
   const [requestDraft, setRequestDraft] = useState<BookingRequestDraft | null>(null)
+  const [resolvedArtistName, setResolvedArtistName] = useState('')
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [selectedMusician, setSelectedMusician] = useState<Musician | null>(null)
@@ -144,6 +145,31 @@ function CreateShowContent() {
           }))
         }
       }
+
+      console.log('Resolving current user artist profile for create-show form:', {
+        authUserId: user.id
+      })
+      const { data: currentArtistProfile, error: currentArtistProfileError } = await supabase
+        .from('artist_profiles')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      console.log('Current user artist profile result:', {
+        currentArtistProfile,
+        currentArtistProfileError
+      })
+
+      if (currentArtistProfile?.name) {
+        setResolvedArtistName(currentArtistProfile.name)
+        setSelectedMusician({
+          id: currentArtistProfile.id,
+          name: currentArtistProfile.name,
+          bio: '',
+          user_type: 'musician'
+        })
+        setMusicianSearch(currentArtistProfile.name)
+      }
     }
     
     checkUser()
@@ -201,6 +227,11 @@ function CreateShowContent() {
         .eq('id', request.musician_id)
         .maybeSingle()
 
+      console.log('Booking request artist profile result:', {
+        artistProfile,
+        artistProfileError
+      })
+
       if (artistProfileError) {
         console.error('Error loading artist profile for request draft:', artistProfileError)
       }
@@ -216,7 +247,14 @@ function CreateShowContent() {
       }
 
       if (artistProfile?.name) {
+        setResolvedArtistName(artistProfile.name)
         setMusicianSearch(artistProfile.name)
+        setSelectedMusician({
+          id: artistProfile.id,
+          name: artistProfile.name,
+          bio: '',
+          user_type: 'musician'
+        })
       }
 
       const hostVenueAddress =
@@ -370,6 +408,13 @@ function CreateShowContent() {
         throw new Error('Your session expired. Please sign in again and retry.')
       }
 
+      console.log('Resolved artist name before create-show submit:', {
+        requestId,
+        resolvedArtistName,
+        selectedMusicianId: selectedMusician?.id || null,
+        selectedMusicianName: selectedMusician?.name || null
+      })
+
       const response = await fetch('/api/create-show', {
         method: 'POST',
         headers: {
@@ -380,7 +425,7 @@ function CreateShowContent() {
           requestId,
           formData,
           selectedMusicianId: selectedMusician?.id || null,
-          artist_name: selectedMusician?.name || null
+          artist_name: resolvedArtistName || selectedMusician?.name || null
         })
       })
 
@@ -813,157 +858,183 @@ function CreateShowContent() {
               </select>
             </div>
 
-            {/* Musician Selection */}
-            <div id="musician-search-field">
-              <label style={{
-                display: 'block',
-                fontFamily: "'Playfair Display', serif",
-                fontSize: '1.1rem',
-                color: '#F5F0E8',
-                marginBottom: '12px'
-              }}>
-                Preferred Musician (Optional)
-              </label>
-              <div style={{ position: 'relative' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    value={musicianSearch}
-                    onChange={(e) => handleMusicianSearch(e.target.value)}
-                    placeholder="Search for a musician..."
-                    onFocus={() => musicianResults.length > 0 && setShowMusicianDropdown(true)}
-                    style={{
-                      flex: 1,
-                      padding: '16px',
-                      border: '1px solid rgba(212,130,10,0.2)',
-                      borderRadius: '8px',
-                      background: 'rgba(44,34,24,0.3)',
-                      color: '#F5F0E8',
-                      fontSize: '1rem',
-                      fontFamily: "'DM Sans', sans-serif"
-                    }}
-                  />
-                  {selectedMusician && (
-                    <button
-                      type="button"
-                      onClick={clearMusician}
-                      style={{
-                        padding: '16px',
-                        background: 'rgba(212,130,10,0.2)',
-                        border: '1px solid rgba(212,130,10,0.3)',
-                        borderRadius: '8px',
-                        color: '#D4820A',
-                        fontSize: '0.9rem',
-                        fontFamily: "'DM Sans', sans-serif",
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Clear
-                    </button>
-                  )}
+            {resolvedArtistName && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Artist
+                </label>
+                <div style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}>
+                  {resolvedArtistName}
                 </div>
-                
-                {/* Musician Dropdown */}
-                {showMusicianDropdown && musicianResults.length > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: 'rgba(26,20,16,0.95)',
-                    border: '1px solid rgba(212,130,10,0.2)',
-                    borderRadius: '8px',
-                    marginTop: '4px',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    zIndex: 10
-                  }}>
-                    {musicianResults.map((musician) => (
-                      <div
-                        key={musician.id}
-                        onClick={() => selectMusician(musician)}
+              </div>
+            )}
+
+            {!requestDraft && userRole === 'host' && !resolvedArtistName && (
+              <div id="musician-search-field">
+                <label style={{
+                  display: 'block',
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Preferred Musician (Optional)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={musicianSearch}
+                      onChange={(e) => handleMusicianSearch(e.target.value)}
+                      placeholder="Search for a musician..."
+                      onFocus={() => musicianResults.length > 0 && setShowMusicianDropdown(true)}
+                      style={{
+                        flex: 1,
+                        padding: '16px',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                        borderRadius: '8px',
+                        background: 'rgba(44,34,24,0.3)',
+                        color: '#F5F0E8',
+                        fontSize: '1rem',
+                        fontFamily: "'DM Sans', sans-serif"
+                      }}
+                    />
+                    {selectedMusician && (
+                      <button
+                        type="button"
+                        onClick={clearMusician}
                         style={{
-                          padding: '12px 16px',
-                          cursor: 'pointer',
-                          borderBottom: '1px solid rgba(212,130,10,0.1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px'
-                        }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'rgba(240,165,0,0.1)'
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'transparent'
+                          padding: '16px',
+                          background: 'rgba(212,130,10,0.2)',
+                          border: '1px solid rgba(212,130,10,0.3)',
+                          borderRadius: '8px',
+                          color: '#D4820A',
+                          fontSize: '0.9rem',
+                          fontFamily: "'DM Sans', sans-serif",
+                          cursor: 'pointer'
                         }}
                       >
-                        {musician.photo_url && (
-                          <img
-                            src={musician.photo_url}
-                            alt={musician.name}
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              objectFit: 'cover'
-                            }}
-                          />
-                        )}
-                        <div style={{ flex: 1 }}>
-                          <div style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontSize: '0.95rem',
-                            color: '#F5F0E8',
-                            fontWeight: 500
-                          }}>
-                            {musician.name}
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  
+                  {showMusicianDropdown && musicianResults.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'rgba(26,20,16,0.95)',
+                      border: '1px solid rgba(212,130,10,0.2)',
+                      borderRadius: '8px',
+                      marginTop: '4px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 10
+                    }}>
+                      {musicianResults.map((musician) => (
+                        <div
+                          key={musician.id}
+                          onClick={() => selectMusician(musician)}
+                          style={{
+                            padding: '12px 16px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid rgba(212,130,10,0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(240,165,0,0.1)'
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'transparent'
+                          }}
+                        >
+                          {musician.photo_url && (
+                            <img
+                              src={musician.photo_url}
+                              alt={musician.name}
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                objectFit: 'cover'
+                              }}
+                            />
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{
+                              fontFamily: "'DM Sans', sans-serif",
+                              fontSize: '0.95rem',
+                              color: '#F5F0E8',
+                              fontWeight: 500
+                            }}>
+                              {musician.name}
+                            </div>
+                            {musician.zip_code && (
+                              <div style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: '0.8rem',
+                                color: '#8C7B6B',
+                                marginTop: '2px'
+                              }}>
+                                📍 {musician.zip_code}
+                              </div>
+                            )}
+                            {musician.bio && (
+                              <div style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: '0.8rem',
+                                color: '#8C7B6B',
+                                marginTop: '2px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {musician.bio}
+                              </div>
+                            )}
                           </div>
-                          {musician.zip_code && (
-                            <div style={{
-                              fontFamily: "'DM Sans', sans-serif",
-                              fontSize: '0.8rem',
-                              color: '#8C7B6B',
-                              marginTop: '2px'
-                            }}>
-                              📍 {musician.zip_code}
-                            </div>
-                          )}
-                          {musician.bio && (
-                            <div style={{
-                              fontFamily: "'DM Sans', sans-serif",
-                              fontSize: '0.8rem',
-                              color: '#8C7B6B',
-                              marginTop: '2px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {musician.bio}
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {searchingMusicians && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    padding: '16px',
-                    textAlign: 'center',
-                    color: '#8C7B6B',
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: '0.9rem'
-                  }}>
-                    Searching...
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                  
+                  {searchingMusicians && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      padding: '16px',
+                      textAlign: 'center',
+                      color: '#8C7B6B',
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: '0.9rem'
+                    }}>
+                      Searching...
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Show Description */}
             <div>
