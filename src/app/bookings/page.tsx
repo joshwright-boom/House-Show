@@ -103,12 +103,9 @@ export default function Bookings() {
       })
       
       await fetchBookings(user.id)
-      if (profile?.user_type === 'musician') {
-        await fetchAvailableShows()
-        await fetchBookingRequests(user.id)
-      } else {
-        await fetchHostRequests(user.id)
-      }
+      await fetchAvailableShows()
+      await fetchBookingRequests(user.id)
+      await fetchHostRequests(user.id)
     }
     
     checkUser()
