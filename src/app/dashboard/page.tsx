@@ -630,9 +630,16 @@ export default function Dashboard() {
       }
 
       if (status === 'accepted') {
-        setBookingRequests(prev => prev.filter(r => r.id !== requestId))
-        setHostRequests(prev => prev.filter(r => r.id !== requestId))
+        window.location.href = '/bookings'
+        return
       }
+
+      setBookingRequests(prev =>
+        prev.map(r => r.id === requestId ? { ...r, status } : r)
+      )
+      setHostRequests(prev =>
+        prev.map(r => r.id === requestId ? { ...r, status } : r)
+      )
     } catch (error) {
       console.error(`Error updating booking request to ${status}:`, error)
     } finally {
