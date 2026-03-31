@@ -149,7 +149,7 @@ export default function Bookings() {
       if (hostIds.length > 0) {
         const { data: hostProfiles, error: hostProfilesError } = await supabase
           .from('host_profiles')
-          .select('id, user_id, neighborhood, full_address')
+          .select('id, user_id, neighborhood, address')
           .or(`id.in.(${hostIds.join(',')}),user_id.in.(${hostIds.join(',')})`)
 
         if (hostProfilesError) {
@@ -160,7 +160,7 @@ export default function Bookings() {
           ;(hostProfiles || []).forEach((profile: any) => {
             const value = {
               neighborhood: profile.neighborhood || null,
-              full_address: profile.full_address || null
+              full_address: profile.address || null
             }
 
             hostProfileEntries.push([profile.id, value])
@@ -383,6 +383,40 @@ export default function Bookings() {
       alert('Booking request declined.')
     } catch (error) {
       console.error('Error declining request:', error)
+      alert('Failed to decline request. Please try again.')
+    }
+  }
+
+  const handleHostAcceptRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      window.location.href = `/create-show?requestId=${requestId}`
+    } catch (error) {
+      console.error('Error accepting host request:', error)
+      alert('Failed to accept request. Please try again.')
+    }
+  }
+
+  const handleHostDeclineRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({ status: 'declined' })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      if (user) {
+        await fetchHostRequests(user.id)
+      }
+    } catch (error) {
+      console.error('Error declining host request:', error)
       alert('Failed to decline request. Please try again.')
     }
   }
@@ -927,22 +961,10 @@ export default function Bookings() {
     const ticketHref = matchingShow ? getShowHref(matchingShow.id) : `/create-show?requestId=${request.id}`
     const statusBadgeStyles =
       request.status === 'accepted'
-        ? {
-            background: 'rgba(34,197,94,0.12)',
-            border: '1px solid rgba(34,197,94,0.32)',
-            color: '#86EFAC'
-          }
+        ? { background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.32)', color: '#86EFAC' }
         : request.status === 'declined'
-          ? {
-              background: 'rgba(239,68,68,0.12)',
-              border: '1px solid rgba(239,68,68,0.32)',
-              color: '#FCA5A5'
-            }
-          : {
-              background: 'transparent',
-              border: '1px solid rgba(212,130,10,0.3)',
-              color: '#F5F0E8'
-            }
+          ? { background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.32)', color: '#FCA5A5' }
+          : { background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#F5F0E8' }
 
     return (
       <div style={{
@@ -952,73 +974,61 @@ export default function Bookings() {
         background: 'rgba(44,34,24,0.3)',
         marginBottom: '16px'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div>
-            <h3 style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: '1.3rem',
-              color: '#F5F0E8',
-              marginBottom: '4px'
-            }}>
-              Invite for {request.musician_name || 'Musician'}
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', color: '#F5F0E8', marginBottom: '6px' }}>
+              {request.musician_name || 'Musician'}
             </h3>
-            <p style={{
-              fontFamily: "'DM Sans', sans-serif",
-              color: '#8C7B6B',
-              fontSize: '0.95rem'
-            }}>
-              📍 {request.venue_address}
+            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.9rem', marginBottom: '4px' }}>
+              📅 {request.proposed_date ? formatDate(request.proposed_date) : 'Date TBD'}
             </p>
-            <a
-              href={getDirectionsHref(request.venue_address)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-block',
-                marginTop: '8px',
-                fontFamily: "'DM Sans', sans-serif",
-                color: '#D4820A',
-                fontSize: '0.9rem',
-                textDecoration: 'none',
-                fontWeight: 600
-              }}
-            >
-              Get Directions
-            </a>
+            {request.ticket_price != null && (
+              <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
+                ${Number(request.ticket_price).toFixed(2)} per ticket
+              </p>
+            )}
           </div>
-          <div style={{
-            padding: '6px 12px',
-            borderRadius: '999px',
-            ...statusBadgeStyles,
-            textTransform: 'capitalize'
-          }}>
+          <div style={{ padding: '6px 12px', borderRadius: '999px', ...statusBadgeStyles, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
             {request.status}
           </div>
         </div>
 
-        <div style={{ marginBottom: '16px', color: '#F5F0E8' }}>
-          {request.status === 'accepted'
-            ? 'Musician accepted. Publish the ticket page so both of you can share the show link.'
-            : request.status === 'declined'
-              ? 'This invitation was declined.'
-              : 'Waiting for the musician to respond.'}
-        </div>
+        {request.message && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Message</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.9rem', lineHeight: 1.5, background: 'rgba(26,20,16,0.35)', padding: '10px 12px', borderRadius: '6px' }}>
+              {request.message}
+            </div>
+          </div>
+        )}
 
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        {request.status === 'accepted' && (
+          <div style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: '#86EFAC', fontSize: '0.9rem' }}>
+            Accepted — create the ticket page so this show can go on sale.
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {request.status === 'pending' && (
+            <>
+              <button
+                onClick={() => handleHostAcceptRequest(request.id)}
+                style={{ background: 'linear-gradient(135deg, #4CAF50, #66BB6A)', color: '#1A1410', padding: '10px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', cursor: 'pointer' }}
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => handleHostDeclineRequest(request.id)}
+                style={{ background: 'transparent', color: '#D4820A', padding: '10px 18px', borderRadius: '6px', fontSize: '0.85rem', fontFamily: "'DM Sans', sans-serif", border: '1px solid rgba(212,130,10,0.3)', cursor: 'pointer' }}
+              >
+                Decline
+              </button>
+            </>
+          )}
           {request.status === 'accepted' && (
             <a
               href={ticketHref}
-              style={{
-                display: 'inline-block',
-                background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                color: '#1A1410',
-                padding: '10px 20px',
-                borderRadius: '6px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                fontFamily: "'DM Sans', sans-serif",
-                textDecoration: 'none'
-              }}
+              style={{ display: 'inline-block', background: 'linear-gradient(135deg, #D4820A, #F0A500)', color: '#1A1410', padding: '10px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textDecoration: 'none' }}
             >
               {matchingShow ? 'View Ticket Page' : 'Create Ticket Page'}
             </a>
@@ -1026,17 +1036,7 @@ export default function Bookings() {
           {matchingShow && (
             <a
               href={ticketHref}
-              style={{
-                display: 'inline-block',
-                background: 'transparent',
-                color: '#F5F0E8',
-                padding: '10px 20px',
-                borderRadius: '6px',
-                fontSize: '0.85rem',
-                fontFamily: "'DM Sans', sans-serif",
-                border: '1px solid rgba(212,130,10,0.2)',
-                textDecoration: 'none'
-              }}
+              style={{ display: 'inline-block', background: 'transparent', color: '#F5F0E8', padding: '10px 18px', borderRadius: '6px', fontSize: '0.85rem', fontFamily: "'DM Sans', sans-serif", border: '1px solid rgba(212,130,10,0.2)', textDecoration: 'none' }}
             >
               Share Show Link
             </a>
@@ -1145,89 +1145,37 @@ export default function Bookings() {
             </div>
           ) : (
             <>
-              {/* Booking Requests (for musicians) */}
-              {bookingRequests.length > 0 && (
+              {/* Host: Incoming Booking Requests — shown first and always visible */}
+              {user.user_type === 'host' && (
                 <section style={{ marginBottom: '64px' }}>
-                  <h2 style={{ 
-                    fontFamily: "'Playfair Display', serif", 
-                    fontSize: '1.8rem', 
-                    color: '#F5F0E8', 
-                    marginBottom: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
+                  <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#F5F0E8', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     📨 Booking Requests
-                    <span style={{ 
-                      fontFamily: "'Space Mono', monospace", 
-                      fontSize: '0.8rem', 
-                      color: '#D4820A',
-                      background: 'rgba(212,130,10,0.1)',
-                      padding: '4px 12px',
-                      borderRadius: '20px'
-                    }}>
+                    {hostRequests.length > 0 && (
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.8rem', color: '#D4820A', background: 'rgba(212,130,10,0.1)', padding: '4px 12px', borderRadius: '20px' }}>
+                        {hostRequests.length}
+                      </span>
+                    )}
+                  </h2>
+                  {hostRequests.length === 0 ? (
+                    <div style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '32px 24px', background: 'rgba(44,34,24,0.2)', color: '#8C7B6B', fontFamily: "'DM Sans', sans-serif", textAlign: 'center' }}>
+                      No booking requests yet. Musicians will appear here when they request your venue.
+                    </div>
+                  ) : (
+                    hostRequests.map(request => <HostRequestCard key={request.id} request={request} />)
+                  )}
+                </section>
+              )}
+
+              {/* Musician: Booking Requests */}
+              {user.user_type !== 'host' && bookingRequests.length > 0 && (
+                <section style={{ marginBottom: '64px' }}>
+                  <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#F5F0E8', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    📨 Booking Requests
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.8rem', color: '#D4820A', background: 'rgba(212,130,10,0.1)', padding: '4px 12px', borderRadius: '20px' }}>
                       {bookingRequests.length}
                     </span>
                   </h2>
-                  
                   {bookingRequests.map(request => <BookingRequestCard key={request.id} request={request} />)}
-                </section>
-              )}
-
-              {/* Available Shows (for hosts) */}
-              {profile?.user_type === 'host' && availableShows.length > 0 && (
-                <section style={{ marginBottom: '64px' }}>
-                  <h2 style={{ 
-                    fontFamily: "'Playfair Display', serif", 
-                    fontSize: '1.8rem', 
-                    color: '#F5F0E8', 
-                    marginBottom: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    🎵 Available Shows
-                    <span style={{ 
-                      fontFamily: "'Space Mono', monospace", 
-                      fontSize: '0.8rem', 
-                      color: '#F0A500',
-                      background: 'rgba(240,165,0,0.1)',
-                      padding: '4px 12px',
-                      borderRadius: '20px'
-                    }}>
-                      {availableShows.length}
-                    </span>
-                  </h2>
-                  
-                  {availableShows.map(show => <ShowCard key={show.id} show={show} />)}
-                </section>
-              )}
-
-              {user.user_type === 'host' && hostRequests.length > 0 && (
-                <section style={{ marginBottom: '64px' }}>
-                  <h2 style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: '1.8rem',
-                    color: '#F5F0E8',
-                    marginBottom: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    📨 Sent Invitations
-                    <span style={{
-                      fontFamily: "'Space Mono', monospace",
-                      fontSize: '0.8rem',
-                      color: '#D4820A',
-                      background: 'rgba(212,130,10,0.1)',
-                      padding: '4px 12px',
-                      borderRadius: '20px'
-                    }}>
-                      {hostRequests.length}
-                    </span>
-                  </h2>
-
-                  {hostRequests.map(request => <HostRequestCard key={request.id} request={request} />)}
                 </section>
               )}
 
