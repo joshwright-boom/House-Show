@@ -25,6 +25,8 @@ interface VenueHost {
   distanceMiles: number
 }
 
+type LoadedVenueHost = Omit<VenueHost, 'distanceMiles'>
+
 const getHostInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
 
 export default function VenueRadarPage() {
@@ -34,7 +36,7 @@ export default function VenueRadarPage() {
   const [locationSearch, setLocationSearch] = useState('')
   const [locationSearching, setLocationSearching] = useState(false)
   const [venues, setVenues] = useState<VenueHost[]>([])
-  const [allHosts, setAllHosts] = useState<VenueHost[]>([])
+  const [allHosts, setAllHosts] = useState<LoadedVenueHost[]>([])
   const [hostProfilesById, setHostProfilesById] = useState(new Map<string, {
     id: string
     user_id?: string | null
@@ -148,7 +150,7 @@ export default function VenueRadarPage() {
           }))
         }
 
-        const mergedHosts: VenueHost[] = (hosts || []).reduce((acc: VenueHost[], host) => {
+        const mergedHosts: LoadedVenueHost[] = (hosts || []).reduce((acc: LoadedVenueHost[], host) => {
           const hostProfile = nextHostProfilesById.get(host.id)
           const fallbackCoords = geocodedCoordsByHostId.get(host.id)
           const hostLatitude = host.latitude ?? fallbackCoords?.latitude
@@ -170,8 +172,7 @@ export default function VenueRadarPage() {
             has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
             venue_capacity: hostProfile?.venue_capacity ?? null,
             venue_description: hostProfile?.venue_description || null,
-            hostProfileId: hostProfile?.id || null,
-            distanceMiles: 0
+            hostProfileId: hostProfile?.id || null
           })
           return acc
         }, [])
