@@ -90,8 +90,6 @@ export default function VenueRadarPage() {
           .from('profiles')
           .select('id, name, bio, user_type, latitude, longitude, location_address, availability_status, zip_code, photo_url')
           .eq('user_type', 'host')
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
 
         const hostIds = (hosts || []).map((host) => host.id).filter(Boolean)
         let hostProfilesById = new Map<string, {
@@ -106,6 +104,7 @@ export default function VenueRadarPage() {
           venue_capacity?: number | null
         }>()
         let profilesById = new Map<string, { photo_url?: string | null }>()
+        const geocodedCoordsByHostId = new Map<string, { latitude: number; longitude: number }>()
 
         if (hostIds.length > 0) {
           const { data: hostProfiles } = await supabase
@@ -152,25 +151,52 @@ export default function VenueRadarPage() {
               ])
             )
           }
+
+          await Promise.all((hosts || []).map(async (host) => {
+            if (host.latitude != null && host.longitude != null) return
+
+            const hostProfile = hostProfilesById.get(host.id)
+            const address = (hostProfile?.address || host.location_address || '').trim()
+            if (!address) return
+
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`)
+              const results = await res.json()
+              if (results[0]) {
+                geocodedCoordsByHostId.set(host.id, {
+                  latitude: parseFloat(results[0].lat),
+                  longitude: parseFloat(results[0].lon)
+                })
+              }
+            } catch (error) {
+              console.error('Error geocoding host venue address:', error)
+            }
+          }))
         }
 
         if (hosts) {
           const nearby: VenueHost[] = []
 
           hosts.forEach((host) => {
-            if (!host.latitude || !host.longitude) return
+            const hostProfile = hostProfilesById.get(host.id)
+            const fallbackCoords = geocodedCoordsByHostId.get(host.id)
+            const hostLatitude = host.latitude ?? fallbackCoords?.latitude
+            const hostLongitude = host.longitude ?? fallbackCoords?.longitude
 
-            const distanceKm = calculateDistance(userLocation.lat, userLocation.lng, host.latitude, host.longitude)
+            if (hostLatitude == null || hostLongitude == null) return
+
+            const distanceKm = calculateDistance(userLocation.lat, userLocation.lng, hostLatitude, hostLongitude)
             const distanceMiles = distanceKm / 1.60934
             if (distanceMiles > 100 && distanceMiles >= 0.01) return
 
-            const hostProfile = hostProfilesById.get(host.id)
             const hostUserId = hostProfile?.user_id || host.id
             const linkedProfile = profilesById.get(hostUserId)
 
             nearby.push({
               ...host,
               user_id: hostUserId,
+              latitude: hostLatitude,
+              longitude: hostLongitude,
               bio: hostProfile?.venue_description || host.bio || '',
               photo_url: linkedProfile?.photo_url || host.photo_url || null,
               venue_photo_url: hostProfile?.venue_photo_url || null,
