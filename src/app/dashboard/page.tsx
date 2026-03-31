@@ -129,8 +129,7 @@ export default function Dashboard() {
         .from('booking_requests')
         .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id')
         .eq('musician_id', musicianProfile.id)
-        .neq('status', 'accepted')
-        .neq('status', 'confirmed')
+        .or('status.eq.pending,status.eq.negotiating')
         .order('created_at', { ascending: false })
 
       if (error) {
