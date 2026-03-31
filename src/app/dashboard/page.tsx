@@ -630,7 +630,8 @@ export default function Dashboard() {
       }
 
       if (status === 'accepted') {
-        window.location.href = '/bookings'
+        setBookingRequests(prev => prev.filter(r => r.id !== requestId))
+        setHostRequests(prev => prev.filter(r => r.id !== requestId))
         return
       }
 
