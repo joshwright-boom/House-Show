@@ -1246,7 +1246,7 @@ export default function Dashboard() {
                       color: '#F5F0E8',
                       fontFamily: "'DM Sans', sans-serif"
                     }}>
-                      Waiting for the host to respond.
+                      A host wants to book you — accept or make a counter offer.
                     </div>
                   )}
 

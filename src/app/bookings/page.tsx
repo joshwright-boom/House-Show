@@ -216,12 +216,27 @@ export default function Bookings() {
 
   const fetchBookingRequests = async (userId: string) => {
     try {
-      // Fetch booking requests for this musician
+      const { data: artistProfile, error: artistProfileError } = await supabase
+        .from('artist_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (artistProfileError) {
+        console.error('Error fetching artist profile for booking requests:', artistProfileError)
+        return
+      }
+
+      if (!artistProfile?.id) {
+        setBookingRequests([])
+        return
+      }
+
       const { data: requests, error } = await supabase
         .from('booking_requests')
         .select('*')
-        .eq('musician_id', userId)
-        .eq('status', 'pending')
+        .eq('musician_id', artistProfile.id)
+        .in('status', ['pending', 'accepted', 'negotiating'])
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -229,7 +244,6 @@ export default function Bookings() {
         return
       }
 
-      // Transform data to include host name
       const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
         ...request,
         host_name: 'Host',
