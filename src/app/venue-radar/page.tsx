@@ -236,7 +236,11 @@ export default function VenueRadarPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '16px' }}>
-              {venues.map((venue) => (
+              {venues.map((venue) => {
+                const hostProfile = hostProfilesById.get(venue.id)
+                console.log('Venue radar resolved host_id:', hostProfile?.id || venue.id)
+
+                return (
                 <article
                   key={venue.id}
                   style={{
@@ -351,7 +355,7 @@ export default function VenueRadarPage() {
                           )}
                         </div>
                       </div>
-                      <a href={`/request-venue?host_id=${hostProfilesById.get(venue.id)?.id || ''}`} style={{
+                      <a href={`/request-venue?host_id=${hostProfile?.id || venue.id}`} style={{
                         background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                         color: '#1A1410',
                         padding: '10px 16px',
@@ -368,7 +372,7 @@ export default function VenueRadarPage() {
                     </div>
                   </div>
                 </article>
-              ))}
+              )})}
             </div>
           )}
         </div>
