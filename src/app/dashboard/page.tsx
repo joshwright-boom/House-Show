@@ -618,14 +618,6 @@ export default function Dashboard() {
           return
         }
 
-        if (currentMusicianProfile?.id && currentMusicianProfile.id !== request.musician_id) {
-          console.error('Authenticated musician does not match booking request musician profile:', {
-            requestId,
-            requestMusicianId: request.musician_id,
-            authenticatedMusicianProfileId: currentMusicianProfile.id
-          })
-          return
-        }
       }
 
       const { error } = await supabase
@@ -638,18 +630,9 @@ export default function Dashboard() {
         return
       }
 
-      if (status === 'accepted' && user?.id) {
-        setRequestsLoading(true)
-        await loadMusicianBookingRequests(user.id)
-      }
-
-      if (status !== 'accepted') {
-        setBookingRequests(prev =>
-          prev.map(request => request.id === requestId ? { ...request, status } : request)
-        )
-        setHostRequests(prev =>
-          prev.map(request => request.id === requestId ? { ...request, status } : request)
-        )
+      if (status === 'accepted') {
+        setBookingRequests(prev => prev.filter(r => r.id !== requestId))
+        setHostRequests(prev => prev.filter(r => r.id !== requestId))
       }
     } catch (error) {
       console.error(`Error updating booking request to ${status}:`, error)
