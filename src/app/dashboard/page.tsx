@@ -150,11 +150,13 @@ export default function Dashboard() {
       ) as string[]
 
       let hostNameById: Record<string, string> = {}
+      let venueNameByHostId: Record<string, string> = {}
 
       if (hostIds.length > 0) {
+        console.log('Loading host profiles for musician booking requests:', { hostIds })
         const { data: hostProfiles, error: hostProfilesError } = await supabase
           .from('host_profiles')
-          .select('id, user_id')
+          .select('id, user_id, venue_name')
           .in('id', hostIds)
 
         if (hostProfilesError) {
@@ -186,15 +188,17 @@ export default function Dashboard() {
             acc[profile.id] = hostUserNameById[profile.user_id] || 'Host'
             return acc
           }, {})
+          venueNameByHostId = (hostProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
+            acc[profile.id] = profile.venue_name || 'Venue TBD'
+            return acc
+          }, {})
         }
       }
 
       const normalizedRequests = requestsList.map((request: any) => ({
         ...request,
         requester_name: hostNameById[request.host_id] || 'Host',
-        venue_name: Array.isArray(request.host_profiles)
-          ? request.host_profiles[0]?.venue_name || request.venue_address || null
-          : request.host_profiles?.venue_name || request.venue_address || null,
+        venue_name: venueNameByHostId[request.host_id] || 'Venue TBD',
         minimum_guarantee: musicianProfile.minimum_guarantee ?? null
       }))
 
@@ -330,8 +334,27 @@ export default function Dashboard() {
 
         let musicianNameById: Record<string, string> = {}
         let musicianGuaranteeById: Record<string, number | null> = {}
+        let venueNameByHostId: Record<string, string> = {}
+
+        console.log('Loading host profiles for host booking requests:', {
+          hostIds: [hostProfile.id]
+        })
+        const { data: hostProfiles, error: hostProfilesError } = await supabase
+          .from('host_profiles')
+          .select('id, user_id, venue_name')
+          .eq('id', hostProfile.id)
+
+        if (hostProfilesError) {
+          console.error('Host booking requests host profile lookup error:', hostProfilesError)
+        } else {
+          venueNameByHostId = (hostProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
+            acc[profile.id] = profile.venue_name || 'Venue TBD'
+            return acc
+          }, {})
+        }
 
         if (musicianIds.length > 0) {
+          console.log('Loading musician profiles for host booking requests:', { musicianIds })
           const { data: musicianProfiles, error: musicianProfilesError } = await supabase
             .from('artist_profiles')
             .select('id, name, minimum_guarantee')
@@ -354,9 +377,7 @@ export default function Dashboard() {
         const normalizedRequests = requestsList.map((request: any) => ({
           ...request,
           musician_name: musicianNameById[request.musician_id] || 'Musician',
-          venue_name: Array.isArray(request.host_profiles)
-            ? request.host_profiles[0]?.venue_name || request.venue_address || null
-            : request.host_profiles?.venue_name || request.venue_address || null,
+          venue_name: venueNameByHostId[request.host_id] || 'Venue TBD',
           minimum_guarantee: musicianGuaranteeById[request.musician_id] ?? null
         }))
 
@@ -384,10 +405,11 @@ export default function Dashboard() {
       if (!user?.id) return
 
       try {
+        console.log('Loading host shows for dashboard:', { userId: user.id })
         const { data: shows, error } = await supabase
           .from('shows')
           .select('*')
-          .or(`host_user_id.eq.${user.id},host_id.eq.${user.id},artist_user_id.eq.${user.id},musician_id.eq.${user.id}`)
+          .or(`host_user_id.eq.${user.id},artist_user_id.eq.${user.id}`)
 
         if (error) {
           console.error('Error loading host shows:', error)
@@ -414,10 +436,11 @@ export default function Dashboard() {
       if (!user?.id) return
 
       try {
+        console.log('Loading musician shows for dashboard:', { userId: user.id })
         const { data: shows, error } = await supabase
           .from('shows')
           .select('*')
-          .or(`artist_user_id.eq.${user.id},musician_id.eq.${user.id}`)
+          .eq('artist_user_id', user.id)
 
         if (error) {
           console.error('Error loading musician shows:', error)
