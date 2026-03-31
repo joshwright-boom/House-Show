@@ -246,6 +246,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Show created but could not be loaded.' }, { status: 500 })
     }
 
+    if (requestId) {
+      console.log('Updating booking request status after show creation:', { requestId })
+      const { error: bookingRequestUpdateError } = await dbSupabase
+        .from('booking_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId)
+      console.log('Booking request status update result:', {
+        requestId,
+        bookingRequestUpdateError
+      })
+      if (bookingRequestUpdateError) {
+        console.error('Error updating booking request status after show creation:', bookingRequestUpdateError)
+      }
+    }
+
     try {
       const emailRecipients = new Set<string>()
       if (authData.user?.email) {

@@ -9,6 +9,7 @@ interface BookingRequest {
   musician_id?: string
   musician_name?: string
   requester_name?: string
+  venue_name?: string | null
   created_at: string
   proposed_date: string
   show_date?: string
@@ -121,10 +122,15 @@ export default function Dashboard() {
         return null
       }
 
+      console.log('Loading musician incoming booking requests:', {
+        musicianProfileId: musicianProfile.id
+      })
       const { data: requests, error } = await supabase
         .from('booking_requests')
-        .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id')
+        .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id, host_profiles(venue_name)')
         .eq('musician_id', musicianProfile.id)
+        .neq('status', 'accepted')
+        .neq('status', 'confirmed')
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -186,8 +192,18 @@ export default function Dashboard() {
       const normalizedRequests = requestsList.map((request: any) => ({
         ...request,
         requester_name: hostNameById[request.host_id] || 'Host',
+        venue_name: Array.isArray(request.host_profiles)
+          ? request.host_profiles[0]?.venue_name || request.venue_address || null
+          : request.host_profiles?.venue_name || request.venue_address || null,
         minimum_guarantee: musicianProfile.minimum_guarantee ?? null
       }))
+
+      normalizedRequests.forEach((request: any) => {
+        console.log('Musician booking request venue name:', {
+          requestId: request.id,
+          venueName: request.venue_name
+        })
+      })
 
       setRequestsError(null)
       setBookingRequests(normalizedRequests)
@@ -285,10 +301,15 @@ export default function Dashboard() {
           return
         }
 
+        console.log('Loading host incoming booking requests:', {
+          hostProfileId: hostProfile.id
+        })
         const { data: requests, error } = await supabase
           .from('booking_requests')
-          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id')
+          .select('id, created_at, venue_address, proposed_date, ticket_price, host_split, musician_split, proposed_host_pct, proposed_musician_pct, proposed_platform_pct, guaranteed_minimum, message, status, host_id, musician_id, host_profiles(venue_name)')
           .eq('host_id', hostProfile.id)
+          .neq('status', 'accepted')
+          .neq('status', 'confirmed')
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -333,8 +354,18 @@ export default function Dashboard() {
         const normalizedRequests = requestsList.map((request: any) => ({
           ...request,
           musician_name: musicianNameById[request.musician_id] || 'Musician',
+          venue_name: Array.isArray(request.host_profiles)
+            ? request.host_profiles[0]?.venue_name || request.venue_address || null
+            : request.host_profiles?.venue_name || request.venue_address || null,
           minimum_guarantee: musicianGuaranteeById[request.musician_id] ?? null
         }))
+
+        normalizedRequests.forEach((request: any) => {
+          console.log('Host booking request venue name:', {
+            requestId: request.id,
+            venueName: request.venue_name
+          })
+        })
 
         setHostRequests(normalizedRequests)
       } catch (error) {
@@ -1167,7 +1198,7 @@ export default function Dashboard() {
                         Requester: {request.requester_name || 'Host'}
                       </p>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
-                        Venue: {request.venue_address}
+                        Venue: {request.venue_name || request.venue_address || 'Venue TBD'}
                       </p>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
                         Proposed Date: {formatDate(request.proposed_date)}
@@ -1344,7 +1375,7 @@ export default function Dashboard() {
                           <span style={{ color: '#8C7B6B' }}>Host:</span> {request.requester_name || 'Host'}
                         </div>
                         <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
-                          <span style={{ color: '#8C7B6B' }}>Venue/Address:</span> {request.venue_address}
+                          <span style={{ color: '#8C7B6B' }}>Venue/Address:</span> {request.venue_name || request.venue_address || 'Venue TBD'}
                         </div>
                         <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem' }}>
                           <span style={{ color: '#8C7B6B' }}>Proposed Date:</span> {formatDate(request.proposed_date)}
@@ -1442,7 +1473,7 @@ export default function Dashboard() {
                         Musician: {request.musician_name || 'Musician'}
                       </p>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem', marginBottom: '6px' }}>
-                        Venue: {request.venue_address}
+                        Venue: {request.venue_name || request.venue_address || 'Venue TBD'}
                       </p>
                       <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.95rem' }}>
                         Proposed Date: {formatDate(request.proposed_date)}
