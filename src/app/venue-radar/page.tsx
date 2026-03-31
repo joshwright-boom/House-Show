@@ -34,6 +34,7 @@ export default function VenueRadarPage() {
   const [locationSearch, setLocationSearch] = useState('')
   const [locationSearching, setLocationSearching] = useState(false)
   const [venues, setVenues] = useState<VenueHost[]>([])
+  const [allHosts, setAllHosts] = useState<VenueHost[]>([])
   const [hostProfilesById, setHostProfilesById] = useState(new Map<string, {
     id: string
     user_id?: string | null
@@ -80,19 +81,15 @@ export default function VenueRadarPage() {
   }, [])
 
   useEffect(() => {
-    if (!userLocation) return
-
-    const loadNearbyVenues = async () => {
+    const loadAllHosts = async () => {
       try {
-        // Required host_profiles columns if missing in the database:
-        // user_id UUID, neighborhood TEXT, has_sound_equipment BOOLEAN, venue_capacity INTEGER
         const { data: hosts } = await supabase
           .from('profiles')
           .select('id, name, bio, user_type, latitude, longitude, location_address, availability_status, zip_code, photo_url')
           .eq('user_type', 'host')
 
         const hostIds = (hosts || []).map((host) => host.id).filter(Boolean)
-        let hostProfilesById = new Map<string, {
+        let nextHostProfilesById = new Map<string, {
           id: string
           user_id?: string | null
           venue_description?: string | null
@@ -103,7 +100,6 @@ export default function VenueRadarPage() {
           has_sound_equipment?: boolean | null
           venue_capacity?: number | null
         }>()
-        let profilesById = new Map<string, { photo_url?: string | null }>()
         const geocodedCoordsByHostId = new Map<string, { latitude: number; longitude: number }>()
 
         if (hostIds.length > 0) {
@@ -112,7 +108,7 @@ export default function VenueRadarPage() {
             .select('*')
             .in('user_id', hostIds)
 
-          hostProfilesById = new Map(
+          nextHostProfilesById = new Map(
             (hostProfiles || []).map((profile) => [
               profile.user_id || profile.id,
               {
@@ -128,34 +124,12 @@ export default function VenueRadarPage() {
               }
             ])
           )
-          setHostProfilesById(hostProfilesById)
-
-          const profileIds = Array.from(
-            new Set(
-              (hostProfiles || [])
-                .map((profile) => profile.user_id || profile.id)
-                .filter(Boolean)
-            )
-          )
-
-          if (profileIds.length > 0) {
-            const { data: profileRows } = await supabase
-              .from('profiles')
-              .select('id, photo_url')
-              .in('id', profileIds)
-
-            profilesById = new Map(
-              (profileRows || []).map((profile) => [
-                profile.id,
-                { photo_url: profile.photo_url || null }
-              ])
-            )
-          }
+          setHostProfilesById(nextHostProfilesById)
 
           await Promise.all((hosts || []).map(async (host) => {
             if (host.latitude != null && host.longitude != null) return
 
-            const hostProfile = hostProfilesById.get(host.id)
+            const hostProfile = nextHostProfilesById.get(host.id)
             const address = (hostProfile?.address || host.location_address || '').trim()
             if (!address) return
 
@@ -174,53 +148,60 @@ export default function VenueRadarPage() {
           }))
         }
 
-        if (hosts) {
-          const nearby: VenueHost[] = []
+        const mergedHosts: VenueHost[] = (hosts || []).reduce((acc: VenueHost[], host) => {
+          const hostProfile = nextHostProfilesById.get(host.id)
+          const fallbackCoords = geocodedCoordsByHostId.get(host.id)
+          const hostLatitude = host.latitude ?? fallbackCoords?.latitude
+          const hostLongitude = host.longitude ?? fallbackCoords?.longitude
 
-          hosts.forEach((host) => {
-            const hostProfile = hostProfilesById.get(host.id)
-            const fallbackCoords = geocodedCoordsByHostId.get(host.id)
-            const hostLatitude = host.latitude ?? fallbackCoords?.latitude
-            const hostLongitude = host.longitude ?? fallbackCoords?.longitude
+          if (hostLatitude == null || hostLongitude == null) return acc
 
-            if (hostLatitude == null || hostLongitude == null) return
-
-            const distanceKm = calculateDistance(userLocation.lat, userLocation.lng, hostLatitude, hostLongitude)
-            const distanceMiles = distanceKm / 1.60934
-            if (distanceMiles > 100 && distanceMiles >= 0.01) return
-
-            const hostUserId = hostProfile?.user_id || host.id
-            const linkedProfile = profilesById.get(hostUserId)
-
-            nearby.push({
-              ...host,
-              user_id: hostUserId,
-              latitude: hostLatitude,
-              longitude: hostLongitude,
-              bio: hostProfile?.venue_description || host.bio || '',
-              photo_url: linkedProfile?.photo_url || host.photo_url || null,
-              venue_photo_url: hostProfile?.venue_photo_url || null,
-              neighborhood: hostProfile?.neighborhood || host.location_address?.split(',')[0]?.trim() || '',
-              amenities: hostProfile?.amenities || [],
-              has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
-              venue_capacity: hostProfile?.venue_capacity ?? null,
-              venue_description: hostProfile?.venue_description || null,
-              hostProfileId: hostProfile?.id || null,
-              distanceMiles
-            })
+          const hostUserId = hostProfile?.user_id || host.id
+          acc.push({
+            ...host,
+            user_id: hostUserId,
+            latitude: hostLatitude,
+            longitude: hostLongitude,
+            bio: hostProfile?.venue_description || host.bio || '',
+            photo_url: host.photo_url || null,
+            venue_photo_url: hostProfile?.venue_photo_url || null,
+            neighborhood: hostProfile?.neighborhood || host.location_address?.split(',')[0]?.trim() || '',
+            amenities: hostProfile?.amenities || [],
+            has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
+            venue_capacity: hostProfile?.venue_capacity ?? null,
+            venue_description: hostProfile?.venue_description || null,
+            hostProfileId: hostProfile?.id || null,
+            distanceMiles: 0
           })
+          return acc
+        }, [])
 
-          nearby.sort((a, b) => a.distanceMiles - b.distanceMiles)
-
-          setVenues(nearby)
-        }
+        setAllHosts(mergedHosts)
       } catch (error) {
         console.error('Error loading venues:', error)
       }
     }
 
-    loadNearbyVenues()
-  }, [userLocation])
+    loadAllHosts()
+  }, [])
+
+  useEffect(() => {
+    if (!userLocation || allHosts.length === 0) return
+
+    const nearby = allHosts
+      .map((host) => {
+        const distanceKm = calculateDistance(userLocation.lat, userLocation.lng, host.latitude, host.longitude)
+        const distanceMiles = distanceKm / 1.60934
+        return {
+          ...host,
+          distanceMiles
+        }
+      })
+      .filter((host) => !(host.distanceMiles > 100 && host.distanceMiles >= 0.01))
+      .sort((a, b) => a.distanceMiles - b.distanceMiles)
+
+    setVenues(nearby)
+  }, [userLocation, allHosts])
 
   const availableCount = venues.filter((v) => v.availability_status === 'based_here' || v.availability_status === 'open_to_travel').length
 
