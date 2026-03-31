@@ -481,7 +481,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               style={{ marginTop: '4px', accentColor: '#D4820A' }}
             />
             <span style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-              I understand that house concerts are private events. I agree to hold the host and HouseShow harmless for any injury, loss, or damages incurred at this event.
+              I agree to the HouseShow liability waiver. I understand HouseShow is a marketplace platform only and is not responsible for events, conduct, or injuries at any show.
             </span>
           </label>
           <button
