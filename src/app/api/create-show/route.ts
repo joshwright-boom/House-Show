@@ -142,16 +142,35 @@ export async function POST(request: NextRequest) {
     }
 
     let resolvedArtistUserId = selectedMusicianId || user.id
+    let resolvedHostUserId = user.id
 
     if (requestDraft?.musician_id) {
-      const { data: artistProfileRow } = await dbSupabase
+      console.log('Resolving artist user id from artist_profiles:', {
+        musicianProfileId: requestDraft.musician_id
+      })
+      const { data: artistRow } = await dbSupabase
         .from('artist_profiles')
         .select('user_id')
         .eq('id', requestDraft.musician_id)
         .maybeSingle()
 
-      if (artistProfileRow?.user_id) {
-        resolvedArtistUserId = artistProfileRow.user_id
+      if (artistRow?.user_id) {
+        resolvedArtistUserId = artistRow.user_id
+      }
+    }
+
+    if (requestDraft?.host_id) {
+      console.log('Resolving host user id from host_profiles:', {
+        hostProfileId: requestDraft.host_id
+      })
+      const { data: hostRow } = await dbSupabase
+        .from('host_profiles')
+        .select('user_id')
+        .eq('id', requestDraft.host_id)
+        .maybeSingle()
+
+      if (hostRow?.user_id) {
+        resolvedHostUserId = hostRow.user_id
       }
     }
 
@@ -181,9 +200,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const hostUserId = requestDraft?.host_id || user.id
-    const artistUserId = resolvedArtistUserId
-
     const showInsertPayload = {
       artist_name: (artist_name || formData?.artist_name || '').trim(),
       venue_name: formData?.venue_name,
@@ -194,8 +210,8 @@ export async function POST(request: NextRequest) {
       show_time: formData?.time,
       ticket_price: parseFloat(formData?.ticket_price),
       status: 'on_sale',
-      artist_user_id: artistUserId,
-      host_user_id: hostUserId,
+      artist_user_id: resolvedArtistUserId,
+      host_user_id: resolvedHostUserId,
       slug: buildShowSlug(formData?.show_name),
       booking_id: bookingId
     }
@@ -238,7 +254,7 @@ export async function POST(request: NextRequest) {
 
       if (hasServiceRole) {
         const adminSupabase = createClient(supabaseUrl, serviceRoleKey!)
-        const participantIds = [hostUserId, artistUserId].filter(Boolean) as string[]
+        const participantIds = [resolvedHostUserId, resolvedArtistUserId].filter(Boolean) as string[]
         for (const participantId of participantIds) {
           const { data: accountData } = await adminSupabase.auth.admin.getUserById(participantId)
           if (accountData?.user?.email) {
