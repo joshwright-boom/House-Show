@@ -85,61 +85,67 @@ export default function VenueRadarPage() {
   useEffect(() => {
     const loadAllHosts = async () => {
       try {
-        const { data: hosts } = await supabase
-          .from('profiles')
-          .select('id, name, bio, user_type, latitude, longitude, location_address, availability_status, zip_code, photo_url')
-          .eq('user_type', 'host')
+        // Start from host_profiles — source of truth for venue data.
+        // Hosts may have a host_profiles row without a matching profiles row
+        // with user_type=host, so querying profiles first misses them.
+        const { data: hostProfiles } = await supabase
+          .from('host_profiles')
+          .select('*')
+          .eq('available', true)
 
-        const hostIds = (hosts || []).map((host) => host.id).filter(Boolean)
-        let nextHostProfilesById = new Map<string, {
-          id: string
-          user_id?: string | null
-          venue_description?: string | null
-          address?: string | null
-          neighborhood?: string | null
-          venue_photo_url?: string | null
-          amenities?: string[] | null
-          has_sound_equipment?: boolean | null
-          venue_capacity?: number | null
-        }>()
-        const geocodedCoordsByHostId = new Map<string, { latitude: number; longitude: number }>()
+        if (!hostProfiles || hostProfiles.length === 0) {
+          setAllHosts([])
+          return
+        }
 
-        if (hostIds.length > 0) {
-          const { data: hostProfiles } = await supabase
-            .from('host_profiles')
-            .select('*')
-            .in('user_id', hostIds)
+        const userIds = hostProfiles.map((hp) => hp.user_id).filter(Boolean)
 
-          nextHostProfilesById = new Map(
-            (hostProfiles || []).map((profile) => [
-              profile.user_id || profile.id,
-              {
-                id: profile.id,
-                user_id: profile.user_id || null,
-                venue_description: profile.venue_description || null,
-                address: profile.address || null,
-                neighborhood: profile.neighborhood || null,
-                venue_photo_url: profile.venue_photo_url || null,
-                amenities: profile.amenities || [],
-                has_sound_equipment: profile.has_sound_equipment ?? null,
-                venue_capacity: profile.venue_capacity ?? null
-              }
-            ])
-          )
-          setHostProfilesById(nextHostProfilesById)
+        // Load profiles for display info (name, photo, availability_status, coordinates)
+        let profilesMap = new Map<string, Record<string, any>>()
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, name, bio, photo_url, latitude, longitude, availability_status')
+            .in('id', userIds)
+          profilesMap = new Map((profiles || []).map((p) => [p.id, p]))
+        }
 
-          await Promise.all((hosts || []).map(async (host) => {
-            if (host.latitude != null && host.longitude != null) return
+        const nextHostProfilesById = new Map(
+          hostProfiles.map((hp) => [
+            hp.user_id || hp.id,
+            {
+              id: hp.id,
+              user_id: hp.user_id || null,
+              venue_description: hp.venue_description || null,
+              address: hp.address || null,
+              neighborhood: hp.neighborhood || null,
+              venue_photo_url: hp.venue_photo_url || null,
+              amenities: hp.amenities || [],
+              has_sound_equipment: hp.has_sound_equipment ?? null,
+              venue_capacity: hp.venue_capacity ?? null
+            }
+          ])
+        )
+        setHostProfilesById(nextHostProfilesById)
 
-            const hostProfile = nextHostProfilesById.get(host.id)
-            const address = (hostProfile?.address || host.location_address || '').trim()
+        // Geocode addresses for hosts without coordinates in either table
+        const geocodedCoordsByKey = new Map<string, { latitude: number; longitude: number }>()
+        await Promise.all(
+          hostProfiles.map(async (hp) => {
+            const profile = profilesMap.get(hp.user_id)
+            if (profile?.latitude != null && profile?.longitude != null) return
+            if (hp.latitude != null && hp.longitude != null) return
+
+            const address = (hp.address || '').trim()
             if (!address) return
 
             try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`)
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+              )
               const results = await res.json()
               if (results[0]) {
-                geocodedCoordsByHostId.set(host.id, {
+                geocodedCoordsByKey.set(hp.user_id || hp.id, {
                   latitude: parseFloat(results[0].lat),
                   longitude: parseFloat(results[0].lon)
                 })
@@ -147,32 +153,35 @@ export default function VenueRadarPage() {
             } catch (error) {
               console.error('Error geocoding host venue address:', error)
             }
-          }))
-        }
+          })
+        )
 
-        const mergedHosts: LoadedVenueHost[] = (hosts || []).reduce((acc: LoadedVenueHost[], host) => {
-          const hostProfile = nextHostProfilesById.get(host.id)
-          const fallbackCoords = geocodedCoordsByHostId.get(host.id)
-          const hostLatitude = host.latitude ?? fallbackCoords?.latitude
-          const hostLongitude = host.longitude ?? fallbackCoords?.longitude
+        const mergedHosts: LoadedVenueHost[] = hostProfiles.reduce((acc: LoadedVenueHost[], hp) => {
+          const profile = profilesMap.get(hp.user_id)
+          const fallbackCoords = geocodedCoordsByKey.get(hp.user_id || hp.id)
+          const hostLatitude = profile?.latitude ?? hp.latitude ?? fallbackCoords?.latitude
+          const hostLongitude = profile?.longitude ?? hp.longitude ?? fallbackCoords?.longitude
 
           if (hostLatitude == null || hostLongitude == null) return acc
 
-          const hostUserId = hostProfile?.user_id || host.id
+          const hostId = hp.user_id || hp.id
           acc.push({
-            ...host,
-            user_id: hostUserId,
+            id: hostId,
+            user_id: hostId,
+            name: profile?.name || hp.venue_name || 'Unknown Host',
+            bio: hp.venue_description || profile?.bio || '',
+            photo_url: profile?.photo_url || null,
+            venue_photo_url: hp.venue_photo_url || null,
+            user_type: 'host',
             latitude: hostLatitude,
             longitude: hostLongitude,
-            bio: hostProfile?.venue_description || host.bio || '',
-            photo_url: host.photo_url || null,
-            venue_photo_url: hostProfile?.venue_photo_url || null,
-            neighborhood: hostProfile?.neighborhood || host.location_address?.split(',')[0]?.trim() || '',
-            amenities: hostProfile?.amenities || [],
-            has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
-            venue_capacity: hostProfile?.venue_capacity ?? null,
-            venue_description: hostProfile?.venue_description || null,
-            hostProfileId: hostProfile?.id || null
+            neighborhood: hp.neighborhood || '',
+            availability_status: profile?.availability_status || 'based_here',
+            amenities: hp.amenities || [],
+            has_sound_equipment: hp.has_sound_equipment ?? null,
+            venue_capacity: hp.venue_capacity ?? null,
+            venue_description: hp.venue_description || null,
+            hostProfileId: hp.id
           })
           return acc
         }, [])
