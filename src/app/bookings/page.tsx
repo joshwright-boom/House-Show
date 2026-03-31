@@ -1091,7 +1091,7 @@ export default function Bookings() {
           ) : (
             <>
               {/* Booking Requests (for musicians) */}
-              {user.user_type === 'musician' && bookingRequests.length > 0 && (
+              {bookingRequests.length > 0 && (
                 <section style={{ marginBottom: '64px' }}>
                   <h2 style={{ 
                     fontFamily: "'Playfair Display', serif", 
