@@ -88,6 +88,7 @@ export default function ShowPage({ params }: { params: { id: string } }) {
   const [ticketQuantity, setTicketQuantity] = useState(1)
   const [copied, setCopied] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [liabilityAgreed, setLiabilityAgreed] = useState(false)
 
   useEffect(() => {
     const loadViewer = async () => {
@@ -288,9 +289,23 @@ export default function ShowPage({ params }: { params: { id: string } }) {
 
   const startCheckout = async () => {
     if (!show) return
+    console.log('Checkout liability state before trigger:', {
+      showId: show.id,
+      liabilityAgreed,
+      ticketQuantity
+    })
+    if (!liabilityAgreed || checkoutLoading) {
+      console.log('Checkout blocked because liability checkbox is not checked:', {
+        showId: show.id,
+        liabilityAgreed,
+        checkoutLoading
+      })
+      return
+    }
 
     try {
       setCheckoutLoading(true)
+      const liabilityAgreedAt = new Date().toISOString()
 
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -303,7 +318,9 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           venueName: show.venue_name,
           venueAddress: show.full_address || '',
           ticketPrice: show.ticket_price,
-          quantity: ticketQuantity
+          quantity: ticketQuantity,
+          liabilityAgreed: true,
+          liabilityAgreedAt
         })
       })
 
@@ -456,9 +473,20 @@ export default function ShowPage({ params }: { params: { id: string } }) {
             <span>Total</span>
             <span style={{ color: '#F0A500', fontWeight: 700 }}>${totalPrice.toFixed(2)}</span>
           </div>
+          <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '14px', color: '#F5F0E8', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={liabilityAgreed}
+              onChange={(e) => setLiabilityAgreed(e.target.checked)}
+              style={{ marginTop: '4px', accentColor: '#D4820A' }}
+            />
+            <span style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+              I understand that house concerts are private events. I agree to hold the host and HouseShow harmless for any injury, loss, or damages incurred at this event.
+            </span>
+          </label>
           <button
             onClick={startCheckout}
-            disabled={checkoutLoading}
+            disabled={checkoutLoading || !liabilityAgreed}
             style={{
               width: '100%',
               background: 'linear-gradient(135deg, #D4820A, #F0A500)',
@@ -467,8 +495,8 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               borderRadius: '8px',
               padding: '14px 18px',
               fontWeight: 700,
-              cursor: checkoutLoading ? 'not-allowed' : 'pointer',
-              opacity: checkoutLoading ? 0.7 : 1
+              cursor: checkoutLoading || !liabilityAgreed ? 'not-allowed' : 'pointer',
+              opacity: checkoutLoading || !liabilityAgreed ? 0.7 : 1
             }}
           >
             {checkoutLoading ? 'Opening Checkout...' : 'Continue to Checkout'}

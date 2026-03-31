@@ -81,12 +81,14 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCompletedCheckoutSession(session: Stripe.Checkout.Session) {
-  const { showId, userId, quantity } = session.metadata || {}
+  const { showId, userId, quantity, liabilityAgreed, liabilityAgreedAt } = session.metadata || {}
   console.log('[webhook] checkout.session.completed metadata', {
     sessionId: session.id,
     showId,
     userId,
     quantity,
+    liabilityAgreed,
+    liabilityAgreedAt,
     paymentStatus: session.payment_status,
   })
 
@@ -98,6 +100,8 @@ async function handleCompletedCheckoutSession(session: Stripe.Checkout.Session) 
   const ticketsToInsert = Array.from({ length: ticketCount }, () => ({
     show_id: showId,
     user_id: userId,
+    liability_agreed: liabilityAgreed === 'true',
+    liability_agreed_at: liabilityAgreedAt || new Date().toISOString(),
   }))
 
   try {

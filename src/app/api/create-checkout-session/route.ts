@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
       venueName,
       venueAddress,
       ticketPrice,
-      quantity
+      quantity,
+      liabilityAgreed,
+      liabilityAgreedAt
     } = await request.json()
 
     console.log('CHECKOUT REQUEST BODY:', JSON.stringify({
@@ -27,10 +29,12 @@ export async function POST(request: NextRequest) {
       venueName,
       venueAddress,
       ticketPrice,
-      quantity
+      quantity,
+      liabilityAgreed,
+      liabilityAgreedAt
     }))
 
-    if (!showId || !showName || !showDate || !showTime || !venueName || !venueAddress || ticketPrice === undefined || ticketPrice === null || !quantity) {
+    if (!showId || !showName || !showDate || !showTime || !venueName || !venueAddress || ticketPrice === undefined || ticketPrice === null || !quantity || liabilityAgreed !== true || !liabilityAgreedAt) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
@@ -93,6 +97,8 @@ export async function POST(request: NextRequest) {
         venueAddress: resolvedVenueAddress,
         ticketPrice: String(resolvedTicketPrice),
         quantity: String(safeQuantity),
+        liabilityAgreed: 'true',
+        liabilityAgreedAt: String(liabilityAgreedAt),
       },
     })
 
