@@ -20,6 +20,7 @@ interface VenueHost {
   has_sound_equipment?: boolean | null
   venue_capacity?: number | null
   venue_description?: string | null
+  hostProfileId?: string | null
   zip_code?: string
   distanceMiles: number
 }
@@ -178,6 +179,7 @@ export default function VenueRadarPage() {
               has_sound_equipment: hostProfile?.has_sound_equipment ?? null,
               venue_capacity: hostProfile?.venue_capacity ?? null,
               venue_description: hostProfile?.venue_description || null,
+              hostProfileId: hostProfile?.id || null,
               distanceMiles
             })
           })
@@ -456,7 +458,7 @@ export default function VenueRadarPage() {
                           )}
                         </div>
                       </div>
-                      <a href={`/request-venue?host_id=${hostProfile?.id || venue.id}`} style={{
+                      <a href={venue.hostProfileId ? '/request-venue?host_id=' + venue.hostProfileId : '/venue-radar'} style={{
                         background: 'linear-gradient(135deg, #D4820A, #F0A500)',
                         color: '#1A1410',
                         padding: '10px 16px',
