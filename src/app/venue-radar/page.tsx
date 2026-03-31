@@ -30,6 +30,8 @@ export default function VenueRadarPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selectedVenue, setSelectedVenue] = useState<VenueHost | null>(null)
   const [locationError, setLocationError] = useState(false)
+  const [locationSearch, setLocationSearch] = useState('')
+  const [locationSearching, setLocationSearching] = useState(false)
   const [venues, setVenues] = useState<VenueHost[]>([])
   const [hostProfilesById, setHostProfilesById] = useState(new Map<string, {
     id: string
@@ -54,10 +56,13 @@ export default function VenueRadarPage() {
     return R * c
   }
 
-  useEffect(() => {
+  const requestBrowserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setLocationError(false)
+        },
         () => {
           setUserLocation({ lat: 36.1539, lng: -95.9928 })
           setLocationError(true)
@@ -67,6 +72,10 @@ export default function VenueRadarPage() {
       setUserLocation({ lat: 36.1539, lng: -95.9928 })
       setLocationError(true)
     }
+  }
+
+  useEffect(() => {
+    requestBrowserLocation()
   }, [])
 
   useEffect(() => {
@@ -187,6 +196,29 @@ export default function VenueRadarPage() {
 
   const availableCount = venues.filter((v) => v.availability_status === 'based_here' || v.availability_status === 'open_to_travel').length
 
+  const handleLocationSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!locationSearch.trim()) return
+
+    try {
+      setLocationSearching(true)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationSearch)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      )
+      const results = await res.json()
+      if (results[0]) {
+        setUserLocation({ lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) })
+        setLocationError(false)
+      }
+    } catch (error) {
+      console.error('Error searching for location:', error)
+    } finally {
+      setLocationSearching(false)
+    }
+  }
+
   return (
     <main style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', flexDirection: 'column' }}>
       <nav style={{
@@ -222,6 +254,75 @@ export default function VenueRadarPage() {
           <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', marginBottom: '20px' }}>
             Nearby available venues, sorted closest first.
           </p>
+
+          <form
+            onSubmit={handleLocationSearch}
+            style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}
+          >
+            <input
+              type="text"
+              value={locationSearch}
+              onChange={(e) => setLocationSearch(e.target.value)}
+              placeholder="Search by city, neighborhood, or address"
+              style={{
+                flex: '1 1 320px',
+                minWidth: '240px',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.25)',
+                background: 'rgba(44,34,24,0.3)',
+                color: '#F5F0E8',
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: '0.95rem'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={locationSearching}
+              style={{
+                background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                color: '#1A1410',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                fontFamily: "'DM Sans', sans-serif",
+                cursor: locationSearching ? 'not-allowed' : 'pointer',
+                opacity: locationSearching ? 0.7 : 1
+              }}
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={requestBrowserLocation}
+              style={{
+                background: 'transparent',
+                color: '#F5F0E8',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,130,10,0.25)',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                cursor: 'pointer'
+              }}
+            >
+              Use My Location
+            </button>
+            {locationSearching && (
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>
+                Searching...
+              </span>
+            )}
+          </form>
 
           {venues.length === 0 ? (
             <div style={{
