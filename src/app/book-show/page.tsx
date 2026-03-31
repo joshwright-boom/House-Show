@@ -332,7 +332,7 @@ function BookShowInner() {
       
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        router.push('/dashboard?message=Booking request sent successfully!')
+        router.push('/bookings')
       }, 2000)
 
     } catch (error) {
