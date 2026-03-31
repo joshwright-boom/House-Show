@@ -643,12 +643,14 @@ export default function Dashboard() {
         await loadMusicianBookingRequests(user.id)
       }
 
-      setBookingRequests(prev =>
-        prev.map(request => request.id === requestId ? { ...request, status } : request)
-      )
-      setHostRequests(prev =>
-        prev.map(request => request.id === requestId ? { ...request, status } : request)
-      )
+      if (status !== 'accepted') {
+        setBookingRequests(prev =>
+          prev.map(request => request.id === requestId ? { ...request, status } : request)
+        )
+        setHostRequests(prev =>
+          prev.map(request => request.id === requestId ? { ...request, status } : request)
+        )
+      }
     } catch (error) {
       console.error(`Error updating booking request to ${status}:`, error)
     } finally {
