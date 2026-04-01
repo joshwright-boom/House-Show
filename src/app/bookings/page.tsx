@@ -46,6 +46,9 @@ interface BookingRequest {
   ticket_price: number
   host_split: number
   musician_split: number
+  guaranteed_minimum?: number
+  proposed_musician_pct?: number
+  proposed_host_pct?: number
   message: string
   status: 'pending' | 'accepted' | 'declined' | 'countered'
   created_at: string
@@ -793,21 +796,27 @@ export default function Bookings() {
           </a>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ 
-            fontFamily: "'Space Mono', monospace", 
-            fontSize: '1.1rem', 
-            color: '#F0A500', 
-            fontWeight: 600 
-          }}>
-            ${request.ticket_price}
-          </div>
-          <div style={{ 
-            fontFamily: "'DM Sans', sans-serif", 
-            color: '#8C7B6B', 
-            fontSize: '0.85rem' 
-          }}>
-            per ticket
-          </div>
+          {(request.guaranteed_minimum ?? 0) > 0 ? (
+            <>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1.1rem', color: '#F0A500', fontWeight: 600 }}>
+                ${request.guaranteed_minimum} minimum guarantee
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
+                Host keeps all ticket revenue
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1.1rem', color: '#F0A500', fontWeight: 600 }}>
+                ${request.ticket_price} per ticket
+              </div>
+              {(request.proposed_musician_pct ?? 0) > 0 && (
+                <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
+                  {request.proposed_musician_pct}% artist / {request.proposed_host_pct}% host split
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -982,11 +991,27 @@ export default function Bookings() {
             <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.9rem', marginBottom: '4px' }}>
               📅 {request.proposed_date ? formatDate(request.proposed_date) : 'Date TBD'}
             </p>
-            {request.ticket_price != null && (
-              <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
-                ${Number(request.ticket_price).toFixed(2)} per ticket
-              </p>
-            )}
+            {(request.guaranteed_minimum ?? 0) > 0 ? (
+              <>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
+                  ${Number(request.guaranteed_minimum).toFixed(2)} minimum guarantee
+                </p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
+                  Host keeps all ticket revenue
+                </p>
+              </>
+            ) : request.ticket_price != null ? (
+              <>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
+                  ${Number(request.ticket_price).toFixed(2)} per ticket
+                </p>
+                {(request.proposed_musician_pct ?? 0) > 0 && (
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
+                    {request.proposed_musician_pct}% artist / {request.proposed_host_pct}% host split
+                  </p>
+                )}
+              </>
+            ) : null}
           </div>
           <div style={{ padding: '6px 12px', borderRadius: '999px', ...statusBadgeStyles, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
             {request.status}
