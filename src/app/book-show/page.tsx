@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
+import ProfitCalculator from '@/components/ProfitCalculator'
 
 interface BookingRequest {
   musician_id: string
@@ -663,6 +664,10 @@ function BookShowInner() {
                 resize: 'vertical'
               }}
             />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <ProfitCalculator compact={true} />
           </div>
 
           {musician?.minimum_guarantee != null && (
