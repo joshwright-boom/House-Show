@@ -15,6 +15,7 @@ interface BookingRequest {
   proposed_musician_pct: number
   proposed_host_pct: number
   proposed_platform_pct: number
+  guaranteed_minimum: number
 }
 
 interface Musician {
@@ -61,6 +62,9 @@ function BookShowInner() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dealType, setDealType] = useState<'guarantee' | 'split' | null>(null)
+  const [splitArtistPct, setSplitArtistPct] = useState(60)
+  const [splitHostPct, setSplitHostPct] = useState(33)
   
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -224,8 +228,16 @@ function BookShowInner() {
       setError(null)
 
       // Validate form
-      if (!formData.proposed_date || !formData.offer_amount) {
+      if (!dealType) {
+        setError('Please select a deal type')
+        return
+      }
+      if (!formData.proposed_date) {
         setError('Please fill in all required fields')
+        return
+      }
+      if (dealType === 'guarantee' && !formData.offer_amount) {
+        setError('Please enter a guarantee amount')
         return
       }
 
@@ -308,12 +320,13 @@ function BookShowInner() {
         musician_id: resolvedMusicianId,
         host_id: resolvedHostId,
         proposed_date: formData.proposed_date,
-        ticket_price: parseFloat(formData.offer_amount),
+        ticket_price: dealType === 'guarantee' ? parseFloat(formData.offer_amount) : 0,
         message: formData.message,
         status: 'pending',
-        proposed_musician_pct: 60,
-        proposed_host_pct: 33,
-        proposed_platform_pct: 7
+        proposed_musician_pct: dealType === 'split' ? splitArtistPct : 0,
+        proposed_host_pct: dealType === 'split' ? splitHostPct : 0,
+        proposed_platform_pct: 7,
+        guaranteed_minimum: dealType === 'guarantee' ? parseFloat(formData.offer_amount) : 0,
       }
 
       // Insert booking request
@@ -521,235 +534,410 @@ function BookShowInner() {
           borderRadius: '12px',
           padding: '32px'
         }}>
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              color: '#F5F0E8', 
-              marginBottom: '8px',
-              fontSize: '0.9rem',
-              fontWeight: '600'
-            }}>
-              Proposed Date *
-            </label>
-            <input
-              type="date"
-              name="proposed_date"
-              value={formData.proposed_date}
-              onChange={handleInputChange}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212,130,10,0.3)',
-                background: '#2A1F1A',
-                color: '#F5F0E8',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              color: '#F5F0E8', 
-              marginBottom: '8px',
-              fontSize: '0.9rem',
-              fontWeight: '600'
-            }}>
-              Proposed Time *
-            </label>
-            <input
-              type="time"
-              name="proposed_time"
-              value={formData.proposed_time}
-              onChange={handleInputChange}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212,130,10,0.3)',
-                background: '#2A1F1A',
-                color: '#F5F0E8',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              color: '#F5F0E8', 
-              marginBottom: '8px',
-              fontSize: '0.9rem',
-              fontWeight: '600'
-            }}>
-              Venue Address *
-            </label>
-            <input
-              type="text"
-              name="venue_address"
-              value={formData.venue_address}
-              onChange={handleInputChange}
-              placeholder="Enter the venue address"
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212,130,10,0.3)',
-                background: '#2A1F1A',
-                color: '#F5F0E8',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              color: '#F5F0E8', 
-              marginBottom: '8px',
-              fontSize: '0.9rem',
-              fontWeight: '600'
-            }}>
-              Offer Amount ($) *
-            </label>
-            <input
-              type="number"
-              name="offer_amount"
-              value={formData.offer_amount}
-              onChange={handleInputChange}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212,130,10,0.3)',
-                background: '#2A1F1A',
-                color: '#F5F0E8',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
+          {/* Deal type selector */}
           <div style={{ marginBottom: '32px' }}>
-            <label style={{ 
-              display: 'block', 
-              color: '#F5F0E8', 
-              marginBottom: '8px',
-              fontSize: '0.9rem',
-              fontWeight: '600'
-            }}>
-              Message to Musician
-            </label>
-            <textarea
-              name="message"
-              value={formData.message}
-              onChange={handleInputChange}
-              placeholder="Add any additional details about the event..."
-              rows={4}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(212,130,10,0.3)',
-                background: '#2A1F1A',
-                color: '#F5F0E8',
-                fontSize: '1rem',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <ProfitCalculator compact={true} />
-          </div>
-
-          {musician?.minimum_guarantee != null && (
             <div style={{
-              marginBottom: '24px',
-              padding: '16px',
-              borderRadius: '10px',
-              background: 'rgba(44,34,24,0.35)',
-              border: '1px solid rgba(212,130,10,0.2)'
+              fontFamily: "'Space Mono', monospace",
+              fontSize: '0.7rem',
+              color: '#D4820A',
+              letterSpacing: '3px',
+              textTransform: 'uppercase',
+              marginBottom: '16px'
             }}>
-              <div style={{ color: '#F5F0E8', fontSize: '0.95rem', fontWeight: 600, marginBottom: '6px' }}>
-                Minimum Guarantee
+              How would you like to pay the artist?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              {/* Flat Guarantee */}
+              <button
+                type="button"
+                onClick={() => setDealType('guarantee')}
+                style={{
+                  padding: '24px 20px',
+                  borderRadius: '10px',
+                  border: dealType === 'guarantee'
+                    ? '2px solid #D4820A'
+                    : '1px solid rgba(212,130,10,0.25)',
+                  background: dealType === 'guarantee'
+                    ? 'rgba(212,130,10,0.1)'
+                    : 'rgba(44,34,24,0.4)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                <div style={{ fontSize: '1.6rem', marginBottom: '10px' }}>💵</div>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: dealType === 'guarantee' ? '#F0A500' : '#F5F0E8',
+                  marginBottom: '8px',
+                }}>
+                  Flat Guarantee
+                </div>
+                <div style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: '0.82rem',
+                  color: '#8C7B6B',
+                  lineHeight: 1.5,
+                }}>
+                  You pay the artist a set amount to perform. You keep all ticket sales to recoup and profit.
+                </div>
+              </button>
+
+              {/* Revenue Split */}
+              <button
+                type="button"
+                onClick={() => setDealType('split')}
+                style={{
+                  padding: '24px 20px',
+                  borderRadius: '10px',
+                  border: dealType === 'split'
+                    ? '2px solid #D4820A'
+                    : '1px solid rgba(212,130,10,0.25)',
+                  background: dealType === 'split'
+                    ? 'rgba(212,130,10,0.1)'
+                    : 'rgba(44,34,24,0.4)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                <div style={{ fontSize: '1.6rem', marginBottom: '10px' }}>📊</div>
+                <div style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: dealType === 'split' ? '#F0A500' : '#F5F0E8',
+                  marginBottom: '8px',
+                }}>
+                  Revenue Split
+                </div>
+                <div style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: '0.82rem',
+                  color: '#8C7B6B',
+                  lineHeight: 1.5,
+                }}>
+                  No upfront cost. You and the artist split ticket sales based on a negotiated percentage.
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Rest of form — only visible once a deal type is chosen */}
+          {dealType && (
+            <>
+              {/* Proposed Date */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  color: '#F5F0E8',
+                  marginBottom: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  Proposed Date *
+                </label>
+                <input
+                  type="date"
+                  name="proposed_date"
+                  value={formData.proposed_date}
+                  onChange={handleInputChange}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(212,130,10,0.3)',
+                    background: '#2A1F1A',
+                    color: '#F5F0E8',
+                    fontSize: '1rem'
+                  }}
+                />
               </div>
-              <div style={{ color: '#8C7B6B', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                You agree to guarantee this artist a minimum of ${formattedMinimumGuarantee}. If your 60% ticket split exceeds this, the artist earns the split instead.
+
+              {/* Proposed Time */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  color: '#F5F0E8',
+                  marginBottom: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  Proposed Time *
+                </label>
+                <input
+                  type="time"
+                  name="proposed_time"
+                  value={formData.proposed_time}
+                  onChange={handleInputChange}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(212,130,10,0.3)',
+                    background: '#2A1F1A',
+                    color: '#F5F0E8',
+                    fontSize: '1rem'
+                  }}
+                />
               </div>
+
+              {/* Venue Address */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  color: '#F5F0E8',
+                  marginBottom: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  Venue Address *
+                </label>
+                <input
+                  type="text"
+                  name="venue_address"
+                  value={formData.venue_address}
+                  onChange={handleInputChange}
+                  placeholder="Enter the venue address"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(212,130,10,0.3)',
+                    background: '#2A1F1A',
+                    color: '#F5F0E8',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              {/* Guarantee Amount — only for guarantee */}
+              {dealType === 'guarantee' && (
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    color: '#F5F0E8',
+                    marginBottom: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}>
+                    Guarantee Amount ($) *
+                  </label>
+                  <input
+                    type="number"
+                    name="offer_amount"
+                    value={formData.offer_amount}
+                    onChange={handleInputChange}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(212,130,10,0.3)',
+                      background: '#2A1F1A',
+                      color: '#F5F0E8',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Message to Musician */}
+              <div style={{ marginBottom: '28px' }}>
+                <label style={{
+                  display: 'block',
+                  color: '#F5F0E8',
+                  marginBottom: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600'
+                }}>
+                  Message to Musician
+                </label>
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  placeholder="Add any additional details about the event..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(212,130,10,0.3)',
+                    background: '#2A1F1A',
+                    color: '#F5F0E8',
+                    fontSize: '1rem',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Revenue split calculator — only for split */}
+              {dealType === 'split' && (
+                <div style={{ marginBottom: '24px' }}>
+                  <ProfitCalculator
+                    compact={false}
+                    onSplitChange={(a, h) => { setSplitArtistPct(a); setSplitHostPct(h) }}
+                  />
+                </div>
+              )}
+
+              {/* Confirmation box */}
+              {dealType === 'guarantee' && (
+                <div style={{
+                  marginBottom: '24px',
+                  padding: '18px 20px',
+                  borderRadius: '10px',
+                  background: 'rgba(44,34,24,0.45)',
+                  border: '1px solid rgba(212,130,10,0.25)'
+                }}>
+                  <div style={{
+                    fontFamily: "'Space Mono', monospace",
+                    fontSize: '0.65rem',
+                    color: '#D4820A',
+                    letterSpacing: '2px',
+                    textTransform: 'uppercase',
+                    marginBottom: '8px'
+                  }}>
+                    Your offer
+                  </div>
+                  <div style={{ color: '#F5F0E8', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                    You are offering the artist a guaranteed payment of{' '}
+                    <span style={{ color: '#F0A500', fontWeight: 600 }}>${formattedMinimumGuarantee}</span>.
+                    You keep all ticket revenue. If the show doesn&apos;t cover your guarantee, that&apos;s your risk.
+                  </div>
+                </div>
+              )}
+
+              {dealType === 'split' && (
+                <div style={{
+                  marginBottom: '24px',
+                  padding: '18px 20px',
+                  borderRadius: '10px',
+                  background: 'rgba(44,34,24,0.45)',
+                  border: '1px solid rgba(212,130,10,0.25)'
+                }}>
+                  <div style={{
+                    fontFamily: "'Space Mono', monospace",
+                    fontSize: '0.65rem',
+                    color: '#D4820A',
+                    letterSpacing: '2px',
+                    textTransform: 'uppercase',
+                    marginBottom: '8px'
+                  }}>
+                    Your offer
+                  </div>
+                  <div style={{ color: '#F5F0E8', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                    You are proposing a{' '}
+                    <span style={{ color: '#F0A500', fontWeight: 600 }}>{splitArtistPct}% / {splitHostPct}%</span> split.
+                    The artist earns{' '}
+                    <span style={{ color: '#F0A500', fontWeight: 600 }}>{splitArtistPct}%</span> of ticket sales.
+                    You earn{' '}
+                    <span style={{ color: '#F0A500', fontWeight: 600 }}>{splitHostPct}%</span>.
+                    HouseShow keeps 7%.
+                  </div>
+                </div>
+              )}
+
+              {/* Terms */}
+              <p style={{
+                color: '#8C7B6B',
+                fontSize: '0.78rem',
+                lineHeight: 1.6,
+                marginBottom: '16px'
+              }}>
+                By submitting this booking request, you agree to HouseShow&apos;s{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#D4820A', textDecoration: 'none' }}>
+                  Terms of Service
+                </a>
+                . You acknowledge that HouseShow is a marketplace platform only and is not responsible for events, conduct, or outcomes at any show booked through this platform.
+              </p>
+
+              {/* Submit / Cancel */}
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    backgroundColor: submitting ? '#666' : '#D4820A',
+                    color: '#1A1410',
+                    border: 'none',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting) e.currentTarget.style.backgroundColor = '#F0A500'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting) e.currentTarget.style.backgroundColor = '#D4820A'
+                  }}
+                >
+                  {submitting ? 'Sending...' : 'Send Booking Request'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard')}
+                  style={{
+                    padding: '14px 24px',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    backgroundColor: 'transparent',
+                    color: '#F5F0E8',
+                    border: '1px solid rgba(212,130,10,0.3)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.1)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Cancel button always visible when no deal type chosen yet */}
+          {!dealType && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                style={{
+                  padding: '12px 28px',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  backgroundColor: 'transparent',
+                  color: '#8C7B6B',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
             </div>
           )}
 
-          <p style={{
-            color: '#8C7B6B',
-            fontSize: '0.78rem',
-            lineHeight: 1.6,
-            marginBottom: '16px'
-          }}>
-            By submitting this booking request, you agree to HouseShow&apos;s{' '}
-            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#D4820A', textDecoration: 'none' }}>
-              Terms of Service
-            </a>
-            . You acknowledge that HouseShow is a marketplace platform only and is not responsible for events, conduct, or outcomes at any show booked through this platform.
-          </p>
-
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                flex: 1,
-                padding: '14px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                backgroundColor: submitting ? '#666' : '#D4820A',
-                color: '#1A1410',
-                border: 'none',
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                if (!submitting) e.currentTarget.style.backgroundColor = '#F0A500'
-              }}
-              onMouseLeave={(e) => {
-                if (!submitting) e.currentTarget.style.backgroundColor = '#D4820A'
-              }}
-            >
-              {submitting ? 'Sending...' : 'Send Booking Request'}
-            </button>
-            
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard')}
-              style={{
-                padding: '14px 24px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                backgroundColor: 'transparent',
-                color: '#F5F0E8',
-                border: '1px solid rgba(212,130,10,0.3)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(212,130,10,0.1)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
         </form>
       </div>
     </main>
