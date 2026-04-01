@@ -20,6 +20,7 @@ interface Booking {
   created_at: string
   musician_id?: string
   host_id?: string
+  other_party_email?: string
 }
 
 interface Show {
@@ -55,6 +56,7 @@ interface BookingRequest {
   host_name?: string
   host_email?: string
   musician_name?: string
+  musician_email?: string
 }
 
 const getShowDateValue = (show: Record<string, any>) =>
@@ -176,6 +178,26 @@ export default function Bookings() {
         }
       }
 
+      // Collect all user IDs from shows so we can look up emails
+      const allUserIds = Array.from(
+        new Set(
+          (shows || []).flatMap((show) => [getShowHostId(show), getShowArtistId(show)]).filter(Boolean)
+        )
+      ) as string[]
+
+      let emailByUserId: Record<string, string> = {}
+      if (allUserIds.length > 0) {
+        const { data: emailProfiles } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('id', allUserIds)
+
+        emailByUserId = (emailProfiles || []).reduce((acc: Record<string, string>, p: any) => {
+          if (p.email) acc[p.id] = p.email
+          return acc
+        }, {})
+      }
+
       const transformedBookings: Booking[] = (shows || []).map(show => {
         const resolvedDate = getShowDateValue(show)
         const showDate = new Date(resolvedDate)
@@ -188,6 +210,12 @@ export default function Bookings() {
             : showDate < today
               ? 'past'
               : 'upcoming'
+
+        // Determine the other party's email based on the current user
+        const showHostId = getShowHostId(show)
+        const showArtistId = getShowArtistId(show)
+        const otherPartyId = showHostId === userId ? showArtistId : showHostId
+        const otherPartyEmail = otherPartyId ? emailByUserId[otherPartyId] : undefined
 
         return {
           id: show.id,
@@ -202,7 +230,8 @@ export default function Bookings() {
           status,
           created_at: show.created_at,
           musician_id: getShowArtistId(show),
-          host_id: getShowHostId(show)
+          host_id: getShowHostId(show),
+          other_party_email: otherPartyEmail
         }
       })
 
@@ -249,6 +278,7 @@ export default function Bookings() {
       ) as string[]
 
       let hostNameById: Record<string, string> = {}
+      let hostEmailById: Record<string, string> = {}
 
       if (hostIds.length > 0) {
         const { data: hostProfiles } = await supabase
@@ -261,29 +291,40 @@ export default function Bookings() {
         ) as string[]
 
         let profileNameById: Record<string, string> = {}
+        let profileEmailById: Record<string, string> = {}
 
         if (hostUserIds.length > 0) {
           const { data: profileRows } = await supabase
             .from('profiles')
-            .select('id, name')
+            .select('id, name, email')
             .in('id', hostUserIds)
 
           profileNameById = (profileRows || []).reduce((acc: Record<string, string>, p: any) => {
             acc[p.id] = p.name || ''
             return acc
           }, {})
+
+          profileEmailById = (profileRows || []).reduce((acc: Record<string, string>, p: any) => {
+            if (p.email) acc[p.id] = p.email
+            return acc
+          }, {} as Record<string, string>)
         }
 
         hostNameById = (hostProfiles || []).reduce((acc: Record<string, string>, p: any) => {
           acc[p.id] = profileNameById[p.user_id] || p.venue_name || 'Host'
           return acc
         }, {})
+
+        hostEmailById = (hostProfiles || []).reduce((acc: Record<string, string>, p: any) => {
+          if (profileEmailById[p.user_id]) acc[p.id] = profileEmailById[p.user_id]
+          return acc
+        }, {} as Record<string, string>)
       }
 
       const transformedRequests: BookingRequest[] = (requests || []).map((request: any) => ({
         ...request,
         host_name: hostNameById[request.host_id] || 'Host',
-        host_email: ''
+        host_email: hostEmailById[request.host_id] || ''
       }))
 
       setBookingRequests(transformedRequests)
@@ -326,11 +367,12 @@ export default function Bookings() {
       ) as string[]
 
       let musicianNameById: Record<string, string> = {}
+      let musicianEmailById: Record<string, string> = {}
 
       if (musicianIds.length > 0) {
         const { data: musicianProfiles, error: musicianProfilesError } = await supabase
           .from('artist_profiles')
-          .select('id, name')
+          .select('id, name, user_id')
           .in('id', musicianIds)
 
         if (musicianProfilesError) {
@@ -340,12 +382,36 @@ export default function Bookings() {
             acc[profile.id] = profile.name || 'Musician'
             return acc
           }, {})
+
+          const musicianUserIds = Array.from(
+            new Set((musicianProfiles || []).map((p: any) => p.user_id).filter(Boolean))
+          ) as string[]
+
+          if (musicianUserIds.length > 0) {
+            const { data: musicianUserProfiles } = await supabase
+              .from('profiles')
+              .select('id, email')
+              .in('id', musicianUserIds)
+
+            const emailByUserId = (musicianUserProfiles || []).reduce((acc: Record<string, string>, p: any) => {
+              if (p.email) acc[p.id] = p.email
+              return acc
+            }, {} as Record<string, string>)
+
+            musicianEmailById = (musicianProfiles || []).reduce((acc: Record<string, string>, profile: any) => {
+              if (profile.user_id && emailByUserId[profile.user_id]) {
+                acc[profile.id] = emailByUserId[profile.user_id]
+              }
+              return acc
+            }, {} as Record<string, string>)
+          }
         }
       }
 
       const transformedRequests: BookingRequest[] = (requests || []).map(request => ({
         ...request,
-        musician_name: musicianNameById[request.musician_id] || 'Musician'
+        musician_name: musicianNameById[request.musician_id] || 'Musician',
+        musician_email: musicianEmailById[request.musician_id] || ''
       }))
 
       setHostRequests(transformedRequests)
@@ -665,18 +731,41 @@ export default function Bookings() {
         }}>
           View Details
         </a>
-        <button style={{
-          background: 'transparent',
-          color: '#8C7B6B',
-          padding: '10px 20px',
-          borderRadius: '6px',
-          fontSize: '0.85rem',
-          fontFamily: "'DM Sans', sans-serif",
-          border: '1px solid rgba(212,130,10,0.2)',
-          cursor: 'pointer'
-        }}>
-          Message {booking.status === 'upcoming' ? 'Artist' : 'Host'}
-        </button>
+        {booking.other_party_email ? (
+          <a
+            href={`mailto:${booking.other_party_email}?subject=${encodeURIComponent(`Re: ${booking.show_name} on ${formatDate(booking.date)}`)}`}
+            style={{
+              display: 'inline-block',
+              background: 'transparent',
+              color: '#8C7B6B',
+              padding: '10px 20px',
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              fontFamily: "'DM Sans', sans-serif",
+              border: '1px solid rgba(212,130,10,0.2)',
+              cursor: 'pointer',
+              textDecoration: 'none'
+            }}
+          >
+            Message {booking.status === 'upcoming' ? 'Artist' : 'Host'}
+          </a>
+        ) : (
+          <button
+            onClick={() => alert('Email not available for this booking.')}
+            style={{
+              background: 'transparent',
+              color: '#8C7B6B',
+              padding: '10px 20px',
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              fontFamily: "'DM Sans', sans-serif",
+              border: '1px solid rgba(212,130,10,0.2)',
+              cursor: 'pointer'
+            }}
+          >
+            Message {booking.status === 'upcoming' ? 'Artist' : 'Host'}
+          </button>
+        )}
       </div>
     </div>
   )
