@@ -74,6 +74,7 @@ function BookShowInner() {
     proposed_time: '',
     venue_address: '',
     offer_amount: '',
+    ticket_price: '',
     message: ''
   })
   const liveOfferAmount = Number.parseFloat(formData.offer_amount)
@@ -240,6 +241,10 @@ function BookShowInner() {
         setError('Please enter a guarantee amount')
         return
       }
+      if (dealType === 'split' && !formData.ticket_price) {
+        setError('Please enter a ticket price')
+        return
+      }
 
       const {
         data: { user: authUser },
@@ -320,7 +325,7 @@ function BookShowInner() {
         musician_id: resolvedMusicianId,
         host_id: resolvedHostId,
         proposed_date: formData.proposed_date,
-        ticket_price: dealType === 'guarantee' ? parseFloat(formData.offer_amount) : 0,
+        ticket_price: dealType === 'guarantee' ? parseFloat(formData.offer_amount) : Math.round(parseFloat(formData.ticket_price || '0') * 100) / 100,
         message: formData.message,
         status: 'pending',
         proposed_musician_pct: dealType === 'split' ? splitArtistPct : 0,
@@ -809,14 +814,76 @@ function BookShowInner() {
                 />
               </div>
 
-              {/* Revenue split calculator — only for split */}
+              {/* Ticket price + Revenue split calculator — only for split */}
               {dealType === 'split' && (
-                <div style={{ marginBottom: '24px' }}>
-                  <ProfitCalculator
-                    compact={false}
-                    onSplitChange={(a, h) => { setSplitArtistPct(a); setSplitHostPct(h) }}
-                  />
-                </div>
+                <>
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{
+                      display: 'block',
+                      color: '#F5F0E8',
+                      marginBottom: '8px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}>
+                      Ticket Price ($) *
+                    </label>
+                    <input
+                      type="number"
+                      name="ticket_price"
+                      value={formData.ticket_price}
+                      onChange={handleInputChange}
+                      placeholder="20.00"
+                      min="1"
+                      step="0.01"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(212,130,10,0.3)',
+                        background: '#2A1F1A',
+                        color: '#F5F0E8',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <ProfitCalculator
+                      compact={false}
+                      onSplitChange={(a, h) => { setSplitArtistPct(a); setSplitHostPct(h) }}
+                    />
+                  </div>
+
+                  {(() => {
+                    const price = parseFloat(formData.ticket_price)
+                    if (!Number.isFinite(price) || price <= 0) return null
+                    const artistEarn = Math.round(price * splitArtistPct) / 100
+                    const hostEarn = Math.round(price * splitHostPct) / 100
+                    const platformEarn = Math.round(price * 7) / 100
+                    return (
+                      <div style={{
+                        marginBottom: '24px',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        background: 'rgba(212,130,10,0.08)',
+                        border: '1px solid rgba(212,130,10,0.2)',
+                      }}>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.62rem', color: '#D4820A', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                          Per ticket breakdown
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#F5F0E8', lineHeight: 1.7 }}>
+                          Artist earns{' '}
+                          <span style={{ color: '#F0A500', fontWeight: 700 }}>${artistEarn.toFixed(2)}</span>
+                          {' · '}You keep{' '}
+                          <span style={{ color: '#D9C6A5', fontWeight: 600 }}>${hostEarn.toFixed(2)}</span>
+                          {' · '}Platform keeps{' '}
+                          <span style={{ color: '#4A4240', fontWeight: 600 }}>${platformEarn.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </>
               )}
 
               {/* Confirmation box */}
