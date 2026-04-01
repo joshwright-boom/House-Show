@@ -156,47 +156,48 @@ function CheckoutSuccessContent() {
     loadCheckoutEmail()
   }, [sessionId])
 
-  useEffect(() => {
-    const sendTicketEmail = async () => {
-      if (!show || !ticketEmail || !sessionId || emailSent) return
+  const [emailSending, setEmailSending] = useState(false)
 
-      try {
-        const { data: { session: authSession } } = await supabase.auth.getSession()
-        const accessToken = authSession?.access_token
-        if (!accessToken) return
+  const handleSendTicketEmail = async () => {
+    if (!show || !ticketEmail || !sessionId || emailSent || emailSending) return
 
-        const response = await fetch('/api/send-ticket-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            email: ticketEmail,
-            showName: show.show_name,
-            showDate: formatDate(show.show_date),
-            showTime: formatTime(show.show_time),
-            venueName: show.venue_name,
-            venueAddress: show.venue_address,
-            sessionId,
-            quantity: ticketQuantity
-          })
+    try {
+      setEmailSending(true)
+      const { data: { session: authSession } } = await supabase.auth.getSession()
+      const accessToken = authSession?.access_token
+      if (!accessToken) return
+
+      const response = await fetch('/api/send-ticket-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          email: ticketEmail,
+          showName: show.show_name,
+          showDate: formatDate(show.show_date),
+          showTime: formatTime(show.show_time),
+          venueName: show.venue_name,
+          venueAddress: show.venue_address,
+          sessionId,
+          quantity: ticketQuantity
         })
+      })
 
-        if (!response.ok) {
-          const data = await response.json().catch(() => null)
-          console.error('Ticket email API error:', data?.error || response.statusText)
-          return
-        }
-
-        setEmailSent(true)
-      } catch (err) {
-        console.error('Unable to send ticket email:', err)
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        console.error('Ticket email API error:', data?.error || response.statusText)
+        return
       }
-    }
 
-    sendTicketEmail()
-  }, [show, ticketEmail, sessionId, ticketQuantity, emailSent])
+      setEmailSent(true)
+    } catch (err) {
+      console.error('Unable to send ticket email:', err)
+    } finally {
+      setEmailSending(false)
+    }
+  }
 
   const formatDate = (value: string) => {
     if (!value) return 'Date TBD'
@@ -290,28 +291,46 @@ function CheckoutSuccessContent() {
             </div>
           </div>
 
-          <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '22px' }}>
-            📱 Save this page or visit <a href="/tickets" style={{ color: '#F0A500' }}>My Tickets</a> to access your QR code anytime
-          </p>
-
           <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '24px' }}>
-            Your ticket will be sent to {ticketEmail || 'your email'}.
+            📱 Save this page or view your tickets anytime from your dashboard.
           </p>
 
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <a
-              href="/bookings"
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleSendTicketEmail}
+              disabled={emailSent || emailSending || !ticketEmail || !show}
               style={{
                 display: 'inline-block',
-                background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                color: '#1A1410',
+                background: emailSent ? 'rgba(34,197,94,0.15)' : 'linear-gradient(135deg, #D4820A, #F0A500)',
+                color: emailSent ? '#86efac' : '#1A1410',
+                border: emailSent ? '1px solid rgba(34,197,94,0.35)' : 'none',
+                padding: '12px 22px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                cursor: emailSent || emailSending || !ticketEmail || !show ? 'not-allowed' : 'pointer',
+                opacity: emailSending ? 0.7 : 1,
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: '0.95rem',
+              }}
+            >
+              {emailSent ? 'Email Sent!' : emailSending ? 'Sending...' : 'Email My Ticket'}
+            </button>
+            <a
+              href="/tickets"
+              style={{
+                display: 'inline-block',
+                background: 'transparent',
+                border: '1px solid rgba(212,130,10,0.4)',
+                color: '#F0A500',
                 textDecoration: 'none',
                 padding: '12px 22px',
                 borderRadius: '8px',
-                fontWeight: 700
+                fontWeight: 700,
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: '0.95rem',
               }}
             >
-              Back to Bookings
+              View My Tickets
             </a>
           </div>
         </section>
