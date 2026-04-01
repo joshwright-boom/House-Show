@@ -51,7 +51,7 @@ interface BookingRequest {
   proposed_musician_pct?: number
   proposed_host_pct?: number
   message: string
-  status: 'pending' | 'accepted' | 'declined' | 'countered'
+  status: 'pending' | 'accepted' | 'declined' | 'negotiating'
   created_at: string
   host_name?: string
   host_email?: string
@@ -83,6 +83,10 @@ export default function Bookings() {
   const [hostRequests, setHostRequests] = useState<BookingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [counterFormOpen, setCounterFormOpen] = useState<string | null>(null)
+  const [counterMusician, setCounterMusician] = useState(50)
+  const [counterHost, setCounterHost] = useState(43)
+  const [counterSubmitting, setCounterSubmitting] = useState(false)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -529,6 +533,43 @@ export default function Bookings() {
     } catch (error) {
       console.error('Error declining host request:', error)
       alert('Failed to decline request. Please try again.')
+    }
+  }
+
+  const openCounterForm = (requestId: string, currentMusicianPct?: number, currentHostPct?: number) => {
+    setCounterMusician(currentMusicianPct ?? 50)
+    setCounterHost(currentHostPct ?? 43)
+    setCounterFormOpen(requestId)
+  }
+
+  const handleCounterSubmit = async (requestId: string) => {
+    if (counterMusician + counterHost !== 93) return
+    setCounterSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('booking_requests')
+        .update({
+          status: 'negotiating',
+          proposed_musician_pct: counterMusician,
+          proposed_host_pct: counterHost,
+        })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      // Update local state
+      const updateRequest = (r: BookingRequest) =>
+        r.id === requestId
+          ? { ...r, status: 'negotiating' as const, proposed_musician_pct: counterMusician, proposed_host_pct: counterHost }
+          : r
+      setBookingRequests(prev => prev.map(updateRequest))
+      setHostRequests(prev => prev.map(updateRequest))
+      setCounterFormOpen(null)
+    } catch (error) {
+      console.error('Error submitting counter offer:', error)
+      alert('Failed to submit counter offer. Please try again.')
+    } finally {
+      setCounterSubmitting(false)
     }
   }
 
@@ -1046,6 +1087,100 @@ export default function Bookings() {
             </a>
           </div>
         </div>
+      ) : request.status === 'negotiating' ? (
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: '8px',
+          background: 'rgba(212,130,10,0.08)',
+          border: '1px solid rgba(212,130,10,0.16)',
+          fontSize: '0.9rem'
+        }}>
+          <div style={{ color: '#F0A500', fontWeight: 600, marginBottom: '4px' }}>Counter Offer</div>
+          <div style={{ color: '#F5F0E8' }}>
+            Proposed split: {request.proposed_musician_pct}% artist / {request.proposed_host_pct}% host / 7% platform
+          </div>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+            <button
+              onClick={() => handleAcceptRequest(request.id)}
+              style={{
+                background: 'linear-gradient(135deg, #4CAF50, #66BB6A)',
+                color: '#1A1410',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => openCounterForm(request.id, request.proposed_musician_pct, request.proposed_host_pct)}
+              style={{
+                background: 'transparent',
+                color: '#F0A500',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                border: '1px solid rgba(240,165,0,0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              Counter
+            </button>
+            <button
+              onClick={() => handleDeclineRequest(request.id)}
+              style={{
+                background: 'transparent',
+                color: '#D4820A',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontFamily: "'DM Sans', sans-serif",
+                border: '1px solid rgba(212,130,10,0.2)',
+                cursor: 'pointer'
+              }}
+            >
+              Decline
+            </button>
+          </div>
+          {counterFormOpen === request.id && (
+            <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(26,20,16,0.4)', borderRadius: '8px', border: '1px solid rgba(212,130,10,0.15)' }}>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                <label style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Musician %</div>
+                  <input type="number" min={0} max={93} value={counterMusician} onChange={e => { const v = Number(e.target.value); setCounterMusician(v); setCounterHost(93 - v) }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(212,130,10,0.3)', background: 'rgba(26,20,16,0.6)', color: '#F5F0E8', fontSize: '0.95rem', fontFamily: "'Space Mono', monospace" }} />
+                </label>
+                <label style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Host %</div>
+                  <input type="number" min={0} max={93} value={counterHost} onChange={e => { const v = Number(e.target.value); setCounterHost(v); setCounterMusician(93 - v) }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(212,130,10,0.3)', background: 'rgba(26,20,16,0.6)', color: '#F5F0E8', fontSize: '0.95rem', fontFamily: "'Space Mono', monospace" }} />
+                </label>
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: '#8C7B6B', marginBottom: '12px' }}>
+                Platform: 7% (fixed) — Total: {counterMusician + counterHost + 7}%
+                {counterMusician + counterHost !== 93 && (
+                  <span style={{ color: '#FCA5A5', marginLeft: '8px' }}>Musician + Host must equal 93%</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => handleCounterSubmit(request.id)} disabled={counterMusician + counterHost !== 93 || counterSubmitting}
+                  style={{ background: counterMusician + counterHost === 93 ? 'linear-gradient(135deg, #D4820A, #F0A500)' : 'rgba(212,130,10,0.3)', color: '#1A1410', padding: '8px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', cursor: counterMusician + counterHost === 93 ? 'pointer' : 'not-allowed', opacity: counterSubmitting ? 0.6 : 1 }}>
+                  {counterSubmitting ? 'Sending...' : 'Send Counter'}
+                </button>
+                <button onClick={() => setCounterFormOpen(null)}
+                  style={{ background: 'transparent', color: '#8C7B6B', padding: '8px 18px', borderRadius: '6px', fontSize: '0.85rem', fontFamily: "'DM Sans', sans-serif", border: '1px solid rgba(140,123,107,0.3)', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <>
           <div style={{
@@ -1078,6 +1213,22 @@ export default function Bookings() {
               Accept
             </button>
             <button
+              onClick={() => openCounterForm(request.id, request.proposed_musician_pct, request.proposed_host_pct)}
+              style={{
+                background: 'transparent',
+                color: '#F0A500',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                fontFamily: "'DM Sans', sans-serif",
+                border: '1px solid rgba(240,165,0,0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              Counter
+            </button>
+            <button
               onClick={() => handleDeclineRequest(request.id)}
               style={{
                 background: 'transparent',
@@ -1093,6 +1244,39 @@ export default function Bookings() {
               Decline
             </button>
           </div>
+
+          {counterFormOpen === request.id && (
+            <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(26,20,16,0.4)', borderRadius: '8px', border: '1px solid rgba(212,130,10,0.15)' }}>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                <label style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Musician %</div>
+                  <input type="number" min={0} max={93} value={counterMusician} onChange={e => { const v = Number(e.target.value); setCounterMusician(v); setCounterHost(93 - v) }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(212,130,10,0.3)', background: 'rgba(26,20,16,0.6)', color: '#F5F0E8', fontSize: '0.95rem', fontFamily: "'Space Mono', monospace" }} />
+                </label>
+                <label style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Host %</div>
+                  <input type="number" min={0} max={93} value={counterHost} onChange={e => { const v = Number(e.target.value); setCounterHost(v); setCounterMusician(93 - v) }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(212,130,10,0.3)', background: 'rgba(26,20,16,0.6)', color: '#F5F0E8', fontSize: '0.95rem', fontFamily: "'Space Mono', monospace" }} />
+                </label>
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: '#8C7B6B', marginBottom: '12px' }}>
+                Platform: 7% (fixed) — Total: {counterMusician + counterHost + 7}%
+                {counterMusician + counterHost !== 93 && (
+                  <span style={{ color: '#FCA5A5', marginLeft: '8px' }}>Musician + Host must equal 93%</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => handleCounterSubmit(request.id)} disabled={counterMusician + counterHost !== 93 || counterSubmitting}
+                  style={{ background: counterMusician + counterHost === 93 ? 'linear-gradient(135deg, #D4820A, #F0A500)' : 'rgba(212,130,10,0.3)', color: '#1A1410', padding: '8px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', cursor: counterMusician + counterHost === 93 ? 'pointer' : 'not-allowed', opacity: counterSubmitting ? 0.6 : 1 }}>
+                  {counterSubmitting ? 'Sending...' : 'Send Counter'}
+                </button>
+                <button onClick={() => setCounterFormOpen(null)}
+                  style={{ background: 'transparent', color: '#8C7B6B', padding: '8px 18px', borderRadius: '6px', fontSize: '0.85rem', fontFamily: "'DM Sans', sans-serif", border: '1px solid rgba(140,123,107,0.3)', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -1106,7 +1290,9 @@ export default function Bookings() {
         ? { background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.32)', color: '#86EFAC' }
         : request.status === 'declined'
           ? { background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.32)', color: '#FCA5A5' }
-          : { background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#F5F0E8' }
+          : request.status === 'negotiating'
+            ? { background: 'rgba(240,165,0,0.12)', border: '1px solid rgba(240,165,0,0.32)', color: '#F0A500' }
+            : { background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#F5F0E8' }
 
     return (
       <div style={{
@@ -1149,7 +1335,7 @@ export default function Bookings() {
             )}
           </div>
           <div style={{ padding: '6px 12px', borderRadius: '999px', ...statusBadgeStyles, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
-            {request.status}
+            {request.status === 'negotiating' ? 'Counter Offer' : request.status}
           </div>
         </div>
 
@@ -1168,14 +1354,29 @@ export default function Bookings() {
           </div>
         )}
 
+        {request.status === 'negotiating' && (
+          <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '8px', background: 'rgba(212,130,10,0.08)', border: '1px solid rgba(212,130,10,0.16)', fontSize: '0.9rem' }}>
+            <div style={{ color: '#F0A500', fontWeight: 600, marginBottom: '4px' }}>Counter Offer</div>
+            <div style={{ color: '#F5F0E8' }}>
+              Proposed split: {request.proposed_musician_pct}% artist / {request.proposed_host_pct}% host / 7% platform
+            </div>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {request.status === 'pending' && (
+          {(request.status === 'pending' || request.status === 'negotiating') && (
             <>
               <button
                 onClick={() => handleHostAcceptRequest(request.id)}
                 style={{ background: 'linear-gradient(135deg, #4CAF50, #66BB6A)', color: '#1A1410', padding: '10px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', cursor: 'pointer' }}
               >
                 Accept
+              </button>
+              <button
+                onClick={() => openCounterForm(request.id, request.proposed_musician_pct, request.proposed_host_pct)}
+                style={{ background: 'transparent', color: '#F0A500', padding: '10px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: '1px solid rgba(240,165,0,0.3)', cursor: 'pointer' }}
+              >
+                Counter
               </button>
               <button
                 onClick={() => handleHostDeclineRequest(request.id)}
@@ -1202,6 +1403,39 @@ export default function Bookings() {
             </a>
           )}
         </div>
+
+        {counterFormOpen === request.id && (
+          <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(26,20,16,0.4)', borderRadius: '8px', border: '1px solid rgba(212,130,10,0.15)' }}>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+              <label style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Musician %</div>
+                <input type="number" min={0} max={93} value={counterMusician} onChange={e => { const v = Number(e.target.value); setCounterMusician(v); setCounterHost(93 - v) }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(212,130,10,0.3)', background: 'rgba(26,20,16,0.6)', color: '#F5F0E8', fontSize: '0.95rem', fontFamily: "'Space Mono', monospace" }} />
+              </label>
+              <label style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.8rem', marginBottom: '4px' }}>Host %</div>
+                <input type="number" min={0} max={93} value={counterHost} onChange={e => { const v = Number(e.target.value); setCounterHost(v); setCounterMusician(93 - v) }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(212,130,10,0.3)', background: 'rgba(26,20,16,0.6)', color: '#F5F0E8', fontSize: '0.95rem', fontFamily: "'Space Mono', monospace" }} />
+              </label>
+            </div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: '#8C7B6B', marginBottom: '12px' }}>
+              Platform: 7% (fixed) — Total: {counterMusician + counterHost + 7}%
+              {counterMusician + counterHost !== 93 && (
+                <span style={{ color: '#FCA5A5', marginLeft: '8px' }}>Musician + Host must equal 93%</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => handleCounterSubmit(request.id)} disabled={counterMusician + counterHost !== 93 || counterSubmitting}
+                style={{ background: counterMusician + counterHost === 93 ? 'linear-gradient(135deg, #D4820A, #F0A500)' : 'rgba(212,130,10,0.3)', color: '#1A1410', padding: '8px 18px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", border: 'none', cursor: counterMusician + counterHost === 93 ? 'pointer' : 'not-allowed', opacity: counterSubmitting ? 0.6 : 1 }}>
+                {counterSubmitting ? 'Sending...' : 'Send Counter'}
+              </button>
+              <button onClick={() => setCounterFormOpen(null)}
+                style={{ background: 'transparent', color: '#8C7B6B', padding: '8px 18px', borderRadius: '6px', fontSize: '0.85rem', fontFamily: "'DM Sans', sans-serif", border: '1px solid rgba(140,123,107,0.3)', cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
