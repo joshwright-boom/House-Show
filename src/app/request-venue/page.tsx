@@ -47,6 +47,8 @@ function RequestVenueInner() {
   const [host, setHost] = useState<HostProfile | null>(null)
   const [hostProfile, setHostProfile] = useState<HostAccountProfile | null>(null)
   const [musicianProfileId, setMusicianProfileId] = useState<string | null>(null)
+  const [dealType, setDealType] = useState<'split' | 'guarantee' | null>(null)
+  const [artistPct, setArtistPct] = useState(60)
 
   const [formData, setFormData] = useState({
     proposed_date: '',
@@ -188,24 +190,37 @@ function RequestVenueInner() {
       setSubmitting(true)
       setError(null)
 
-      if (!formData.proposed_date || !formData.proposed_time || !formData.ticket_price) {
+      if (!dealType) {
+        setError('Please select a deal type')
+        return
+      }
+      if (!formData.proposed_date || !formData.proposed_time) {
         setError('Please fill in all required fields')
+        return
+      }
+      if (dealType === 'split' && !formData.ticket_price) {
+        setError('Please enter a ticket price')
+        return
+      }
+      if (dealType === 'guarantee' && !formData.guaranteed_minimum) {
+        setError('Please enter a guaranteed amount')
         return
       }
 
       const ticketPrice = Number.parseFloat(formData.ticket_price)
       const guaranteedMinimum = Number.parseFloat(formData.guaranteed_minimum || '0')
+      const hostPct = 93 - artistPct
 
       const payload: BookingRequestPayload = {
         musician_id: musicianProfileId,
         host_id: host.id,
         proposed_date: formData.proposed_date,
-        ticket_price: Number.isFinite(ticketPrice) ? ticketPrice : 0,
+        ticket_price: dealType === 'split' && Number.isFinite(ticketPrice) ? ticketPrice : 0,
         message: formData.message,
-        guaranteed_minimum: Number.isFinite(guaranteedMinimum) ? Math.round(guaranteedMinimum) : 0,
+        guaranteed_minimum: dealType === 'guarantee' && Number.isFinite(guaranteedMinimum) ? Math.round(guaranteedMinimum) : 0,
         status: 'pending',
-        proposed_musician_pct: 60,
-        proposed_host_pct: 33,
+        proposed_musician_pct: dealType === 'split' ? artistPct : 0,
+        proposed_host_pct: dealType === 'split' ? hostPct : 0,
         proposed_platform_pct: 7
       }
       console.log('RequestVenue booking request payload:', payload)
@@ -354,86 +369,244 @@ function RequestVenueInner() {
               )}
 
               <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Proposed Date *</label>
-                  <input
-                    type="date"
-                    name="proposed_date"
-                    required
-                    value={formData.proposed_date}
-                    onChange={handleInputChange}
-                    style={inputStyle}
-                  />
+
+                {/* Deal type selector */}
+                <div style={{ marginBottom: '28px' }}>
+                  <div style={{
+                    fontFamily: "'Space Mono', monospace",
+                    fontSize: '0.68rem',
+                    color: '#D4820A',
+                    letterSpacing: '3px',
+                    textTransform: 'uppercase',
+                    marginBottom: '14px'
+                  }}>
+                    How do you want to structure this deal?
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDealType('split')}
+                      style={{
+                        padding: '22px 18px',
+                        borderRadius: '10px',
+                        border: dealType === 'split' ? '2px solid #D4820A' : '1px solid rgba(212,130,10,0.25)',
+                        background: dealType === 'split' ? 'rgba(212,130,10,0.1)' : 'rgba(26,20,16,0.5)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'border-color 0.15s, background 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: '1.5rem', marginBottom: '10px' }}>📊</div>
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        color: dealType === 'split' ? '#F0A500' : '#F5F0E8',
+                        marginBottom: '8px',
+                      }}>
+                        Revenue Split
+                      </div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.82rem', color: '#8C7B6B', lineHeight: 1.5 }}>
+                        No upfront ask. You and the host split ticket sales. Great for building relationships with new venues.
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDealType('guarantee')}
+                      style={{
+                        padding: '22px 18px',
+                        borderRadius: '10px',
+                        border: dealType === 'guarantee' ? '2px solid #D4820A' : '1px solid rgba(212,130,10,0.25)',
+                        background: dealType === 'guarantee' ? 'rgba(212,130,10,0.1)' : 'rgba(26,20,16,0.5)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'border-color 0.15s, background 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: '1.5rem', marginBottom: '10px' }}>💵</div>
+                      <div style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        color: dealType === 'guarantee' ? '#F0A500' : '#F5F0E8',
+                        marginBottom: '8px',
+                      }}>
+                        Minimum Guarantee
+                      </div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.82rem', color: '#8C7B6B', lineHeight: 1.5 }}>
+                        You need a guaranteed payment to show up. Host pays you a set amount regardless of ticket sales.
+                      </div>
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Proposed Time *</label>
-                  <input
-                    type="time"
-                    name="proposed_time"
-                    required
-                    value={formData.proposed_time}
-                    onChange={handleInputChange}
-                    style={inputStyle}
-                  />
-                </div>
+                {/* Fields — only shown once a deal type is selected */}
+                {dealType && (
+                  <>
+                    {/* Proposed Date */}
+                    <div style={{ marginBottom: '18px' }}>
+                      <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Proposed Date *</label>
+                      <input
+                        type="date"
+                        name="proposed_date"
+                        required
+                        value={formData.proposed_date}
+                        onChange={handleInputChange}
+                        style={inputStyle}
+                      />
+                    </div>
 
-                <div style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Your Ticket Price Suggestion ($) *</label>
-                  <input
-                    type="number"
-                    name="ticket_price"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={formData.ticket_price}
-                    onChange={handleInputChange}
-                    style={inputStyle}
-                  />
-                </div>
+                    {/* Proposed Time */}
+                    <div style={{ marginBottom: '18px' }}>
+                      <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Proposed Time *</label>
+                      <input
+                        type="time"
+                        name="proposed_time"
+                        required
+                        value={formData.proposed_time}
+                        onChange={handleInputChange}
+                        style={inputStyle}
+                      />
+                    </div>
 
-                <div style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Your Minimum Guarantee Requirement ($)</label>
-                  <input
-                    type="number"
-                    name="guaranteed_minimum"
-                    min="0"
-                    step="0.01"
-                    value={formData.guaranteed_minimum}
-                    onChange={handleInputChange}
-                    style={inputStyle}
-                  />
-                </div>
+                    {/* Ticket price — split only */}
+                    {dealType === 'split' && (
+                      <div style={{ marginBottom: '18px' }}>
+                        <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Your Ticket Price Suggestion ($) *</label>
+                        <input
+                          type="number"
+                          name="ticket_price"
+                          required
+                          min="0"
+                          step="0.01"
+                          value={formData.ticket_price}
+                          onChange={handleInputChange}
+                          style={inputStyle}
+                        />
+                      </div>
+                    )}
 
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Message to Host</label>
-                  <textarea
-                    name="message"
-                    rows={5}
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }}
-                  />
-                </div>
+                    {/* Artist % slider — split only */}
+                    {dealType === 'split' && (
+                      <div style={{ marginBottom: '18px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <label style={{ color: '#F5F0E8', fontWeight: 600 }}>Artist % Ask</label>
+                          <span style={{ color: '#F0A500', fontWeight: 700, fontFamily: "'Space Mono', monospace", fontSize: '0.95rem' }}>{artistPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={40}
+                          max={86}
+                          value={artistPct}
+                          onChange={(e) => setArtistPct(Number(e.target.value))}
+                          style={{ width: '100%', accentColor: '#D4820A', cursor: 'pointer', height: '4px' }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'DM Sans', sans-serif", fontSize: '0.75rem', color: '#4A4240', marginTop: '4px' }}>
+                          <span>40%</span><span>86%</span>
+                        </div>
+                        <div style={{ marginTop: '10px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(26,20,16,0.5)', border: '1px solid rgba(212,130,10,0.15)' }}>
+                          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>
+                            Host would receive{' '}
+                            <span style={{ color: '#D9C6A5', fontWeight: 600 }}>{93 - artistPct}%</span>.{' '}
+                            Platform keeps <span style={{ color: '#4A4240' }}>7%</span>.
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    width: '100%',
-                    padding: '14px 18px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #D4820A, #F0A500)',
-                    color: '#1A1410',
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.7 : 1
-                  }}
-                >
-                  {submitting ? 'Sending Request...' : 'Send Request'}
-                </button>
+                    {/* Guaranteed amount — guarantee only */}
+                    {dealType === 'guarantee' && (
+                      <div style={{ marginBottom: '18px' }}>
+                        <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Guaranteed Amount You Require ($) *</label>
+                        <input
+                          type="number"
+                          name="guaranteed_minimum"
+                          required
+                          min="0"
+                          step="0.01"
+                          value={formData.guaranteed_minimum}
+                          onChange={handleInputChange}
+                          style={inputStyle}
+                        />
+                      </div>
+                    )}
+
+                    {/* Message */}
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', color: '#F5F0E8', marginBottom: '8px', fontWeight: 600 }}>Message to Host</label>
+                      <textarea
+                        name="message"
+                        rows={5}
+                        value={formData.message}
+                        onChange={handleInputChange}
+                        style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }}
+                      />
+                    </div>
+
+                    {/* Confirmation box */}
+                    {dealType === 'split' && (
+                      <div style={{
+                        marginBottom: '22px',
+                        padding: '16px 18px',
+                        borderRadius: '10px',
+                        background: 'rgba(44,34,24,0.45)',
+                        border: '1px solid rgba(212,130,10,0.2)'
+                      }}>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.62rem', color: '#D4820A', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                          Your proposal
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.92rem', color: '#F5F0E8', lineHeight: 1.6 }}>
+                          You&apos;re proposing a{' '}
+                          <span style={{ color: '#F0A500', fontWeight: 600 }}>{artistPct}% / {93 - artistPct}%</span> revenue split at{' '}
+                          <span style={{ color: '#F0A500', fontWeight: 600 }}>${Number.parseFloat(formData.ticket_price || '0').toFixed(2)}</span> per ticket.
+                          The host reviews and can accept or counter-offer.
+                        </div>
+                      </div>
+                    )}
+
+                    {dealType === 'guarantee' && (
+                      <div style={{
+                        marginBottom: '22px',
+                        padding: '16px 18px',
+                        borderRadius: '10px',
+                        background: 'rgba(44,34,24,0.45)',
+                        border: '1px solid rgba(212,130,10,0.2)'
+                      }}>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.62rem', color: '#D4820A', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                          Your proposal
+                        </div>
+                        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.92rem', color: '#F5F0E8', lineHeight: 1.6 }}>
+                          You&apos;re requesting a guaranteed payment of{' '}
+                          <span style={{ color: '#F0A500', fontWeight: 600 }}>
+                            ${Number.parseFloat(formData.guaranteed_minimum || '0').toFixed(2)}
+                          </span>.
+                          The host pays this regardless of ticket sales.
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      style={{
+                        width: '100%',
+                        padding: '14px 18px',
+                        borderRadius: '10px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                        color: '#1A1410',
+                        fontWeight: 700,
+                        fontSize: '1rem',
+                        cursor: submitting ? 'not-allowed' : 'pointer',
+                        opacity: submitting ? 0.7 : 1
+                      }}
+                    >
+                      {submitting ? 'Sending Request...' : 'Send Request'}
+                    </button>
+                  </>
+                )}
+
               </form>
             </div>
           </section>
