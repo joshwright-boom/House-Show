@@ -281,7 +281,10 @@ export async function POST(request: NextRequest) {
       if (emailRecipients.size > 0) {
         await fetch(new URL('/api/notify-show-published', request.url), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': request.headers.get('authorization') || '',
+          },
           body: JSON.stringify({
             emails: Array.from(emailRecipients),
             showName: formData?.show_name || showInsertPayload.artist_name,

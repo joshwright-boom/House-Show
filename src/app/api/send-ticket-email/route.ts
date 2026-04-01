@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
 const resendApiKey = process.env.RESEND_API_KEY
@@ -6,6 +7,25 @@ const resend = resendApiKey ? new Resend(resendApiKey) : null
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace(/^Bearer\s+/i, '')
+
+    if (!token || !supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+    const { data: { user }, error: authError } = await authSupabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     if (!resend) {
       return NextResponse.json({ error: 'RESEND_API_KEY is not configured.' }, { status: 500 })
     }

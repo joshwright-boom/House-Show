@@ -1,9 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const notificationWebhookUrl = process.env.NOTIFICATION_WEBHOOK_URL
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace(/^Bearer\s+/i, '')
+
+    if (!token || !supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+    const { data: { user }, error: authError } = await authSupabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { emails, showName, showDate, showUrl } = await request.json()
 
     if (!Array.isArray(emails) || emails.length === 0) {

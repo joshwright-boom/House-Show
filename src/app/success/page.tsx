@@ -50,9 +50,8 @@ function CheckoutSuccessContent() {
   const [ticketEmail, setTicketEmail] = useState<string | null>(null)
   const [ticketQuantity, setTicketQuantity] = useState('1')
   const [emailSent, setEmailSent] = useState(false)
-  const ticketUrl = sessionId
-    ? `https://houseshow.net/ticket/${sessionId}`
-    : 'https://houseshow.net/ticket/pending'
+  const [ticketIds, setTicketIds] = useState<string[]>([])
+  const [ticketsLoading, setTicketsLoading] = useState(true)
 
   useEffect(() => {
     const loadShow = async () => {
@@ -93,10 +92,58 @@ function CheckoutSuccessContent() {
   }, [showId])
 
   useEffect(() => {
+    if (!showId) {
+      setTicketsLoading(false)
+      return
+    }
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 10
+
+    const pollForTickets = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) {
+        setTicketsLoading(false)
+        return
+      }
+
+      const { data: tickets } = await supabase
+        .from('tickets')
+        .select('id')
+        .eq('show_id', showId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (tickets && tickets.length > 0) {
+        setTicketIds(tickets.map((t) => t.id))
+        setTicketsLoading(false)
+        return
+      }
+
+      attempts++
+      if (attempts < maxAttempts && !cancelled) {
+        setTimeout(pollForTickets, 2000)
+      } else {
+        setTicketsLoading(false)
+      }
+    }
+
+    pollForTickets()
+    return () => { cancelled = true }
+  }, [showId])
+
+  useEffect(() => {
     const loadCheckoutEmail = async () => {
       if (!sessionId) return
       try {
-        const response = await fetch(`/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`)
+        const { data: { session: authSession } } = await supabase.auth.getSession()
+        const accessToken = authSession?.access_token
+        if (!accessToken) return
+
+        const response = await fetch(`/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+        })
         if (!response.ok) return
         const data = await response.json()
         setTicketEmail(data.email || null)
@@ -114,9 +161,16 @@ function CheckoutSuccessContent() {
       if (!show || !ticketEmail || !sessionId || emailSent) return
 
       try {
+        const { data: { session: authSession } } = await supabase.auth.getSession()
+        const accessToken = authSession?.access_token
+        if (!accessToken) return
+
         const response = await fetch('/api/send-ticket-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({
             email: ticketEmail,
             showName: show.show_name,
@@ -207,24 +261,37 @@ function CheckoutSuccessContent() {
           )}
 
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: '#FFFFFF',
-              padding: '16px',
-              borderRadius: '14px',
-              marginBottom: '10px'
-            }}>
-              <QRCodeSVG value={ticketUrl} size={220} />
-            </div>
-            <div style={{ color: '#8C7B6B', fontSize: '0.95rem' }}>
+            {ticketsLoading ? (
+              <p style={{ color: '#8C7B6B' }}>Generating your ticket...</p>
+            ) : ticketIds.length > 0 ? (
+              ticketIds.map((ticketId) => (
+                <div key={ticketId} style={{ marginBottom: '16px' }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#FFFFFF',
+                    padding: '16px',
+                    borderRadius: '14px',
+                    marginBottom: '10px'
+                  }}>
+                    <QRCodeSVG value={ticketId} size={220} />
+                  </div>
+                  <div style={{ color: '#8C7B6B', fontSize: '0.72rem', fontFamily: "'Space Mono', monospace" }}>
+                    {ticketId.slice(0, 8)}...
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p style={{ color: '#8C7B6B' }}>Your ticket is being processed. Visit <a href="/tickets" style={{ color: '#F0A500' }}>My Tickets</a> to view it shortly.</p>
+            )}
+            <div style={{ color: '#8C7B6B', fontSize: '0.95rem', marginTop: '8px' }}>
               Show this at the door
             </div>
           </div>
 
           <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '22px' }}>
-            📱 Save this page to your home screen to keep your ticket
+            📱 Save this page or visit <a href="/tickets" style={{ color: '#F0A500' }}>My Tickets</a> to access your QR code anytime
           </p>
 
           <p style={{ color: '#8C7B6B', textAlign: 'center', marginBottom: '24px' }}>

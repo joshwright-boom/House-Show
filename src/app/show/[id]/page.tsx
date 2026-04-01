@@ -307,9 +307,19 @@ export default function ShowPage({ params }: { params: { id: string } }) {
       setCheckoutLoading(true)
       const liabilityAgreedAt = new Date().toISOString()
 
+      const { data: { session: authSession } } = await supabase.auth.getSession()
+      const accessToken = authSession?.access_token
+      if (!accessToken) {
+        alert('Please log in to purchase tickets')
+        return
+      }
+
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           showId: show.id,
           showName: show.show_name,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +10,25 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function GET(request: NextRequest) {
   try {
+    // Auth check
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace(/^Bearer\s+/i, '')
+
+    if (!token || !supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+    const { data: { user }, error: authError } = await authSupabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const sessionId = request.nextUrl.searchParams.get('session_id')
 
     if (!sessionId) {

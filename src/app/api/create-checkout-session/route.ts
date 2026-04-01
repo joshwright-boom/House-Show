@@ -8,6 +8,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check: require a valid Supabase user
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace(/^Bearer\s+/i, '')
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+    const { data: { user }, error: authError } = await authSupabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const {
       showId,
       showName,
@@ -21,41 +45,28 @@ export async function POST(request: NextRequest) {
       liabilityAgreedAt
     } = await request.json()
 
-    console.log('CHECKOUT REQUEST BODY:', JSON.stringify({
-      showId,
-      showName,
-      showDate,
-      showTime,
-      venueName,
-      venueAddress,
-      ticketPrice,
-      quantity,
-      liabilityAgreed,
-      liabilityAgreedAt
-    }))
-
-    if (!showId || !showName || !showDate || !showTime || !venueName || !venueAddress || ticketPrice === undefined || ticketPrice === null || !quantity || liabilityAgreed !== true || !liabilityAgreedAt) {
-      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
-    if (!supabaseUrl) {
+    if (!showId || !showName || !showDate || !showTime || !venueName || ticketPrice === undefined || ticketPrice === null || !quantity || liabilityAgreed !== true || !liabilityAgreedAt) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!supabaseServiceKey) {
-      return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { data: showRecord, error: showLookupError } = await supabase
       .from('shows')
-      .select('id, show_name, artist_name, show_date, show_time, venue_name, venue_address, ticket_price')
+      .select('id, show_name, artist_name, show_date, show_time, venue_name, venue_address, ticket_price, status')
       .eq('id', showId)
       .maybeSingle()
 
-    console.log('CHECKOUT SHOW LOOKUP:', JSON.stringify({ showId, showRecord, showLookupError }))
+    if (showLookupError || !showRecord) {
+      return NextResponse.json({ error: 'Show not found' }, { status: 404 })
+    }
+
+    if (showRecord.status !== 'on_sale') {
+      return NextResponse.json({ error: 'This show is no longer available for ticket purchases' }, { status: 400 })
+    }
 
     const resolvedShowName = String(showName || showRecord?.show_name || showRecord?.artist_name || '').trim()
     const resolvedShowDate = String(showDate || showRecord?.show_date || '')
@@ -66,7 +77,7 @@ export async function POST(request: NextRequest) {
     const safeQuantity = Math.max(1, Number(quantity) || 1)
     const unitAmount = Math.round(resolvedTicketPrice * 100)
 
-    if (!resolvedShowName || !resolvedShowDate || !resolvedShowTime || !resolvedVenueName || !resolvedVenueAddress || Number.isNaN(resolvedTicketPrice) || resolvedTicketPrice <= 0 || !Number.isFinite(unitAmount) || unitAmount <= 0) {
+    if (!resolvedShowName || !resolvedShowDate || !resolvedShowTime || !resolvedVenueName || Number.isNaN(resolvedTicketPrice) || resolvedTicketPrice <= 0 || !Number.isFinite(unitAmount) || unitAmount <= 0) {
       return NextResponse.json({ error: 'Missing checkout details' }, { status: 400 })
     }
 
@@ -90,6 +101,7 @@ export async function POST(request: NextRequest) {
       cancel_url: `${origin}/show/${showId}?checkout=cancelled`,
       metadata: {
         showId,
+        userId: user.id,
         showName: resolvedShowName,
         showDate: resolvedShowDate,
         showTime: resolvedShowTime,
