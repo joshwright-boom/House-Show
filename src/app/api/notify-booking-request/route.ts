@@ -85,6 +85,17 @@ async function handleNewRequest(
     return NextResponse.json({ ok: false, warning: 'Host not found' }, { status: 200 })
   }
 
+  // Check email_notifications preference
+  const { data: hostProfileRow } = await adminSupabase
+    .from('profiles')
+    .select('email_notifications')
+    .eq('id', resolvedUserId)
+    .maybeSingle()
+
+  if (hostProfileRow?.email_notifications === false) {
+    return NextResponse.json({ ok: true, skipped: 'email_notifications disabled' })
+  }
+
   const { data: hostAuth } = await adminSupabase.auth.admin.getUserById(resolvedUserId)
   const hostEmail = hostAuth?.user?.email
 
@@ -129,6 +140,17 @@ async function handleDecision(
   if (!artistProfile?.user_id) {
     console.warn('[notify-booking-request] Could not resolve artist user_id for artist_profile:', musicianProfileId)
     return NextResponse.json({ ok: false, warning: 'Artist not found' }, { status: 200 })
+  }
+
+  // Check email_notifications preference
+  const { data: artistProfileRow } = await adminSupabase
+    .from('profiles')
+    .select('email_notifications')
+    .eq('id', artistProfile.user_id)
+    .maybeSingle()
+
+  if (artistProfileRow?.email_notifications === false) {
+    return NextResponse.json({ ok: true, skipped: 'email_notifications disabled' })
   }
 
   const { data: artistAuth } = await adminSupabase.auth.admin.getUserById(artistProfile.user_id)

@@ -99,6 +99,8 @@ export default function Dashboard() {
   const [counterOfferError, setCounterOfferError] = useState<string | null>(null)
   const [ticketShows, setTicketShows] = useState<TicketShow[]>([])
   const [ticketShowsLoading, setTicketShowsLoading] = useState(true)
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [emailNotificationsLoading, setEmailNotificationsLoading] = useState(false)
   const counterOfferTotal = getCounterOfferTotal(counterOfferValues)
   const isCounterOfferTotalValid = counterOfferTotal === 100
 
@@ -231,10 +233,12 @@ export default function Dashboard() {
       }
 
       const [profileResult, artistResult, hostResult] = await Promise.all([
-        supabase.from('profiles').select('user_type').eq('id', user.id).single(),
+        supabase.from('profiles').select('user_type, email_notifications').eq('id', user.id).single(),
         supabase.from('artist_profiles').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('host_profiles').select('id').eq('user_id', user.id).maybeSingle(),
       ])
+
+      setEmailNotifications(profileResult.data?.email_notifications !== false)
 
       const hasArtist = !!artistResult.data?.id
       const hasHost = !!hostResult.data?.id
@@ -984,9 +988,74 @@ export default function Dashboard() {
           Welcome to HouseShow
         </h1>
         {user && (
-          <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '48px' }}>
+          <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '24px' }}>
             Signed in as <span style={{ color: '#F0A500' }}>{user.email}</span>
           </p>
+        )}
+
+        {user && (
+          <div style={{
+            marginBottom: '32px',
+            border: '1px solid rgba(212,130,10,0.2)',
+            borderRadius: '10px',
+            padding: '18px 22px',
+            background: 'rgba(44,34,24,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+          }}>
+            <div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem', fontWeight: 600, marginBottom: '4px' }}>
+                Email Notifications
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.82rem' }}>
+                Receive emails when you get booking requests or when a host accepts/declines.
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                if (emailNotificationsLoading) return
+                const next = !emailNotifications
+                setEmailNotificationsLoading(true)
+                setEmailNotifications(next)
+                const { error } = await supabase
+                  .from('profiles')
+                  .update({ email_notifications: next })
+                  .eq('id', user.id)
+                if (error) {
+                  console.error('Failed to update email notification preference:', error)
+                  setEmailNotifications(!next)
+                }
+                setEmailNotificationsLoading(false)
+              }}
+              disabled={emailNotificationsLoading}
+              style={{
+                position: 'relative',
+                width: '48px',
+                height: '26px',
+                borderRadius: '13px',
+                border: 'none',
+                background: emailNotifications ? '#D4820A' : 'rgba(140,123,107,0.3)',
+                cursor: emailNotificationsLoading ? 'not-allowed' : 'pointer',
+                transition: 'background 0.2s',
+                flexShrink: 0,
+                padding: 0,
+              }}
+              aria-label={emailNotifications ? 'Disable email notifications' : 'Enable email notifications'}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '3px',
+                left: emailNotifications ? '24px' : '3px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: '#F5F0E8',
+                transition: 'left 0.2s',
+              }} />
+            </button>
+          </div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
