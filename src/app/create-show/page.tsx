@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
+import FacebookEventCard from '@/components/FacebookEventCard'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
 
@@ -96,6 +97,7 @@ function CreateShowContent() {
     show_description: '',
     genre_preference: 'Any'
   })
+  const [createdShow, setCreatedShow] = useState<{ showId: string; accessToken: string } | null>(null)
   
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -435,7 +437,11 @@ function CreateShowContent() {
         throw new Error(result.error || 'Please try again.')
       }
 
-      router.push(result.showId ? `/show/${result.showId}` : '/bookings')
+      if (result.showId) {
+        setCreatedShow({ showId: result.showId, accessToken })
+      } else {
+        router.push('/bookings')
+      }
     } catch (error) {
       console.error('Error creating show:', error)
       setSubmitError(error instanceof Error ? error.message : 'Please try again.')
@@ -449,6 +455,80 @@ function CreateShowContent() {
     return <div style={{ minHeight: '100vh', background: '#1A1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#8C7B6B' }}>Loading...</p>
     </div>
+  }
+
+  if (createdShow) {
+    return (
+      <>
+        <style jsx global>{`
+          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { background: #1A1410; font-family: 'DM Sans', sans-serif; }
+        `}</style>
+        <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
+          <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+            <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+            <a href="/bookings" style={{ color: '#8C7B6B', fontSize: '0.9rem', textDecoration: 'none' }}>← Bookings</a>
+          </nav>
+          <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <div>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
+                Show Created
+              </div>
+              <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', color: '#F5F0E8', marginBottom: '12px' }}>
+                {formData.show_name || 'Your show is live'}
+              </h1>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '1rem', marginBottom: '24px' }}>
+                Tickets are now on sale. Use the tools below to promote your show.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <a
+                  href={`/show/${createdShow.showId}`}
+                  style={{
+                    background: 'linear-gradient(135deg, #D4820A, #F0A500)',
+                    color: '#1A1410',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  View Show →
+                </a>
+                <a
+                  href="/bookings"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(212,130,10,0.3)',
+                    color: '#D4820A',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  Go to Bookings
+                </a>
+              </div>
+            </div>
+            <FacebookEventCard
+              artistName={resolvedArtistName || selectedMusician?.name || ''}
+              artistBio={selectedMusician?.bio || ''}
+              venueName={formData.venue_name}
+              neighborhood={formData.neighborhood}
+              date={formData.date}
+              time={formData.time}
+              ticketPrice={formData.ticket_price}
+              ticketUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/show/${createdShow.showId}`}
+              accessToken={createdShow.accessToken}
+            />
+          </div>
+        </main>
+      </>
+    )
   }
 
   return (
