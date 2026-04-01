@@ -54,6 +54,10 @@ export default function Home() {
   useEffect(() => {
     if (!mounted) return
 
+    // Pick a random starting tagline immediately on mount
+    const startIndex = Math.floor(Math.random() * taglines.length)
+    setTaglineIndex(startIndex)
+
     const tick = () => {
       setTaglineOpacity(0)
       setTimeout(() => {
