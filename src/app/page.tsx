@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import ProfitCalculator from '@/components/ProfitCalculator'
 
 export default function Home() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
@@ -158,13 +159,8 @@ export default function Home() {
             padding: '16px 36px', borderRadius: '4px', fontSize: '1rem', display: 'inline-block',
           }}>I&apos;m a Fan</a>
         </div>
-        <div style={{ display: 'flex', gap: '48px', marginTop: '80px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {[{ num: '60%', label: 'GOES TO THE ARTIST' }, { num: '33%', label: 'GOES TO THE HOST' }, { num: '7%', label: 'PLATFORM FEE' }].map((s) => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontWeight: 700, color: '#F0A500' }}>{s.num}</div>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginTop: '4px' }}>{s.label}</div>
-            </div>
-          ))}
+        <div style={{ width: '100%', maxWidth: '680px', marginTop: '80px' }}>
+          <ProfitCalculator />
         </div>
       </section>
 
