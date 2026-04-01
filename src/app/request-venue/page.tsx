@@ -545,6 +545,34 @@ function RequestVenueInner() {
                             Platform keeps <span style={{ color: '#4A4240' }}>7%</span>.
                           </span>
                         </div>
+                        {(() => {
+                          const price = Number.parseFloat(formData.ticket_price)
+                          if (!Number.isFinite(price) || price <= 0) return null
+                          const artistEarn = Math.round(price * artistPct) / 100
+                          const hostEarn = Math.round(price * (93 - artistPct)) / 100
+                          const platformEarn = Math.round(price * 7) / 100
+                          return (
+                            <div style={{
+                              marginTop: '10px',
+                              padding: '12px 14px',
+                              borderRadius: '8px',
+                              background: 'rgba(212,130,10,0.08)',
+                              border: '1px solid rgba(212,130,10,0.2)',
+                            }}>
+                              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.62rem', color: '#D4820A', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                                Per ticket breakdown
+                              </div>
+                              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#F5F0E8', lineHeight: 1.7 }}>
+                                You&apos;d earn{' '}
+                                <span style={{ color: '#F0A500', fontWeight: 700 }}>${artistEarn.toFixed(2)}</span>
+                                {' · '}Host earns{' '}
+                                <span style={{ color: '#D9C6A5', fontWeight: 600 }}>${hostEarn.toFixed(2)}</span>
+                                {' · '}Platform keeps{' '}
+                                <span style={{ color: '#4A4240', fontWeight: 600 }}>${platformEarn.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )
+                        })()}
                       </div>
                     )}
 
