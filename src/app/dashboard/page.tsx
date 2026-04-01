@@ -68,7 +68,7 @@ const parseSplitValue = (value: string) => Number.parseInt(value, 10) || 0
 const getCounterOfferTotal = (values: { musician: string; host: string; platform: string }) =>
   parseSplitValue(values.musician) + parseSplitValue(values.host) + parseSplitValue(values.platform)
 
-const ACTIVE_MODE_STORAGE_KEY = 'houseshow_active_mode'
+const ACTIVE_VIEW_KEY = 'houseshow_active_view'
 
 export default function Dashboard() {
   // Required migration:
@@ -76,9 +76,10 @@ export default function Dashboard() {
   // ADD COLUMN proposed_musician_pct INTEGER,
   // ADD COLUMN proposed_host_pct INTEGER,
   // ADD COLUMN proposed_platform_pct INTEGER;
-  const [user, setUser] = useState<{ id: string; email?: string; user_type?: string; active_mode?: string } | null>(null)
-  const [activeMode, setActiveMode] = useState<'musician' | 'host'>('musician')
-  const [switchingMode, setSwitchingMode] = useState(false)
+  const [user, setUser] = useState<{ id: string; email?: string; user_type?: string } | null>(null)
+  const [activeView, setActiveView] = useState<'musician' | 'host'>('musician')
+  const [hasArtistProfile, setHasArtistProfile] = useState(false)
+  const [hasHostProfile, setHasHostProfile] = useState(false)
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
   const [hostRequests, setHostRequests] = useState<BookingRequest[]>([])
   const [hostShows, setHostShows] = useState<HostShow[]>([])
@@ -229,37 +230,35 @@ export default function Dashboard() {
         return
       }
 
-      // Get user profile to determine user type and active mode
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('user_type, active_mode')
-        .eq('id', user.id)
-        .single()
+      const [profileResult, artistResult, hostResult] = await Promise.all([
+        supabase.from('profiles').select('user_type').eq('id', user.id).single(),
+        supabase.from('artist_profiles').select('id').eq('user_id', user.id).maybeSingle(),
+        supabase.from('host_profiles').select('id').eq('user_id', user.id).maybeSingle(),
+      ])
 
-      const { data: hostProfile } = await supabase
-        .from('host_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle()
+      const hasArtist = !!artistResult.data?.id
+      const hasHost = !!hostResult.data?.id
 
-      const savedActiveMode = typeof window !== 'undefined'
-        ? window.localStorage.getItem(ACTIVE_MODE_STORAGE_KEY)
+      setHasArtistProfile(hasArtist)
+      setHasHostProfile(hasHost)
+
+      const savedView = typeof window !== 'undefined'
+        ? window.localStorage.getItem(ACTIVE_VIEW_KEY)
         : null
 
-      const resolvedActiveMode: 'musician' | 'host' =
-        savedActiveMode === 'host' || savedActiveMode === 'musician'
-          ? savedActiveMode
-          : hostProfile?.id
+      const resolvedView: 'musician' | 'host' =
+        savedView === 'host' || savedView === 'musician'
+          ? savedView
+          : hasHost && !hasArtist
             ? 'host'
             : 'musician'
-      
-      setUser({ 
+
+      setUser({
         id: user.id,
         email: user.email,
-        user_type: profile?.user_type || 'musician',
-        active_mode: resolvedActiveMode
+        user_type: profileResult.data?.user_type || 'musician',
       })
-      setActiveMode(resolvedActiveMode)
+      setActiveView(resolvedView)
     }
 
     loadUser()
@@ -530,54 +529,16 @@ export default function Dashboard() {
     loadTicketShows()
   }, [user?.id])
 
-  useEffect(() => {
-    const loadActiveMode = async () => {
-      const savedActiveMode = typeof window !== 'undefined'
-        ? window.localStorage.getItem(ACTIVE_MODE_STORAGE_KEY)
-        : null
-
-      if (savedActiveMode === 'musician' || savedActiveMode === 'host') {
-        setActiveMode(savedActiveMode)
-      }
-    }
-
-    loadActiveMode()
-  }, [])
-
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     window.location.href = '/'
   }
 
-  const switchMode = async (newMode: 'musician' | 'host') => {
-    if (switchingMode) return
-
-    try {
-      setSwitchingMode(true)
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (!currentUser) return
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ active_mode: newMode })
-        .eq('id', currentUser.id)
-
-      if (error) {
-        console.error('Error switching mode:', error)
-        return
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(ACTIVE_MODE_STORAGE_KEY, newMode)
-      }
-
-      setActiveMode(newMode)
-      setUser(prev => prev ? { ...prev, active_mode: newMode } : null)
-    } catch (error) {
-      console.error('Error switching mode:', error)
-    } finally {
-      setSwitchingMode(false)
+  const switchView = (newView: 'musician' | 'host') => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ACTIVE_VIEW_KEY, newView)
     }
+    setActiveView(newView)
   }
 
   const updateBookingRequestStatus = async (requestId: string, status: 'accepted' | 'declined') => {
@@ -982,56 +943,38 @@ export default function Dashboard() {
       </nav>
 
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        {/* Mode Toggle */}
-        {user?.user_type !== 'fan' && (
-          <div style={{ marginBottom: '48px' }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
-              Active Mode
+        {/* Role banner / onboarding prompt */}
+        {user?.user_type !== 'fan' && !hasArtistProfile && !hasHostProfile && (
+          <div style={{ marginBottom: '48px', border: '1px solid rgba(212,130,10,0.3)', borderRadius: '8px', padding: '24px', background: 'rgba(44,34,24,0.3)' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              Get Started
             </div>
-            <div style={{
-              display: 'flex',
-              gap: '12px'
-            }}>
-              <button
-                onClick={() => switchMode('musician')}
-                disabled={switchingMode}
-                style={{
-                  padding: '12px 18px',
-                  borderRadius: '6px',
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  border: activeMode === 'musician' ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.3)',
-                  cursor: switchingMode ? 'not-allowed' : 'pointer',
-                  background: activeMode === 'musician' ? '#D4820A' : 'transparent',
-                  color: activeMode === 'musician' ? '#1A1410' : '#F5F0E8',
-                }}
-              >
-                Musician Mode
-              </button>
-              <button
-                onClick={() => switchMode('host')}
-                disabled={switchingMode}
-                style={{
-                  padding: '12px 18px',
-                  borderRadius: '6px',
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  border: activeMode === 'host' ? '1px solid #D4820A' : '1px solid rgba(212,130,10,0.3)',
-                  cursor: switchingMode ? 'not-allowed' : 'pointer',
-                  background: activeMode === 'host' ? '#D4820A' : 'transparent',
-                  color: activeMode === 'host' ? '#1A1410' : '#F5F0E8',
-                }}
-              >
-                Host Mode
-              </button>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '1rem', marginBottom: '20px' }}>
+              What brings you to HouseShow?
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <a href="/profile" style={{ padding: '12px 18px', borderRadius: '6px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: '600', border: '1px solid #D4820A', background: '#D4820A', color: '#1A1410', textDecoration: 'none' }}>
+                I&apos;m a Musician
+              </a>
+              <a href="/host-profile" style={{ padding: '12px 18px', borderRadius: '6px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: '600', border: '1px solid rgba(212,130,10,0.5)', background: 'transparent', color: '#F5F0E8', textDecoration: 'none' }}>
+                I&apos;m a Host
+              </a>
             </div>
-            {switchingMode && (
-              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: '#D4820A', marginTop: '8px' }}>
-                Switching mode...
-              </div>
-            )}
+          </div>
+        )}
+        {hasArtistProfile && hasHostProfile && (
+          <div style={{ marginBottom: '32px', border: '1px solid rgba(212,130,10,0.3)', borderRadius: '8px', padding: '20px 24px', background: 'rgba(44,34,24,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem', margin: 0 }}>
+              {activeView === 'musician'
+                ? 'You also have a host profile.'
+                : 'You also have a musician profile.'}
+            </p>
+            <button
+              onClick={() => switchView(activeView === 'musician' ? 'host' : 'musician')}
+              style={{ padding: '10px 16px', borderRadius: '6px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', fontWeight: '600', border: '1px solid #D4820A', background: 'transparent', color: '#D4820A', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {activeView === 'musician' ? 'Switch to Host View' : 'Switch to Musician View'}
+            </button>
           </div>
         )}
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
@@ -1055,7 +998,7 @@ export default function Dashboard() {
                 { icon: '🎟️', title: 'My Tickets', desc: 'View your purchased tickets and QR codes', href: '/tickets' },
                 { icon: '⭐', title: 'Artists I Follow', desc: 'Artists you\'re keeping up with', href: '/following' },
               ]
-              : activeMode === 'host'
+              : activeView === 'host'
                 ? [
                   { icon: '🏠', title: 'My Host Profile', desc: 'Build your host profile', href: '/host-profile' },
                   { icon: '🎵', title: 'Find Musicians', desc: 'Discover and invite local musicians', href: '/browse' },
@@ -1155,7 +1098,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {false && activeMode === 'musician' && user?.user_type !== 'fan' && (
+        {false && activeView === 'musician' && user?.user_type !== 'fan' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
               Incoming Booking Requests
@@ -1430,7 +1373,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {false && activeMode === 'host' && (
+        {false && activeView === 'host' && (
           <section style={{ marginTop: '48px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>
               Incoming Booking Requests

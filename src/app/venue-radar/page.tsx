@@ -22,12 +22,22 @@ interface VenueHost {
   venue_description?: string | null
   hostProfileId?: string | null
   zip_code?: string
+  venue_type?: string | null
   distanceMiles: number
 }
 
 type LoadedVenueHost = Omit<VenueHost, 'distanceMiles'>
 
 const getHostInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+
+const VENUE_TYPE_LABELS: Record<string, string> = {
+  home: 'Home',
+  outdoor: 'Outdoor Space',
+  church: 'Church / Chapel',
+  brewery: 'Brewery / Bar',
+  restaurant: 'Restaurant / Café',
+  other: 'Other',
+}
 
 export default function VenueRadarPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -47,6 +57,7 @@ export default function VenueRadarPage() {
     amenities?: string[] | null
     has_sound_equipment?: boolean | null
     venue_capacity?: number | null
+    venue_type?: string | null
   }>())
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -122,7 +133,8 @@ export default function VenueRadarPage() {
               venue_photo_url: hp.venue_photo_url || null,
               amenities: hp.amenities || [],
               has_sound_equipment: hp.has_sound_equipment ?? null,
-              venue_capacity: hp.venue_capacity ?? null
+              venue_capacity: hp.venue_capacity ?? null,
+              venue_type: hp.venue_type || null
             }
           ])
         )
@@ -181,7 +193,8 @@ export default function VenueRadarPage() {
             has_sound_equipment: hp.has_sound_equipment ?? null,
             venue_capacity: hp.venue_capacity ?? null,
             venue_description: hp.venue_description || null,
-            hostProfileId: hp.id
+            hostProfileId: hp.id,
+            venue_type: hp.venue_type || null
           })
           return acc
         }, [])
@@ -456,6 +469,11 @@ export default function VenueRadarPage() {
                           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.65rem', color: '#22c55e', letterSpacing: '1px' }}>
                             {venue.availability_status === 'open_to_travel' ? 'OPEN TO TRAVEL' : 'AVAILABLE'}
                           </span>
+                          {venue.venue_type && VENUE_TYPE_LABELS[venue.venue_type] && (
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#D9C6A5' }}>
+                              {VENUE_TYPE_LABELS[venue.venue_type]}
+                            </span>
+                          )}
                           <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#D9C6A5' }}>
                             {venue.neighborhood || 'Neighborhood not listed'}
                           </span>
