@@ -32,9 +32,22 @@ export default function ProfitCalculator({
   const [userInteracted, setUserInteracted] = useState(false)
   const presetIndexRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const hasInteractedRef = useRef(false)
+
+  const freezeAnimation = () => {
+    if (hasInteractedRef.current) return
+    hasInteractedRef.current = true
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    setUserInteracted(true)
+    setAnimOpacity(1)
+    onInteractionStart?.()
+  }
 
   useEffect(() => {
-    if (userInteracted) return
+    if (hasInteractedRef.current) return
 
     intervalRef.current = setInterval(() => {
       setAnimOpacity(0)
@@ -50,15 +63,10 @@ export default function ProfitCalculator({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [userInteracted])
+  }, [])
 
   const handleArtistSlider = (val: number) => {
-    if (!userInteracted) {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      setUserInteracted(true)
-      setAnimOpacity(1)
-      onInteractionStart?.()
-    }
+    freezeAnimation()
     const bounded = Math.min(86, Math.max(40, val))
     setArtistPct(bounded)
     setHostPct(93 - bounded)
@@ -66,12 +74,7 @@ export default function ProfitCalculator({
   }
 
   const handleHostSlider = (val: number) => {
-    if (!userInteracted) {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      setUserInteracted(true)
-      setAnimOpacity(1)
-      onInteractionStart?.()
-    }
+    freezeAnimation()
     const bounded = Math.min(53, Math.max(7, val))
     setHostPct(bounded)
     setArtistPct(93 - bounded)
@@ -175,7 +178,7 @@ export default function ProfitCalculator({
                 min={5}
                 max={100}
                 value={ticketPrice}
-                onChange={(e) => setTicketPrice(Number(e.target.value))}
+                onChange={(e) => { freezeAnimation(); setTicketPrice(Number(e.target.value)) }}
                 style={sliderStyle}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'DM Sans', sans-serif", fontSize: '0.75rem', color: '#4A4240', marginTop: '4px' }}>
@@ -192,7 +195,7 @@ export default function ProfitCalculator({
                 min={10}
                 max={100}
                 value={ticketsSold}
-                onChange={(e) => setTicketsSold(Number(e.target.value))}
+                onChange={(e) => { freezeAnimation(); setTicketsSold(Number(e.target.value)) }}
                 style={sliderStyle}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'DM Sans', sans-serif", fontSize: '0.75rem', color: '#4A4240', marginTop: '4px' }}>
