@@ -18,6 +18,7 @@ interface HostProfile {
   venue_photo_url?: string
   amenities: string[]
   contact_preference: 'email' | 'message'
+  venue_type?: string | null
 }
 
 export default function HostProfile() {
@@ -36,7 +37,8 @@ export default function HostProfile() {
     venue_capacity: '',
     venue_photo_url: '',
     amenities: [] as string[],
-    contact_preference: 'email' as 'email' | 'message'
+    contact_preference: 'email' as 'email' | 'message',
+    venue_type: ''
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -73,7 +75,7 @@ export default function HostProfile() {
       // Load existing host profile
       const { data: profileData } = await supabase
         .from('host_profiles')
-        .select('id, user_id, venue_name, description, venue_description, neighborhood, address, available, has_sound_equipment, venue_capacity, capacity, venue_photo_url, amenities, contact_preference')
+        .select('id, user_id, venue_name, description, venue_description, neighborhood, address, available, has_sound_equipment, venue_capacity, capacity, venue_photo_url, amenities, contact_preference, venue_type')
         .eq('user_id', user.id)
         .maybeSingle()
       
@@ -91,7 +93,8 @@ export default function HostProfile() {
           venue_capacity: profileData.venue_capacity?.toString() || profileData.capacity?.toString() || '',
           venue_photo_url: profileData.venue_photo_url || '',
           amenities: profileData.amenities || [],
-          contact_preference: profileData.contact_preference || 'email'
+          contact_preference: profileData.contact_preference || 'email',
+          venue_type: profileData.venue_type || ''
         })
       }
     }
@@ -130,7 +133,8 @@ export default function HostProfile() {
         capacity: parseInt(formData.venue_capacity) || 0,
         venue_photo_url: formData.venue_photo_url || null,
         amenities: formData.amenities,
-        contact_preference: formData.contact_preference
+        contact_preference: formData.contact_preference,
+        venue_type: formData.venue_type || null
       }
 
       const { data: savedProfile, error: saveError } = await supabase
@@ -475,6 +479,40 @@ export default function HostProfile() {
                   fontFamily: 'DM Sans, sans-serif'
                 }}
               />
+            </div>
+            {/* Venue Type */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: 'Playfair Display, serif',
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Venue Type
+              </label>
+              <select
+                value={formData.venue_type}
+                onChange={(e) => handleInputChange('venue_type', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: formData.venue_type ? '#F5F0E8' : '#8C7B6B',
+                  fontSize: '1rem',
+                  fontFamily: 'DM Sans, sans-serif'
+                }}
+              >
+                <option value="">Select a venue type</option>
+                <option value="home">Home</option>
+                <option value="outdoor">Outdoor Space</option>
+                <option value="church">Church / Chapel</option>
+                <option value="brewery">Brewery / Bar</option>
+                <option value="restaurant">Restaurant / Café</option>
+                <option value="other">Other</option>
+              </select>
             </div>
 
             {/* Venue Description */}
