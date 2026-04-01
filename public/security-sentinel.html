@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HouseShow Security Sentinel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1A1410;
+      color: #F5F0E8;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Password gate ── */
+    #password-gate {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .gate-card {
+      background: rgba(26,20,16,0.9);
+      border: 1px solid rgba(212,130,10,0.3);
+      border-radius: 14px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+
+    .gate-card h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.8rem;
+      color: #F0A500;
+      margin-bottom: 8px;
+    }
+
+    .gate-card p {
+      font-size: 0.9rem;
+      color: #8C7B6B;
+      margin-bottom: 32px;
+    }
+
+    .gate-card input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(212,130,10,0.3);
+      background: #2A1F1A;
+      color: #F5F0E8;
+      font-size: 1rem;
+      margin-bottom: 14px;
+      outline: none;
+    }
+
+    .gate-card input[type="password"]:focus {
+      border-color: #D4820A;
+    }
+
+    .gate-card button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #D4820A, #F0A500);
+      color: #1A1410;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+
+    .gate-card button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #gate-error {
+      color: #FCA5A5;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    /* ── Main app ── */
+    #app {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    header {
+      padding: 20px 32px;
+      border-bottom: 1px solid rgba(212,130,10,0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header span.logo {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.3rem;
+      color: #F0A500;
+      font-weight: 700;
+    }
+
+    header span.badge {
+      font-size: 0.7rem;
+      font-family: monospace;
+      letter-spacing: 2px;
+      color: #D4820A;
+      background: rgba(212,130,10,0.1);
+      border: 1px solid rgba(212,130,10,0.25);
+      padding: 3px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 65px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      border-right: 1px solid rgba(212,130,10,0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 20px 20px 12px;
+      font-size: 0.65rem;
+      font-family: monospace;
+      color: #D4820A;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(212,130,10,0.1);
+    }
+
+    #thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.55;
+      max-width: 100%;
+      word-wrap: break-word;
+    }
+
+    .msg.user {
+      background: rgba(212,130,10,0.12);
+      border: 1px solid rgba(212,130,10,0.2);
+      color: #F5F0E8;
+      align-self: flex-end;
+    }
+
+    .msg.assistant {
+      background: rgba(44,34,24,0.5);
+      border: 1px solid rgba(212,130,10,0.1);
+      color: #D9C6A5;
+      align-self: flex-start;
+    }
+
+    .msg.thinking {
+      color: #4A4240;
+      font-style: italic;
+      background: none;
+      border: none;
+      padding: 6px 0;
+      font-size: 0.8rem;
+    }
+
+    /* ── Prompt area ── */
+    .prompt-area {
+      border-top: 1px solid rgba(212,130,10,0.12);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .prompt-area textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(212,130,10,0.25);
+      background: #2A1F1A;
+      color: #F5F0E8;
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+    }
+
+    .prompt-area textarea:focus {
+      border-color: #D4820A;
+    }
+
+    .prompt-area button {
+      padding: 10px 18px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #D4820A, #F0A500);
+      color: #1A1410;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    .prompt-area button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ── Main panel ── */
+    .main-panel {
+      overflow-y: auto;
+      padding: 32px 36px;
+    }
+
+    .panel-intro {
+      max-width: 680px;
+    }
+
+    .panel-intro h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.6rem;
+      color: #F5F0E8;
+      margin-bottom: 10px;
+    }
+
+    .panel-intro p {
+      color: #8C7B6B;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .quick-prompts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .quick-prompt-btn {
+      padding: 16px 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(212,130,10,0.2);
+      background: rgba(44,34,24,0.35);
+      color: #D9C6A5;
+      font-size: 0.85rem;
+      text-align: left;
+      cursor: pointer;
+      line-height: 1.45;
+      font-family: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .quick-prompt-btn:hover {
+      border-color: rgba(212,130,10,0.5);
+      background: rgba(212,130,10,0.08);
+    }
+
+    .quick-prompt-btn strong {
+      display: block;
+      color: #F5F0E8;
+      margin-bottom: 4px;
+      font-size: 0.88rem;
+    }
+
+    #response-panel {
+      max-width: 760px;
+      display: none;
+    }
+
+    #response-panel h3 {
+      font-size: 0.65rem;
+      font-family: monospace;
+      color: #D4820A;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    #response-content {
+      background: rgba(44,34,24,0.4);
+      border: 1px solid rgba(212,130,10,0.15);
+      border-radius: 10px;
+      padding: 24px;
+      color: #D9C6A5;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Password gate -->
+  <div id="password-gate">
+    <div class="gate-card">
+      <h1>HouseShow Sentinel</h1>
+      <p>Internal security tool. Enter the access code to continue.</p>
+      <input type="password" id="pw-input" placeholder="Access code" />
+      <button id="pw-btn" onclick="checkPassword()">Unlock</button>
+      <div id="gate-error"></div>
+    </div>
+  </div>
+
+  <!-- Main app (hidden until unlocked) -->
+  <div id="app">
+    <header>
+      <span class="logo">HouseShow</span>
+      <span class="badge">Security Sentinel</span>
+    </header>
+
+    <div class="main-layout">
+      <!-- Sidebar: conversation thread + prompt input -->
+      <aside class="sidebar">
+        <div class="sidebar-header">Conversation</div>
+        <div id="thread"></div>
+        <div class="prompt-area">
+          <textarea id="prompt-input" rows="3" placeholder="Ask Sentinel anything about security…"></textarea>
+          <button id="send-btn" onclick="sendPrompt()">Send →</button>
+        </div>
+      </aside>
+
+      <!-- Main panel: intro + quick prompts + response -->
+      <main class="main-panel">
+        <div class="panel-intro" id="intro-section">
+          <h2>Security analysis, on demand.</h2>
+          <p>
+            Sentinel uses Claude to help you review HouseShow's security posture —
+            authentication flows, Supabase RLS policies, API exposure, and more.
+            Ask a question or pick a quick prompt below.
+          </p>
+          <div class="quick-prompts">
+            <button class="quick-prompt-btn" onclick="useQuickPrompt(this)">
+              <strong>Auth flow review</strong>
+              Review the authentication and session management approach for common vulnerabilities.
+            </button>
+            <button class="quick-prompt-btn" onclick="useQuickPrompt(this)">
+              <strong>RLS policy audit</strong>
+              What Row Level Security policies should be in place for the booking_requests and tickets tables?
+            </button>
+            <button class="quick-prompt-btn" onclick="useQuickPrompt(this)">
+              <strong>API exposure check</strong>
+              Which API routes are publicly accessible and what are the risks?
+            </button>
+            <button class="quick-prompt-btn" onclick="useQuickPrompt(this)">
+              <strong>Stripe webhook security</strong>
+              Review best practices for securing the Stripe webhook endpoint.
+            </button>
+            <button class="quick-prompt-btn" onclick="useQuickPrompt(this)">
+              <strong>OWASP top 10 checklist</strong>
+              Run through the OWASP top 10 risks relevant to a house show booking platform.
+            </button>
+            <button class="quick-prompt-btn" onclick="useQuickPrompt(this)">
+              <strong>Data exposure risks</strong>
+              What user data is stored and what are the key privacy / exposure risks?
+            </button>
+          </div>
+        </div>
+
+        <div id="response-panel">
+          <h3>Sentinel Response</h3>
+          <div id="response-content"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let sessionPassword = ''
+
+    // ── Password gate ──────────────────────────────────────────────
+    document.getElementById('pw-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') checkPassword()
+    })
+
+    async function checkPassword() {
+      const input = document.getElementById('pw-input')
+      const btn = document.getElementById('pw-btn')
+      const errorEl = document.getElementById('gate-error')
+      const entered = input.value.trim()
+
+      if (!entered) return
+
+      btn.disabled = true
+      btn.textContent = 'Checking…'
+      errorEl.textContent = ''
+
+      try {
+        const res = await fetch('/api/sentinel/auth-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: entered }),
+        })
+
+        if (res.ok) {
+          sessionPassword = entered
+          document.getElementById('password-gate').style.display = 'none'
+          const app = document.getElementById('app')
+          app.style.display = 'flex'
+        } else {
+          errorEl.textContent = 'Incorrect access code. Try again.'
+          input.value = ''
+          input.focus()
+        }
+      } catch (err) {
+        errorEl.textContent = 'Network error. Please try again.'
+      } finally {
+        btn.disabled = false
+        btn.textContent = 'Unlock'
+      }
+    }
+
+    // ── Prompt sending ─────────────────────────────────────────────
+    document.getElementById('prompt-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        sendPrompt()
+      }
+    })
+
+    function useQuickPrompt(btn) {
+      const strong = btn.querySelector('strong')
+      const desc = btn.childNodes[2]
+      const text = strong
+        ? (strong.textContent + ': ' + (desc ? desc.textContent.trim() : '')).trim()
+        : btn.textContent.trim()
+      document.getElementById('prompt-input').value = text
+      document.getElementById('prompt-input').focus()
+    }
+
+    async function sendPrompt() {
+      const input = document.getElementById('prompt-input')
+      const sendBtn = document.getElementById('send-btn')
+      const prompt = input.value.trim()
+      if (!prompt) return
+
+      input.value = ''
+      sendBtn.disabled = true
+
+      appendMessage('user', prompt)
+      const thinkingEl = appendMessage('thinking', 'Sentinel is thinking…')
+
+      // Show response panel, hide intro
+      document.getElementById('intro-section').style.display = 'none'
+      const responsePanel = document.getElementById('response-panel')
+      responsePanel.style.display = 'block'
+      document.getElementById('response-content').textContent = ''
+
+      try {
+        const res = await fetch('/api/sentinel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, password: sessionPassword }),
+        })
+
+        thinkingEl.remove()
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          appendMessage('assistant', '⚠ ' + (err.error || 'Request failed.'))
+          return
+        }
+
+        const data = await res.json()
+        const text = data.response || '(no response)'
+        appendMessage('assistant', text)
+        document.getElementById('response-content').textContent = text
+        responsePanel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } catch (err) {
+        thinkingEl.remove()
+        appendMessage('assistant', '⚠ Network error.')
+      } finally {
+        sendBtn.disabled = false
+      }
+    }
+
+    function appendMessage(role, text) {
+      const thread = document.getElementById('thread')
+      const div = document.createElement('div')
+      div.className = 'msg ' + role
+      div.textContent = text
+      thread.appendChild(div)
+      thread.scrollTop = thread.scrollHeight
+      return div
+    }
+  </script>
+</body>
+</html>
