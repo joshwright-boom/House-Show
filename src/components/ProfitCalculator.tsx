@@ -262,21 +262,23 @@ export default function ProfitCalculator({
         </div>
       </div>
 
-      {/* Result cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-        <div style={{ background: 'rgba(26,20,16,0.6)', border: '1px solid rgba(212,130,10,0.15)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Artist earns</div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#F0A500' }}>${artistEarns.toLocaleString()}</div>
+      {/* Result cards (hidden when compact — parent provides its own breakdown) */}
+      {!compact && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+          <div style={{ background: 'rgba(26,20,16,0.6)', border: '1px solid rgba(212,130,10,0.15)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Artist earns</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#F0A500' }}>${artistEarns.toLocaleString()}</div>
+          </div>
+          <div style={{ background: 'rgba(26,20,16,0.6)', border: '1px solid rgba(212,130,10,0.15)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Host earns</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#F0A500' }}>${hostEarns.toLocaleString()}</div>
+          </div>
+          <div style={{ background: 'rgba(26,20,16,0.6)', border: '1px solid rgba(212,130,10,0.15)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Total door</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#F5F0E8' }}>${totalDoor.toLocaleString()}</div>
+          </div>
         </div>
-        <div style={{ background: 'rgba(26,20,16,0.6)', border: '1px solid rgba(212,130,10,0.15)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Host earns</div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#F0A500' }}>${hostEarns.toLocaleString()}</div>
-        </div>
-        <div style={{ background: 'rgba(26,20,16,0.6)', border: '1px solid rgba(212,130,10,0.15)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.6rem', color: '#8C7B6B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Total door</div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: '#F5F0E8' }}>${totalDoor.toLocaleString()}</div>
-        </div>
-      </div>
+      )}
 
       {/* Footnote */}
       <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.78rem', color: '#4A4240', lineHeight: 1.5, margin: 0 }}>

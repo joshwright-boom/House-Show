@@ -850,7 +850,7 @@ function BookShowInner() {
 
                   <div style={{ marginBottom: '24px' }}>
                     <ProfitCalculator
-                      compact={false}
+                      compact
                       onSplitChange={(a, h) => { setSplitArtistPct(a); setSplitHostPct(h) }}
                     />
                   </div>
