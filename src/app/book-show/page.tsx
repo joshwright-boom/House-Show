@@ -343,7 +343,35 @@ function BookShowInner() {
       }
 
       setSuccess(true)
-      
+
+      // Notify the musician that a host sent them a booking request (fire-and-forget)
+      try {
+        const { data: { session: authSession } } = await supabase.auth.getSession()
+        if (authSession?.access_token && resolvedHostId) {
+          const dealSummary = dealType === 'guarantee'
+            ? `Guaranteed payment: $${Number.parseFloat(formData.offer_amount || '0').toFixed(2)}`
+            : `Revenue split: ${splitArtistPct}% artist / ${splitHostPct}% host`
+          // Use the host profile ID as hostProfileId so the API can resolve the host's name for the email
+          fetch('/api/notify-booking-request', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authSession.access_token}`,
+            },
+            body: JSON.stringify({
+              type: 'new_request',
+              hostProfileId: resolvedHostId,
+              artistName: musician?.name || 'A host',
+              proposedDate: formData.proposed_date,
+              message: formData.message,
+              dealSummary,
+            }),
+          }).catch((err) => console.error('Failed to send booking notification:', err))
+        }
+      } catch (notifyError) {
+        console.error('Error sending booking notification:', notifyError)
+      }
+
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
         router.push('/bookings')

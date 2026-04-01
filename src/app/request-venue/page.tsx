@@ -47,6 +47,7 @@ function RequestVenueInner() {
   const [host, setHost] = useState<HostProfile | null>(null)
   const [hostProfile, setHostProfile] = useState<HostAccountProfile | null>(null)
   const [musicianProfileId, setMusicianProfileId] = useState<string | null>(null)
+  const [musicianName, setMusicianName] = useState<string>('')
   const [dealType, setDealType] = useState<'split' | 'guarantee' | null>(null)
   const [artistPct, setArtistPct] = useState(60)
 
@@ -138,7 +139,7 @@ function RequestVenueInner() {
 
         const { data: artistProfile, error: artistProfileError } = await supabase
           .from('artist_profiles')
-          .select('id')
+          .select('id, name')
           .eq('user_id', user.id)
           .maybeSingle()
         console.log('RequestVenue artist_profiles query result:', {
@@ -159,6 +160,7 @@ function RequestVenueInner() {
         }
 
         setMusicianProfileId(artistProfile.id)
+        setMusicianName(artistProfile.name || '')
       } catch (loadError) {
         console.error('Error loading request venue page:', loadError)
         setError('Failed to load venue request form')
@@ -240,6 +242,33 @@ function RequestVenueInner() {
       }
 
       setSuccess(true)
+
+      // Notify host via email (fire-and-forget)
+      try {
+        const { data: { session: authSession } } = await supabase.auth.getSession()
+        if (authSession?.access_token && host?.id) {
+          const dealSummary = dealType === 'split'
+            ? `Revenue split: ${artistPct}% artist / ${93 - artistPct}% host at $${Number.parseFloat(formData.ticket_price || '0').toFixed(2)}/ticket`
+            : `Guaranteed minimum: $${Number.parseFloat(formData.guaranteed_minimum || '0').toFixed(2)}`
+          fetch('/api/notify-booking-request', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authSession.access_token}`,
+            },
+            body: JSON.stringify({
+              type: 'new_request',
+              hostProfileId: host.id,
+              artistName: musicianName || 'An artist',
+              proposedDate: formData.proposed_date,
+              message: formData.message,
+              dealSummary,
+            }),
+          }).catch((err) => console.error('Failed to send booking notification:', err))
+        }
+      } catch (notifyError) {
+        console.error('Error sending booking notification:', notifyError)
+      }
 
       setTimeout(() => {
         router.push('/dashboard')

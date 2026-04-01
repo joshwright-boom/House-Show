@@ -354,6 +354,42 @@ export default function Bookings() {
     }
   }
 
+  const sendDecisionNotification = async (request: BookingRequest, decision: 'accepted' | 'declined') => {
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession()
+      if (!authSession?.access_token) return
+
+      // Get host name: use host_name from request, or look up current user's profile name
+      let hostName = request.host_name || 'Your host'
+      if (!request.host_name && user) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (userProfile?.name) hostName = userProfile.name
+      }
+      const proposedDate = getRequestDateValue(request)
+
+      fetch('/api/notify-booking-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authSession.access_token}`,
+        },
+        body: JSON.stringify({
+          type: 'decision',
+          musicianProfileId: request.musician_id,
+          hostName,
+          proposedDate,
+          decision,
+        }),
+      }).catch((err) => console.error('Failed to send decision notification:', err))
+    } catch (notifyError) {
+      console.error('Error sending decision notification:', notifyError)
+    }
+  }
+
   const handleAcceptRequest = async (requestId: string) => {
     try {
       const { error } = await supabase
@@ -362,6 +398,9 @@ export default function Bookings() {
         .eq('id', requestId)
 
       if (error) throw error
+
+      const request = bookingRequests.find((r) => r.id === requestId)
+      if (request) sendDecisionNotification(request, 'accepted')
 
       window.location.href = `/create-show?requestId=${requestId}`
     } catch (error) {
@@ -379,7 +418,9 @@ export default function Bookings() {
 
       if (error) throw error
 
-      // Refresh booking requests
+      const request = bookingRequests.find((r) => r.id === requestId)
+      if (request) sendDecisionNotification(request, 'declined')
+
       if (user) {
         await fetchBookingRequests(user.id)
       }
@@ -399,6 +440,9 @@ export default function Bookings() {
 
       if (error) throw error
 
+      const request = hostRequests.find((r) => r.id === requestId)
+      if (request) sendDecisionNotification(request, 'accepted')
+
       window.location.href = `/create-show?requestId=${requestId}`
     } catch (error) {
       console.error('Error accepting host request:', error)
@@ -414,6 +458,9 @@ export default function Bookings() {
         .eq('id', requestId)
 
       if (error) throw error
+
+      const request = hostRequests.find((r) => r.id === requestId)
+      if (request) sendDecisionNotification(request, 'declined')
 
       if (user) {
         await fetchHostRequests(user.id)

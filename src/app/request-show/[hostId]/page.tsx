@@ -16,6 +16,7 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
   const [submitting, setSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [error, setError] = useState('')
+  const [artistName, setArtistName] = useState('')
 
   const [formData, setFormData] = useState({
     proposed_date: '',
@@ -37,17 +38,22 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
 
         const { data: artistProfile, error: artistProfileError } = await supabase
           .from('artist_profiles')
-          .select('minimum_guarantee')
+          .select('minimum_guarantee, name')
           .eq('id', user.id)
           .maybeSingle()
 
         if (artistProfileError) {
           console.error('Error loading artist minimum guarantee:', artistProfileError)
-        } else if (artistProfile?.minimum_guarantee != null) {
-          setFormData((prev) => ({
-            ...prev,
-            minimum_guarantee: String(artistProfile.minimum_guarantee)
-          }))
+        } else if (artistProfile) {
+          if (artistProfile.minimum_guarantee != null) {
+            setFormData((prev) => ({
+              ...prev,
+              minimum_guarantee: String(artistProfile.minimum_guarantee)
+            }))
+          }
+          if (artistProfile.name) {
+            setArtistName(artistProfile.name)
+          }
         }
 
         const { data: hostProfile } = await supabase
@@ -113,6 +119,34 @@ export default function RequestShowPage({ params }: { params: { hostId: string }
       }
 
       setSuccessMessage('Request sent! The host will be in touch.')
+
+      // Notify host via email (fire-and-forget)
+      try {
+        const { data: { session: authSession } } = await supabase.auth.getSession()
+        if (authSession?.access_token) {
+          const dealSummary = formData.minimum_guarantee
+            ? `Guaranteed minimum: $${Number(formData.minimum_guarantee).toFixed(2)}, Ticket price: $${Number(formData.proposed_ticket_price || 0).toFixed(2)}`
+            : `Revenue split: 60% artist / 33% host, Ticket price: $${Number(formData.proposed_ticket_price || 0).toFixed(2)}`
+          fetch('/api/notify-booking-request', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authSession.access_token}`,
+            },
+            body: JSON.stringify({
+              type: 'new_request',
+              hostUserId: params.hostId,
+              artistName: artistName || 'An artist',
+              proposedDate: formData.proposed_date,
+              message: formData.message,
+              dealSummary,
+            }),
+          }).catch((err) => console.error('Failed to send booking notification:', err))
+        }
+      } catch (notifyError) {
+        console.error('Error sending booking notification:', notifyError)
+      }
+
       setFormData({
         proposed_date: '',
         proposed_venue: host?.location_address || '',
