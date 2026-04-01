@@ -10,6 +10,49 @@ export default function Home() {
   const [loadingRevenue, setLoadingRevenue] = useState(true)
   const [isMobileNav, setIsMobileNav] = useState(false)
 
+  const taglines = [
+    { line1: "Your talent. Our space.", line2: "Everyone wins." },
+    { line1: "Talent meets space.", line2: "Shows happen." },
+    { line1: "Musicians need spaces.", line2: "Spaces need music." },
+    { line1: "Turn rooms into venues.", line2: "Turn music into shows." },
+    { line1: "No booking agents.", line2: "Just connections." },
+    { line1: "Your music needs a room.", line2: "We find it." },
+    { line1: "Stop searching for venues.", line2: "Start finding spaces." },
+    { line1: "Real music. Real spaces.", line2: "Real shows." },
+    { line1: "No gatekeepers.", line2: "Just shows." },
+    { line1: "Play anywhere.", line2: "Host anyone." },
+    { line1: "Find your audience.", line2: "Find your space." },
+    { line1: "Start the show.", line2: "We'll handle the rest." },
+    { line1: "Stop waiting to get booked.", line2: "Start the show." },
+    { line1: "You don't need a venue.", line2: "You are one." },
+    { line1: "Turn a night into an event.", line2: "Host it." },
+    { line1: "Have a cool space?", line2: "Put it to work." },
+    { line1: "Music needs a home.", line2: "Yours works." },
+    { line1: "Host a show.", line2: "Make it unforgettable." },
+    { line1: "Turn gatherings into concerts.", line2: "Host one." },
+    { line1: "Make money with your space.", line2: "Host a show." },
+    { line1: "Your space deserves a crowd.", line2: "We bring it." },
+    { line1: "You provide the vibe.", line2: "We provide the music." },
+    { line1: "Host the night everyone remembers.", line2: "Start here." },
+    { line1: "Don't just go to shows.", line2: "Host them." },
+    { line1: "Bring music to your space.", line2: "We'll handle the rest." },
+    { line1: "From empty room to full house.", line2: "Host a show." },
+    { line1: "You don't need a club.", line2: "You need a space." },
+  ]
+  const [taglineIndex, setTaglineIndex] = useState(() => Math.floor(Math.random() * taglines.length))
+  const [taglineOpacity, setTaglineOpacity] = useState(1)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTaglineOpacity(0)
+      setTimeout(() => {
+        setTaglineIndex(prev => (prev + 1) % taglines.length)
+        setTaglineOpacity(1)
+      }, 600)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -92,9 +135,9 @@ export default function Home() {
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.75rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '24px' }}>
           Live Music · House Shows · Real Revenue
         </div>
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2.8rem, 6vw, 5.5rem)', fontWeight: 900, lineHeight: 1.1, color: '#F5F0E8', maxWidth: '800px', marginBottom: '24px' }}>
-          Your talent.<br />Our space.<br />
-          <em style={{ color: '#F0A500' }}>Everyone wins.</em>
+        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2.8rem, 6vw, 5.5rem)', fontWeight: 900, lineHeight: 1.1, color: '#F5F0E8', maxWidth: '800px', marginBottom: '24px', opacity: taglineOpacity, transition: 'opacity 0.6s' }}>
+          {taglines[taglineIndex].line1}<br />
+          <em style={{ color: '#F0A500' }}>{taglines[taglineIndex].line2}</em>
         </h1>
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '1.15rem', color: '#8C7B6B', maxWidth: '500px', lineHeight: 1.7, marginBottom: '48px' }}>
           Book intimate live performances. Split the door. Build your scene. The Airbnb for house shows is here.
