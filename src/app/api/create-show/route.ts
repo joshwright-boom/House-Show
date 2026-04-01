@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
       full_address: formData?.full_address || formData?.venue_address,
       show_date: normalizedDate,
       show_time: formData?.time,
-      ticket_price: parseFloat(formData?.ticket_price),
+      ticket_price: Math.round(parseFloat(formData?.ticket_price) * 100) / 100,
       status: 'on_sale',
       artist_user_id: resolvedArtistUserId,
       host_user_id: resolvedHostUserId,
