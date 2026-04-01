@@ -421,10 +421,7 @@ export default function Bookings() {
       const request = bookingRequests.find((r) => r.id === requestId)
       if (request) sendDecisionNotification(request, 'declined')
 
-      if (user) {
-        await fetchBookingRequests(user.id)
-      }
-      alert('Booking request declined.')
+      setBookingRequests(prev => prev.filter(r => r.id !== requestId))
     } catch (error) {
       console.error('Error declining request:', error)
       alert('Failed to decline request. Please try again.')
@@ -462,9 +459,7 @@ export default function Bookings() {
       const request = hostRequests.find((r) => r.id === requestId)
       if (request) sendDecisionNotification(request, 'declined')
 
-      if (user) {
-        await fetchHostRequests(user.id)
-      }
+      setHostRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'declined' as const } : r))
     } catch (error) {
       console.error('Error declining host request:', error)
       alert('Failed to decline request. Please try again.')
@@ -846,7 +841,7 @@ export default function Bookings() {
           {(request.guaranteed_minimum ?? 0) > 0 ? (
             <>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1.1rem', color: '#F0A500', fontWeight: 600 }}>
-                ${request.guaranteed_minimum} minimum guarantee
+                ${Number(request.guaranteed_minimum).toFixed(2)} guarantee
               </div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
                 Host keeps all ticket revenue
@@ -854,12 +849,14 @@ export default function Bookings() {
             </>
           ) : (
             <>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1.1rem', color: '#F0A500', fontWeight: 600 }}>
-                ${request.ticket_price} per ticket
-              </div>
-              {(request.proposed_musician_pct ?? 0) > 0 && (
+              {(request.ticket_price ?? 0) > 0 && (
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '1.1rem', color: '#F0A500', fontWeight: 600 }}>
+                  ${Number(request.ticket_price).toFixed(2)} per ticket
+                </div>
+              )}
+              {((request.proposed_musician_pct ?? request.musician_split ?? 0) > 0) && (
                 <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
-                  {request.proposed_musician_pct}% artist / {request.proposed_host_pct}% host split
+                  {request.proposed_musician_pct ?? request.musician_split}% artist / {request.proposed_host_pct ?? request.host_split}% host split
                 </div>
               )}
             </>
@@ -899,7 +896,7 @@ export default function Bookings() {
             color: '#F5F0E8', 
             fontSize: '0.95rem' 
           }}>
-            You: {request.musician_split}% • Host: {request.host_split}% • Platform: 7%
+            You: {request.proposed_musician_pct ?? request.musician_split ?? 0}% • Host: {request.proposed_host_pct ?? request.host_split ?? 0}% • Platform: 7%
           </div>
         </div>
       </div>
@@ -1041,24 +1038,26 @@ export default function Bookings() {
             {(request.guaranteed_minimum ?? 0) > 0 ? (
               <>
                 <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
-                  ${Number(request.guaranteed_minimum).toFixed(2)} minimum guarantee
+                  ${Number(request.guaranteed_minimum).toFixed(2)} guarantee
                 </p>
                 <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
                   Host keeps all ticket revenue
                 </p>
               </>
-            ) : request.ticket_price != null ? (
+            ) : (
               <>
-                <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
-                  ${Number(request.ticket_price).toFixed(2)} per ticket
-                </p>
-                {(request.proposed_musician_pct ?? 0) > 0 && (
+                {(request.ticket_price ?? 0) > 0 && (
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F0A500', fontSize: '0.9rem', fontWeight: 600 }}>
+                    ${Number(request.ticket_price).toFixed(2)} per ticket
+                  </p>
+                )}
+                {((request.proposed_musician_pct ?? request.musician_split ?? 0) > 0) && (
                   <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.85rem' }}>
-                    {request.proposed_musician_pct}% artist / {request.proposed_host_pct}% host split
+                    {request.proposed_musician_pct ?? request.musician_split}% artist / {request.proposed_host_pct ?? request.host_split}% host split
                   </p>
                 )}
               </>
-            ) : null}
+            )}
           </div>
           <div style={{ padding: '6px 12px', borderRadius: '999px', ...statusBadgeStyles, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
             {request.status}
@@ -1218,25 +1217,39 @@ export default function Bookings() {
           ) : (
             <>
               {/* Host: Incoming Booking Requests — shown first and always visible */}
-              {user.user_type === 'host' && (
-                <section style={{ marginBottom: '64px' }}>
-                  <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#F5F0E8', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    📨 Booking Requests
-                    {hostRequests.length > 0 && (
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.8rem', color: '#D4820A', background: 'rgba(212,130,10,0.1)', padding: '4px 12px', borderRadius: '20px' }}>
-                        {hostRequests.length}
-                      </span>
+              {user.user_type === 'host' && (() => {
+                const activeHostRequests = hostRequests.filter(r => r.status !== 'declined')
+                const declinedHostRequests = hostRequests.filter(r => r.status === 'declined')
+                return (
+                  <section style={{ marginBottom: '64px' }}>
+                    <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#F5F0E8', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      📨 Booking Requests
+                      {activeHostRequests.length > 0 && (
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.8rem', color: '#D4820A', background: 'rgba(212,130,10,0.1)', padding: '4px 12px', borderRadius: '20px' }}>
+                          {activeHostRequests.length}
+                        </span>
+                      )}
+                    </h2>
+                    {activeHostRequests.length === 0 ? (
+                      <div style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '32px 24px', background: 'rgba(44,34,24,0.2)', color: '#8C7B6B', fontFamily: "'DM Sans', sans-serif", textAlign: 'center' }}>
+                        No booking requests yet. Musicians will appear here when they request your venue.
+                      </div>
+                    ) : (
+                      activeHostRequests.map(request => <HostRequestCard key={request.id} request={request} />)
                     )}
-                  </h2>
-                  {hostRequests.length === 0 ? (
-                    <div style={{ border: '1px solid rgba(212,130,10,0.2)', borderRadius: '12px', padding: '32px 24px', background: 'rgba(44,34,24,0.2)', color: '#8C7B6B', fontFamily: "'DM Sans', sans-serif", textAlign: 'center' }}>
-                      No booking requests yet. Musicians will appear here when they request your venue.
-                    </div>
-                  ) : (
-                    hostRequests.map(request => <HostRequestCard key={request.id} request={request} />)
-                  )}
-                </section>
-              )}
+                    {declinedHostRequests.length > 0 && (
+                      <details style={{ marginTop: '24px' }}>
+                        <summary style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', cursor: 'pointer', padding: '8px 0' }}>
+                          {declinedHostRequests.length} declined request{declinedHostRequests.length !== 1 ? 's' : ''}
+                        </summary>
+                        <div style={{ marginTop: '12px', opacity: 0.6 }}>
+                          {declinedHostRequests.map(request => <HostRequestCard key={request.id} request={request} />)}
+                        </div>
+                      </details>
+                    )}
+                  </section>
+                )
+              })()}
 
               {/* Musician: Booking Requests */}
               {user.user_type !== 'host' && bookingRequests.length > 0 && (
