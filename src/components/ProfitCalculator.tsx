@@ -7,6 +7,8 @@ interface Props {
   initialArtistPct?: number
   initialHostPct?: number
   onSplitChange?: (artistPct: number, hostPct: number) => void
+  onInteractionStart?: () => void
+  onInteractionEnd?: () => void
 }
 
 const PRESETS: [number, number][] = [
@@ -19,6 +21,8 @@ export default function ProfitCalculator({
   initialArtistPct = 60,
   initialHostPct = 33,
   onSplitChange,
+  onInteractionStart,
+  onInteractionEnd,
 }: Props) {
   const [artistPct, setArtistPct] = useState(initialArtistPct)
   const [hostPct, setHostPct] = useState(initialHostPct)
@@ -53,6 +57,7 @@ export default function ProfitCalculator({
       if (intervalRef.current) clearInterval(intervalRef.current)
       setUserInteracted(true)
       setAnimOpacity(1)
+      onInteractionStart?.()
     }
     const bounded = Math.min(86, Math.max(40, val))
     setArtistPct(bounded)
@@ -65,6 +70,7 @@ export default function ProfitCalculator({
       if (intervalRef.current) clearInterval(intervalRef.current)
       setUserInteracted(true)
       setAnimOpacity(1)
+      onInteractionStart?.()
     }
     const bounded = Math.min(53, Math.max(7, val))
     setHostPct(bounded)
@@ -110,7 +116,7 @@ export default function ProfitCalculator({
   }
 
   return (
-    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: '28px' }} onMouseLeave={() => onInteractionEnd?.()}>
 
       {/* Animated split display */}
       <div>
