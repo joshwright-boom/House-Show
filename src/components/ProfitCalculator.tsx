@@ -6,6 +6,7 @@ interface Props {
   compact?: boolean
   initialArtistPct?: number
   initialHostPct?: number
+  onSplitChange?: (artistPct: number, hostPct: number) => void
 }
 
 const PRESETS: [number, number][] = [
@@ -17,6 +18,7 @@ export default function ProfitCalculator({
   compact = false,
   initialArtistPct = 60,
   initialHostPct = 33,
+  onSplitChange,
 }: Props) {
   const [artistPct, setArtistPct] = useState(initialArtistPct)
   const [hostPct, setHostPct] = useState(initialHostPct)
@@ -55,6 +57,7 @@ export default function ProfitCalculator({
     const bounded = Math.min(86, Math.max(40, val))
     setArtistPct(bounded)
     setHostPct(93 - bounded)
+    onSplitChange?.(bounded, 93 - bounded)
   }
 
   const handleHostSlider = (val: number) => {
@@ -66,6 +69,7 @@ export default function ProfitCalculator({
     const bounded = Math.min(53, Math.max(7, val))
     setHostPct(bounded)
     setArtistPct(93 - bounded)
+    onSplitChange?.(93 - bounded, bounded)
   }
 
   const artistEarns = Math.round(ticketPrice * ticketsSold * (artistPct / 100))
