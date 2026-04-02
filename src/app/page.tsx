@@ -145,7 +145,7 @@ export default function Home() {
         <div style={{ display: 'flex', gap: isMobileNav ? '0' : '32px', alignItems: 'center' }}>
           {!isMobileNav && (
             <>
-              <a href="#how-it-works" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>How It Works</a>
+              <a href="/how-it-works" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>How It Works</a>
               <a href="#revenue" style={{ color: '#8C7B6B', fontSize: '0.9rem' }}>Revenue</a>
             </>
           )}
