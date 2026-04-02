@@ -319,6 +319,7 @@ export default function Dashboard() {
           .eq('host_id', hostProfile.id)
           .neq('status', 'accepted')
           .neq('status', 'confirmed')
+          .neq('status', 'declined')
           .order('created_at', { ascending: false })
 
         if (error) {

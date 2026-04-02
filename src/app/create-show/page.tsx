@@ -44,18 +44,28 @@ const getShowDateValue = (show: Record<string, any>) =>
 const normalizeDateForInput = (value?: string | null) => {
   if (!value) return ''
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  const trimmed = value.trim()
 
-  const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})T/)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+
+  const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})T/)
   if (isoMatch) return isoMatch[1]
 
-  const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (usMatch) {
     const [, month, day, year] = usMatch
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
   }
 
-  return value
+  // Catch malformed years like "20226-03-04" by extracting only 4-digit year
+  const looseMatch = trimmed.match(/^(\d{4,})-(\d{1,2})-(\d{1,2})/)
+  if (looseMatch) {
+    const [, yearRaw, m, d] = looseMatch
+    const year = yearRaw.slice(0, 4)
+    return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
+
+  return trimmed
 }
 
 interface BookingRequestDraft {

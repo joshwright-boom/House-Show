@@ -72,7 +72,7 @@ export default function ArtistTourDatesPage({ params }: { params: { id: string }
         const { data: showData, error: showError } = await supabase
           .from('shows')
           .select('id, show_name, artist_name, venue_name, neighborhood, show_date, ticket_price, max_capacity, status')
-          .eq('status', 'on_sale')
+          .neq('status', 'cancelled')
           .order('show_date', { ascending: true })
 
         if (showError) {
