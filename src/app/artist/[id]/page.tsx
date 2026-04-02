@@ -308,16 +308,17 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '8px',
                         border: '1px solid rgba(212,130,10,0.25)',
-                        borderRadius: '8px',
-                        padding: '9px 12px',
-                        color: '#F5F0E8',
+                        borderRadius: '20px',
+                        padding: '8px 14px',
+                        color: '#F0A500',
                         background: 'rgba(240,165,0,0.08)',
-                        textDecoration: 'none'
+                        textDecoration: 'none',
+                        fontSize: '0.85rem',
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontWeight: 500
                       }}
                     >
-                      <span>{link.icon}</span>
                       {link.name}
                     </a>
                   ))}

@@ -433,19 +433,18 @@ export default function ShowPage({ params }: { params: { id: string } }) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    padding: '9px 13px',
+                    padding: '8px 14px',
                     background: 'rgba(240,165,0,0.08)',
                     border: '1px solid rgba(212,130,10,0.28)',
-                    borderRadius: '8px',
+                    borderRadius: '20px',
                     color: '#F0A500',
                     textDecoration: 'none',
-                    fontSize: '0.9rem',
-                    fontWeight: 600
+                    fontSize: '0.85rem',
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontWeight: 500
                   }}
                 >
-                  <span>{link.icon}</span>
-                  <span>{link.name}</span>
+                  {link.name}
                 </a>
               ))}
             </div>

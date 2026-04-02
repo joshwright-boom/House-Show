@@ -523,15 +523,15 @@ export default function Profile() {
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '6px',
-                          padding: '8px 12px',
+                          padding: '6px 12px',
                           background: 'rgba(240,165,0,0.1)',
                           border: '1px solid rgba(240,165,0,0.2)',
-                          borderRadius: '6px',
+                          borderRadius: '20px',
                           color: '#F0A500',
                           textDecoration: 'none',
-                          fontSize: '0.85rem',
-                          fontFamily: 'DM Sans, sans-serif',
+                          fontSize: '0.82rem',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: 500,
                           transition: 'all 0.2s ease'
                         }}
                         onMouseOver={(e) => {
@@ -543,7 +543,6 @@ export default function Profile() {
                           e.currentTarget.style.transform = 'translateY(0)'
                         }}
                       >
-                        <span style={{ fontSize: '1rem' }}>{link.icon}</span>
                         {link.name}
                       </a>
                     ))}

@@ -152,16 +152,17 @@ export default function MusicianProfilePage({ params }: { params: { id: string }
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 14px',
+                      padding: '8px 14px',
                       background: 'rgba(240,165,0,0.08)',
                       border: '1px solid rgba(240,165,0,0.2)',
-                      borderRadius: '8px',
+                      borderRadius: '20px',
                       color: '#F0A500',
-                      textDecoration: 'none'
+                      textDecoration: 'none',
+                      fontSize: '0.85rem',
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontWeight: 500
                     }}
                   >
-                    <span>{link.icon}</span>
                     {link.name}
                   </a>
                 ))}

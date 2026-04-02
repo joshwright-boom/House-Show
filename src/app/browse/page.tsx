@@ -377,14 +377,21 @@ export default function BrowsePage() {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={link.name}
                         style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '5px 10px',
+                          background: 'rgba(240,165,0,0.1)',
+                          border: '1px solid rgba(240,165,0,0.2)',
+                          borderRadius: '20px',
+                          color: '#F0A500',
                           textDecoration: 'none',
-                          fontSize: '18px',
-                          lineHeight: 1
+                          fontSize: '0.78rem',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: 500
                         }}
                       >
-                        {link.icon}
+                        {link.name}
                       </a>
                     ))}
                   </div>
