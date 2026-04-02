@@ -16,7 +16,7 @@ export default async function HostProfilePage({ params }: { params: { id: string
     .from('shows')
     .select('id, show_name, artist_name, venue_name, show_date, date, ticket_price')
     .eq('host_user_id', params.id)
-    .eq('status', 'on_sale')
+    .eq('status', 'open')
     .order('show_date', { ascending: true })
 
   if (showsError) {

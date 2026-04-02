@@ -219,7 +219,7 @@ export default function FanDashboardPage() {
         const { data: shows, error: showsError } = await supabase
           .from('shows')
           .select('id, artist_user_id, artist_name, venue_name, venue_address, show_date, created_at, ticket_price, status')
-          .eq('status', 'on_sale')
+          .eq('status', 'open')
           .order('show_date', { ascending: true })
 
         if (showsError) {

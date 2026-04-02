@@ -269,7 +269,7 @@ export default function Bookings() {
         .from('booking_requests')
         .select('*')
         .eq('musician_id', artistProfile.id)
-        .in('status', ['pending', 'accepted', 'negotiating'])
+        .in('status', ['pending', 'negotiating'])
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -579,7 +579,7 @@ export default function Bookings() {
       const { data: shows, error } = await supabase
         .from('shows')
         .select('*')
-        .in('status', ['open', 'on_sale'])
+        .in('status', ['open'])
         .order('created_at', { ascending: false })
       
       if (error) {

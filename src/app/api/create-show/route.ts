@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
       show_date: normalizedDate,
       show_time: formData?.time,
       ticket_price: Math.round(parseFloat(formData?.ticket_price) * 100) / 100,
-      status: 'on_sale',
+      status: 'open',
       artist_user_id: resolvedArtistUserId,
       host_user_id: resolvedHostUserId,
       slug: buildShowSlug(formData?.show_name),
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
       console.log('Updating booking request status after show creation:', { requestId })
       const { error: bookingRequestUpdateError } = await dbSupabase
         .from('booking_requests')
-        .update({ status: 'accepted' })
+        .update({ status: 'confirmed' })
         .eq('id', requestId)
       console.log('Booking request status update result:', {
         requestId,

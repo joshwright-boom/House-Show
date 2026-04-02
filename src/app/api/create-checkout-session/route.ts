@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Show not found' }, { status: 404 })
     }
 
-    if (showRecord.status !== 'on_sale') {
+    if (showRecord.status !== 'open') {
       return NextResponse.json({ error: 'This show is no longer available for ticket purchases' }, { status: 400 })
     }
 
