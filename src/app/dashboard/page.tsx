@@ -867,7 +867,7 @@ export default function Dashboard() {
   const bgLayers = (
     <>
       <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, backgroundImage: 'url(/images/social-proof/contact-sheet.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }} />
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, background: 'rgba(30, 15, 5, 0.75)' }} />
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, background: 'rgba(30, 15, 5, 0.85)' }} />
     </>
   )
 
