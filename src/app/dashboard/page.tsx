@@ -909,20 +909,22 @@ export default function Dashboard() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <a href="/tickets" style={{
-              display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
-              padding: '28px 24px', background: 'rgba(44,34,24,0.3)', cursor: 'pointer',
+              display: 'block', border: '1px solid #E5E2DC', borderRadius: '8px',
+              padding: '28px 24px', background: '#FAFAF8', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)', textDecoration: 'none',
             }}>
               <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>🎟️</div>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '6px' }}>My Tickets</h3>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>View your purchased tickets and QR codes</p>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#1A1410', marginBottom: '6px' }}>My Tickets</h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#5C5248' }}>View your purchased tickets and QR codes</p>
             </a>
             <a href="/following" style={{
-              display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
-              padding: '28px 24px', background: 'rgba(44,34,24,0.3)', cursor: 'pointer',
+              display: 'block', border: '1px solid #E5E2DC', borderRadius: '8px',
+              padding: '28px 24px', background: '#FAFAF8', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)', textDecoration: 'none',
             }}>
               <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>⭐</div>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '6px' }}>Following</h3>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>Artists you follow and their upcoming shows</p>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#1A1410', marginBottom: '6px' }}>Following</h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#5C5248' }}>Artists you follow and their upcoming shows</p>
             </a>
           </div>
         </div>
@@ -961,26 +963,26 @@ export default function Dashboard() {
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Role banner / onboarding prompt */}
         {user?.user_type !== 'fan' && !hasArtistProfile && !hasHostProfile && (
-          <div style={{ marginBottom: '48px', border: '1px solid rgba(212,130,10,0.3)', borderRadius: '8px', padding: '24px', background: 'rgba(44,34,24,0.3)' }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#D4820A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '12px' }}>
+          <div style={{ marginBottom: '48px', border: '1px solid #E5E2DC', borderRadius: '8px', padding: '24px', background: '#FAFAF8', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '0.7rem', color: '#B06E08', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '12px' }}>
               Get Started
             </div>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '1rem', marginBottom: '20px' }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#1A1410', fontSize: '1rem', marginBottom: '20px' }}>
               What brings you to HouseShow?
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <a href="/profile" style={{ padding: '12px 18px', borderRadius: '6px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: '600', border: '1px solid #D4820A', background: '#D4820A', color: '#1A1410', textDecoration: 'none' }}>
                 I&apos;m a Musician
               </a>
-              <a href="/host-profile" style={{ padding: '12px 18px', borderRadius: '6px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: '600', border: '1px solid rgba(212,130,10,0.5)', background: 'transparent', color: '#F5F0E8', textDecoration: 'none' }}>
+              <a href="/host-profile" style={{ padding: '12px 18px', borderRadius: '6px', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: '600', border: '1px solid #D4820A', background: 'transparent', color: '#1A1410', textDecoration: 'none' }}>
                 I&apos;m a Host
               </a>
             </div>
           </div>
         )}
         {hasArtistProfile && hasHostProfile && (
-          <div style={{ marginBottom: '32px', border: '1px solid rgba(212,130,10,0.3)', borderRadius: '8px', padding: '20px 24px', background: 'rgba(44,34,24,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem', margin: 0 }}>
+          <div style={{ marginBottom: '32px', border: '1px solid #E5E2DC', borderRadius: '8px', padding: '20px 24px', background: '#FAFAF8', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#1A1410', fontSize: '0.95rem', margin: 0 }}>
               {activeView === 'musician'
                 ? 'You also have a host profile.'
                 : 'You also have a musician profile.'}
@@ -1008,20 +1010,21 @@ export default function Dashboard() {
         {user && (
           <div style={{
             marginBottom: '32px',
-            border: '1px solid rgba(212,130,10,0.2)',
+            border: '1px solid #E5E2DC',
             borderRadius: '10px',
             padding: '18px 22px',
-            background: 'rgba(44,34,24,0.3)',
+            background: '#FAFAF8',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '16px',
           }}>
             <div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#F5F0E8', fontSize: '0.95rem', fontWeight: 600, marginBottom: '4px' }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#1A1410', fontSize: '0.95rem', fontWeight: 600, marginBottom: '4px' }}>
                 Email Notifications
               </div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#8C7B6B', fontSize: '0.82rem' }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#5C5248', fontSize: '0.82rem' }}>
                 Receive emails when you get booking requests or when a host accepts/declines.
               </div>
             </div>
@@ -1094,12 +1097,14 @@ export default function Dashboard() {
                 ])
           ].flat().map((card) => (
             <a key={card.title} href={card.href} style={{
-              display: 'block', border: '1px solid rgba(212,130,10,0.2)', borderRadius: '8px',
-              padding: '28px 24px', background: 'rgba(44,34,24,0.3)', cursor: 'pointer',
+              display: 'block', border: '1px solid #E5E2DC', borderRadius: '8px',
+              padding: '28px 24px', background: '#FAFAF8', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              textDecoration: 'none',
             }}>
               <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>{card.icon}</div>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#F5F0E8', marginBottom: '6px' }}>{card.title}</h3>
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#8C7B6B' }}>{card.desc}</p>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: '#1A1410', marginBottom: '6px' }}>{card.title}</h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#5C5248' }}>{card.desc}</p>
             </a>
           ))}
         </div>
