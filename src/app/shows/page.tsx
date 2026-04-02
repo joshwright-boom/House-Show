@@ -42,7 +42,7 @@ export default function ShowsPage() {
         const { data, error } = await supabase
           .from('shows')
           .select('id, artist_name, venue_name, venue_address, show_date, ticket_price, status, neighborhood')
-          .eq('status', 'open')
+          .in('status', ['open', 'on_sale'])
           .order('show_date', { ascending: true })
 
         if (error) {

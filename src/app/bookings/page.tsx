@@ -579,7 +579,7 @@ export default function Bookings() {
       const { data: shows, error } = await supabase
         .from('shows')
         .select('*')
-        .in('status', ['open'])
+        .in('status', ['open', 'on_sale'])
         .order('created_at', { ascending: false })
       
       if (error) {

@@ -102,7 +102,7 @@ export default function ArtistProfilePage({ params }: { params: { id: string } }
           .from('shows')
           .select('id, artist_name, venue_name, show_date, ticket_price, status')
           .or(showFilters.join(','))
-          .eq('status', 'open')
+          .in('status', ['open', 'on_sale'])
           .order('show_date', { ascending: true })
 
         if (showsError) {

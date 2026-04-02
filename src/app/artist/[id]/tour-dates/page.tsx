@@ -68,11 +68,20 @@ export default function ArtistTourDatesPage({ params }: { params: { id: string }
 
         setArtistName(matched.name)
 
-        // Fetch on-sale shows for this artist by name
+        // Fetch shows for this artist by artist_user_id
+        const artistUserId = matched.user_id
+        if (!artistUserId) {
+          setShows([])
+          return
+        }
+
+        const today = new Date().toISOString().split('T')[0]
         const { data: showData, error: showError } = await supabase
           .from('shows')
           .select('id, show_name, artist_name, venue_name, neighborhood, show_date, ticket_price, max_capacity, status')
+          .eq('artist_user_id', artistUserId)
           .neq('status', 'cancelled')
+          .gte('show_date', today)
           .order('show_date', { ascending: true })
 
         if (showError) {
@@ -81,15 +90,7 @@ export default function ArtistTourDatesPage({ params }: { params: { id: string }
           return
         }
 
-        // Filter shows matching this artist
-        const today = new Date().toISOString().split('T')[0]
-        const filtered = (showData || []).filter((s: ShowRow) => {
-          const nameMatch = s.artist_name && slugify(s.artist_name) === slug
-          const isUpcoming = !s.show_date || s.show_date >= today
-          return nameMatch && isUpcoming
-        })
-
-        setShows(filtered)
+        setShows(showData || [])
       } finally {
         setLoading(false)
       }

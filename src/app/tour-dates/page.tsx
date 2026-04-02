@@ -42,10 +42,12 @@ export default function AllTourDatesPage() {
   useEffect(() => {
     const load = async () => {
       try {
+        const today = new Date().toISOString().split('T')[0]
         const { data, error } = await supabase
           .from('shows')
           .select('id, show_name, artist_name, venue_name, neighborhood, show_date, ticket_price, max_capacity, status')
           .neq('status', 'cancelled')
+          .gte('show_date', today)
           .order('show_date', { ascending: true })
 
         if (error) {
@@ -54,11 +56,7 @@ export default function AllTourDatesPage() {
           return
         }
 
-        const today = new Date().toISOString().split('T')[0]
-        const upcoming = (data || []).filter(
-          (s: ShowRow) => !s.show_date || s.show_date >= today
-        )
-        setShows(upcoming)
+        setShows(data || [])
       } finally {
         setLoading(false)
       }
