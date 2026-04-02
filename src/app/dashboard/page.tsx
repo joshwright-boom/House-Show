@@ -864,11 +864,20 @@ export default function Dashboard() {
     return matchingShow ? `/show/${matchingShow.id}` : `/create-show?requestId=${request.id}`
   }
 
+  const bgLayers = (
+    <>
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, backgroundImage: 'url(/images/social-proof/contact-sheet.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }} />
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, background: 'rgba(30, 15, 5, 0.75)' }} />
+    </>
+  )
+
   if (user?.user_type === 'fan') {
     return (
-      <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
-          <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+      <>
+        {bgLayers}
+        <main style={{ minHeight: '100vh', position: 'relative', zIndex: 1, padding: '48px' }}>
+          <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+            <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={handleSignOut} style={{ background: 'transparent', border: '1px solid rgba(212,130,10,0.3)', color: '#8C7B6B', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem' }}>
               Sign Out
@@ -918,16 +927,19 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+      </>
     )
   }
 
   return (
-    <main style={{ minHeight: '100vh', background: '#1A1410', padding: '48px' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
-        <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <a
-            href="/tickets"
+    <>
+      {bgLayers}
+      <main style={{ minHeight: '100vh', position: 'relative', zIndex: 1, padding: '48px' }}>
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '64px' }}>
+          <a href="/dashboard" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', color: '#F0A500' }}>HouseShow</a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <a
+              href="/tickets"
             style={{
               border: '1px solid rgba(212,130,10,0.3)',
               color: '#F5F0E8',
@@ -1667,5 +1679,6 @@ export default function Dashboard() {
         )}
       </div>
     </main>
+    </>
   )
 }
