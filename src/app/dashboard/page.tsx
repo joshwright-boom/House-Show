@@ -101,6 +101,8 @@ export default function Dashboard() {
   const [ticketShowsLoading, setTicketShowsLoading] = useState(true)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [emailNotificationsLoading, setEmailNotificationsLoading] = useState(false)
+  const [artistProfileName, setArtistProfileName] = useState<string | null>(null)
+  const [tourDatesCopied, setTourDatesCopied] = useState(false)
   const counterOfferTotal = getCounterOfferTotal(counterOfferValues)
   const isCounterOfferTotalValid = counterOfferTotal === 100
 
@@ -234,7 +236,7 @@ export default function Dashboard() {
 
       const [profileResult, artistResult, hostResult] = await Promise.all([
         supabase.from('profiles').select('user_type, email_notifications').eq('id', user.id).single(),
-        supabase.from('artist_profiles').select('id').eq('user_id', user.id).maybeSingle(),
+        supabase.from('artist_profiles').select('id, name').eq('user_id', user.id).maybeSingle(),
         supabase.from('host_profiles').select('id').eq('user_id', user.id).maybeSingle(),
       ])
 
@@ -245,6 +247,7 @@ export default function Dashboard() {
 
       setHasArtistProfile(hasArtist)
       setHasHostProfile(hasHost)
+      if (artistResult.data?.name) setArtistProfileName(artistResult.data.name)
 
       const savedView = typeof window !== 'undefined'
         ? window.localStorage.getItem(ACTIVE_VIEW_KEY)
@@ -1108,6 +1111,44 @@ export default function Dashboard() {
             </a>
           ))}
         </div>
+
+        {activeView === 'musician' && hasArtistProfile && artistProfileName && (
+          <div style={{ marginTop: '20px' }}>
+            <button
+              onClick={() => {
+                const slug = artistProfileName
+                  .toLowerCase()
+                  .trim()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/^-+|-+$/g, '')
+                const url = `${window.location.origin}/artist/${slug}/tour-dates`
+                navigator.clipboard.writeText(url).then(() => {
+                  setTourDatesCopied(true)
+                  setTimeout(() => setTourDatesCopied(false), 2500)
+                })
+              }}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                borderRadius: '8px',
+                border: '1px solid #E5E2DC',
+                background: '#FAFAF8',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                cursor: 'pointer',
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: '#1A1410',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              {tourDatesCopied ? 'Link Copied!' : 'Share Tour Dates'}
+            </button>
+          </div>
+        )}
 
         {user?.user_type === 'fan' && (
           <section style={{ marginTop: '32px' }}>
