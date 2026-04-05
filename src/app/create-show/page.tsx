@@ -105,7 +105,9 @@ function CreateShowContent() {
     ticket_price: '',
     max_capacity: '',
     show_description: '',
-    genre_preference: 'Any'
+    genre_preference: 'Any',
+    min_tickets: '',
+    threshold_hours: '48'
   })
   const [createdShow, setCreatedShow] = useState<{ showId: string; accessToken: string } | null>(null)
   
@@ -946,6 +948,71 @@ function CreateShowContent() {
                 <option value="Hip-Hop">Hip-Hop</option>
                 <option value="Other">Other</option>
               </select>
+            </div>
+
+            {/* Minimum Tickets Threshold (Optional) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Minimum Tickets Required
+                </label>
+                <input
+                  type="number"
+                  value={formData.min_tickets}
+                  onChange={(e) => handleInputChange('min_tickets', e.target.value)}
+                  placeholder="Optional"
+                  min="1"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
+                    borderRadius: '8px',
+                    background: 'rgba(44,34,24,0.3)',
+                    color: '#F5F0E8',
+                    fontSize: '1rem',
+                    fontFamily: "'DM Sans', sans-serif"
+                  }}
+                />
+                <p style={{ color: '#8C7B6B', fontSize: '0.8rem', marginTop: '6px' }}>
+                  Show auto-cancels if this isn&apos;t met
+                </p>
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.1rem',
+                  color: '#F5F0E8',
+                  marginBottom: '12px'
+                }}>
+                  Cancel Deadline
+                </label>
+                <select
+                  value={formData.threshold_hours}
+                  onChange={(e) => handleInputChange('threshold_hours', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '1px solid rgba(212,130,10,0.2)',
+                    borderRadius: '8px',
+                    background: 'rgba(44,34,24,0.3)',
+                    color: '#F5F0E8',
+                    fontSize: '1rem',
+                    fontFamily: "'DM Sans', sans-serif"
+                  }}
+                >
+                  <option value="24">24 hours before show</option>
+                  <option value="48">48 hours before show</option>
+                  <option value="72">72 hours before show</option>
+                </select>
+              </div>
             </div>
 
             {resolvedArtistName && (

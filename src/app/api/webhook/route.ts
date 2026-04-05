@@ -102,6 +102,7 @@ async function handleCompletedCheckoutSession(session: Stripe.Checkout.Session) 
     user_id: userId,
     liability_agreed: liabilityAgreed === 'true',
     liability_agreed_at: liabilityAgreedAt || new Date().toISOString(),
+    stripe_session_id: session.id,
   }))
 
   try {
