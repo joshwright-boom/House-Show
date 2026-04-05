@@ -217,7 +217,7 @@ function RequestVenueInner() {
         proposed_date: formData.proposed_date,
         ticket_price: dealType === 'split' && Number.isFinite(ticketPrice) ? ticketPrice : 0,
         message: formData.message,
-        guaranteed_minimum: dealType === 'guarantee' && Number.isFinite(guaranteedMinimum) ? Math.round(guaranteedMinimum) : 0,
+        guaranteed_minimum: dealType === 'guarantee' && Number.isFinite(guaranteedMinimum) ? Math.round(guaranteedMinimum * 100) / 100 : 0,
         status: 'pending',
         proposed_musician_pct: dealType === 'split' ? artistPct : 0,
         proposed_host_pct: dealType === 'split' ? hostPct : 0,
