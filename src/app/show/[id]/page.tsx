@@ -24,6 +24,7 @@ interface ShowRecord {
   facebook_url?: string | null
   instagram_url?: string | null
   status: string
+  cancellation_policy?: string | null
 }
 
 const getShowDateValue = (show: Record<string, any>) =>
@@ -187,7 +188,8 @@ export default function ShowPage({ params }: { params: { id: string } }) {
           soundcloud_url: artistSocials.soundcloud_url,
           facebook_url: artistSocials.facebook_url,
           instagram_url: artistSocials.instagram_url,
-          status: data.status
+          status: data.status,
+          cancellation_policy: data.cancellation_policy || '72_hours'
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load show.')
@@ -493,6 +495,21 @@ export default function ShowPage({ params }: { params: { id: string } }) {
               I agree to the HouseShow liability waiver. I understand HouseShow is a marketplace platform only and is not responsible for events, conduct, or injuries at any show.
             </span>
           </label>
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: '8px',
+            marginBottom: '14px',
+            fontSize: '0.88rem',
+            lineHeight: 1.5,
+            background: show.cancellation_policy === 'no_refunds' ? 'rgba(180,70,70,0.12)' : 'rgba(60,140,70,0.1)',
+            border: show.cancellation_policy === 'no_refunds' ? '1px solid rgba(180,70,70,0.25)' : '1px solid rgba(60,140,70,0.2)',
+            color: show.cancellation_policy === 'no_refunds' ? '#F5B5B5' : '#8FD694'
+          }}>
+            {show.cancellation_policy === 'no_refunds' && 'All sales final — no refunds'}
+            {show.cancellation_policy === '24_hours' && 'Full refund available up to 24 hours before show'}
+            {show.cancellation_policy === '48_hours' && 'Full refund available up to 48 hours before show'}
+            {(!show.cancellation_policy || show.cancellation_policy === '72_hours') && 'Full refund available up to 72 hours before show'}
+          </div>
           <button
             onClick={startCheckout}
             disabled={checkoutLoading || !liabilityAgreed}

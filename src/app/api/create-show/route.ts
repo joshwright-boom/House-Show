@@ -225,7 +225,8 @@ export async function POST(request: NextRequest) {
       slug: buildShowSlug(formData?.show_name),
       booking_id: bookingId,
       min_tickets: formData?.min_tickets ? parseInt(formData.min_tickets, 10) : null,
-      threshold_hours: formData?.threshold_hours ? parseInt(formData.threshold_hours, 10) : 48
+      threshold_hours: formData?.threshold_hours ? parseInt(formData.threshold_hours, 10) : 48,
+      cancellation_policy: formData?.cancellation_policy || '72_hours'
     }
 
     if (!showInsertPayload.artist_name) {

@@ -9,6 +9,7 @@ interface TicketRow {
   show_id: string
   created_at: string
   checked_in: boolean
+  status?: string | null
 }
 
 interface ShowRow {
@@ -24,6 +25,8 @@ export default function TicketsPage() {
   const [error, setError] = useState<string | null>(null)
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [showsById, setShowsById] = useState<Record<string, ShowRow>>({})
+  const [refundLoading, setRefundLoading] = useState<Record<string, boolean>>({})
+  const [refundMessages, setRefundMessages] = useState<Record<string, { success: boolean; message: string }>>({})
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -36,7 +39,7 @@ export default function TicketsPage() {
 
         const { data: ticketRows, error: ticketError } = await supabase
           .from('tickets')
-          .select('id, show_id, created_at, checked_in')
+          .select('id, show_id, created_at, checked_in, status')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
 
@@ -79,6 +82,39 @@ export default function TicketsPage() {
     loadTickets()
   }, [])
 
+  const handleRefundRequest = async (ticketId: string) => {
+    setRefundLoading(prev => ({ ...prev, [ticketId]: true }))
+    setRefundMessages(prev => { const next = { ...prev }; delete next[ticketId]; return next })
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setRefundMessages(prev => ({ ...prev, [ticketId]: { success: false, message: 'Please log in to request a refund' } }))
+        return
+      }
+
+      const response = await fetch('/api/refunds/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ ticket_id: ticketId })
+      })
+
+      const result = await response.json()
+      setRefundMessages(prev => ({ ...prev, [ticketId]: { success: result.success, message: result.message } }))
+
+      if (result.success) {
+        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'refunded' } : t))
+      }
+    } catch (err) {
+      setRefundMessages(prev => ({ ...prev, [ticketId]: { success: false, message: 'Failed to request refund' } }))
+    } finally {
+      setRefundLoading(prev => ({ ...prev, [ticketId]: false }))
+    }
+  }
+
   const formatDate = (value?: string | null) => {
     if (!value) return 'Date TBD'
     return new Date(value).toLocaleDateString('en-US', {
@@ -95,11 +131,15 @@ export default function TicketsPage() {
       const artistName = show?.artist_name || 'HouseShow Event'
       const dateValue = show?.show_date || null
       const address = show?.venue_name || 'Venue TBD'
+      const showDateRaw = show?.show_date || null
+      const isFuture = showDateRaw ? new Date(showDateRaw) > new Date() : false
       return {
         ...ticket,
         artistName,
         dateLabel: formatDate(dateValue),
         address,
+        showDateRaw,
+        isFuture,
       }
     })
   }, [tickets, showsById])
@@ -153,8 +193,39 @@ export default function TicketsPage() {
                     <div style={{ color: '#F5F0E8', marginBottom: '6px' }}>{ticket.dateLabel}</div>
                     <div style={{ color: '#F5F0E8', marginBottom: '10px' }}>{ticket.address}</div>
                     <div style={{ color: ticket.checked_in ? '#8FD694' : '#8C7B6B', fontSize: '0.9rem' }}>
-                      {ticket.checked_in ? 'Checked in' : 'Not checked in'}
+                      {ticket.status === 'refunded' ? (
+                        <span style={{ color: '#F0A500' }}>Refunded</span>
+                      ) : ticket.checked_in ? 'Checked in' : 'Not checked in'}
                     </div>
+                    {ticket.status !== 'refunded' && ticket.isFuture && !ticket.checked_in && (
+                      <div style={{ marginTop: '10px' }}>
+                        <button
+                          onClick={() => handleRefundRequest(ticket.id)}
+                          disabled={refundLoading[ticket.id]}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(180,70,70,0.4)',
+                            color: '#F5B5B5',
+                            borderRadius: '6px',
+                            padding: '8px 14px',
+                            fontSize: '0.85rem',
+                            cursor: refundLoading[ticket.id] ? 'not-allowed' : 'pointer',
+                            opacity: refundLoading[ticket.id] ? 0.6 : 1
+                          }}
+                        >
+                          {refundLoading[ticket.id] ? 'Processing...' : 'Request Refund'}
+                        </button>
+                        {refundMessages[ticket.id] && (
+                          <div style={{
+                            marginTop: '8px',
+                            fontSize: '0.85rem',
+                            color: refundMessages[ticket.id].success ? '#8FD694' : '#F5B5B5'
+                          }}>
+                            {refundMessages[ticket.id].message}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ justifySelf: 'center', textAlign: 'center' }}>

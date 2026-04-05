@@ -40,6 +40,7 @@ interface TicketShow {
   showDate: string
   venueName: string
   fullAddress?: string | null
+  status?: string | null
 }
 
 const getShowDateValue = (show: Record<string, any>) =>
@@ -99,12 +100,47 @@ export default function Dashboard() {
   const [counterOfferError, setCounterOfferError] = useState<string | null>(null)
   const [ticketShows, setTicketShows] = useState<TicketShow[]>([])
   const [ticketShowsLoading, setTicketShowsLoading] = useState(true)
+  const [refundLoading, setRefundLoading] = useState<Record<string, boolean>>({})
+  const [refundMessages, setRefundMessages] = useState<Record<string, { success: boolean; message: string }>>({})
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [emailNotificationsLoading, setEmailNotificationsLoading] = useState(false)
   const [artistProfileName, setArtistProfileName] = useState<string | null>(null)
   const [tourDatesCopied, setTourDatesCopied] = useState(false)
   const counterOfferTotal = getCounterOfferTotal(counterOfferValues)
   const isCounterOfferTotalValid = counterOfferTotal === 100
+
+  const handleRefundRequest = async (ticketId: string) => {
+    setRefundLoading(prev => ({ ...prev, [ticketId]: true }))
+    setRefundMessages(prev => { const next = { ...prev }; delete next[ticketId]; return next })
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setRefundMessages(prev => ({ ...prev, [ticketId]: { success: false, message: 'Please log in' } }))
+        return
+      }
+
+      const response = await fetch('/api/refunds/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ ticket_id: ticketId })
+      })
+
+      const result = await response.json()
+      setRefundMessages(prev => ({ ...prev, [ticketId]: { success: result.success, message: result.message } }))
+
+      if (result.success) {
+        setTicketShows(prev => prev.map(t => t.ticketId === ticketId ? { ...t, status: 'refunded' } : t))
+      }
+    } catch (err) {
+      setRefundMessages(prev => ({ ...prev, [ticketId]: { success: false, message: 'Failed to request refund' } }))
+    } finally {
+      setRefundLoading(prev => ({ ...prev, [ticketId]: false }))
+    }
+  }
 
   const loadMusicianBookingRequests = async (authUserId: string) => {
     try {
@@ -478,7 +514,7 @@ export default function Dashboard() {
       try {
         const { data: tickets, error: ticketError } = await supabase
           .from('tickets')
-          .select('id, show_id')
+          .select('id, show_id, status')
           .eq('user_id', user.id)
 
         if (ticketError) {
@@ -520,7 +556,8 @@ export default function Dashboard() {
               artistName: show.artist_name || 'HouseShow Event',
               showDate: show.show_date || '',
               venueName: show.venue_name || 'Venue TBD',
-              fullAddress: show.full_address || null
+              fullAddress: show.full_address || null,
+              status: ticket.status || 'active'
             }
           })
           .filter(Boolean) as TicketShow[]
@@ -1195,31 +1232,64 @@ export default function Dashboard() {
                   <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', marginBottom: '6px' }}>
                     {ticket.venueName}
                   </p>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', marginBottom: ticket.fullAddress ? '16px' : 0 }}>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', color: '#8C7B6B', marginBottom: '6px' }}>
                     {ticket.showDate ? formatDate(ticket.showDate) : 'Date TBD'}
                   </p>
-                  {ticket.fullAddress ? (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ticket.fullAddress)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'rgba(26,20,16,0.8)',
-                        color: '#F5F0E8',
-                        border: '1px solid rgba(212,130,10,0.35)',
-                        borderRadius: '8px',
-                        padding: '10px 14px',
-                        textDecoration: 'none',
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontWeight: '600'
-                      }}
-                    >
-                      Get Directions
-                    </a>
-                  ) : null}
+                  {ticket.status === 'refunded' && (
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.85rem', color: '#F0A500', marginBottom: '6px' }}>Refunded</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    {ticket.fullAddress ? (
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ticket.fullAddress)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'rgba(26,20,16,0.8)',
+                          color: '#F5F0E8',
+                          border: '1px solid rgba(212,130,10,0.35)',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          textDecoration: 'none',
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontWeight: '600'
+                        }}
+                      >
+                        Get Directions
+                      </a>
+                    ) : null}
+                    {ticket.status !== 'refunded' && ticket.showDate && new Date(ticket.showDate) > new Date() && (
+                      <button
+                        onClick={() => handleRefundRequest(ticket.ticketId)}
+                        disabled={refundLoading[ticket.ticketId]}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid rgba(180,70,70,0.4)',
+                          color: '#F5B5B5',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          fontSize: '0.85rem',
+                          fontFamily: "'DM Sans', sans-serif",
+                          cursor: refundLoading[ticket.ticketId] ? 'not-allowed' : 'pointer',
+                          opacity: refundLoading[ticket.ticketId] ? 0.6 : 1
+                        }}
+                      >
+                        {refundLoading[ticket.ticketId] ? 'Processing...' : 'Request Refund'}
+                      </button>
+                    )}
+                  </div>
+                  {refundMessages[ticket.ticketId] && (
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '0.85rem',
+                      color: refundMessages[ticket.ticketId].success ? '#8FD694' : '#F5B5B5'
+                    }}>
+                      {refundMessages[ticket.ticketId].message}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

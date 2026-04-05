@@ -107,7 +107,8 @@ function CreateShowContent() {
     show_description: '',
     genre_preference: 'Any',
     min_tickets: '',
-    threshold_hours: '48'
+    threshold_hours: '48',
+    cancellation_policy: '72_hours'
   })
   const [createdShow, setCreatedShow] = useState<{ showId: string; accessToken: string } | null>(null)
   
@@ -1013,6 +1014,38 @@ function CreateShowContent() {
                   <option value="72">72 hours before show</option>
                 </select>
               </div>
+            </div>
+
+            {/* Fan Refund Policy */}
+            <div>
+              <label style={{
+                display: 'block',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.1rem',
+                color: '#F5F0E8',
+                marginBottom: '12px'
+              }}>
+                Fan Refund Policy
+              </label>
+              <select
+                value={formData.cancellation_policy}
+                onChange={(e) => handleInputChange('cancellation_policy', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '1px solid rgba(212,130,10,0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(44,34,24,0.3)',
+                  color: '#F5F0E8',
+                  fontSize: '1rem',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}
+              >
+                <option value="72_hours">Full refund if canceled 72+ hours before show (Recommended)</option>
+                <option value="48_hours">Full refund if canceled 48+ hours before show</option>
+                <option value="24_hours">Full refund if canceled 24+ hours before show</option>
+                <option value="no_refunds">No refunds — all sales final</option>
+              </select>
             </div>
 
             {resolvedArtistName && (
