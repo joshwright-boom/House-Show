@@ -16,6 +16,8 @@ interface BookingRequest {
   proposed_host_pct: number
   proposed_platform_pct: number
   guaranteed_minimum: number
+  min_tickets?: number | null
+  cancellation_policy?: string
 }
 
 interface Musician {
@@ -75,7 +77,9 @@ function BookShowInner() {
     venue_address: '',
     offer_amount: '',
     ticket_price: '',
-    message: ''
+    message: '',
+    min_tickets: '',
+    cancellation_policy: '72_hours'
   })
   const liveOfferAmount = Number.parseFloat(formData.offer_amount)
   const formattedMinimumGuarantee = Number.isFinite(liveOfferAmount) && liveOfferAmount > 0
@@ -211,7 +215,7 @@ function BookShowInner() {
     loadData()
   }, [hostId, musicianId, router, searchParamsReady])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
@@ -332,6 +336,8 @@ function BookShowInner() {
         proposed_host_pct: dealType === 'split' ? splitHostPct : 0,
         proposed_platform_pct: 7,
         guaranteed_minimum: dealType === 'guarantee' ? parseFloat(formData.offer_amount) : 0,
+        min_tickets: formData.min_tickets ? parseInt(formData.min_tickets, 10) : null,
+        cancellation_policy: formData.cancellation_policy || '72_hours',
       }
 
       // Insert booking request
@@ -813,6 +819,72 @@ function BookShowInner() {
                 />
               </div>
 
+              {/* Minimum Tickets & Cancellation Policy */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '28px' }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    color: '#F5F0E8',
+                    marginBottom: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}>
+                    Minimum Tickets Required
+                  </label>
+                  <input
+                    type="number"
+                    name="min_tickets"
+                    value={formData.min_tickets}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 25"
+                    min="1"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(212,130,10,0.3)',
+                      background: '#2A1F1A',
+                      color: '#F5F0E8',
+                      fontSize: '1rem'
+                    }}
+                  />
+                  <p style={{ color: '#8C7B6B', fontSize: '0.78rem', marginTop: '6px', lineHeight: 1.4 }}>
+                    Show auto-cancels and all tickets refunded if this isn&apos;t met
+                  </p>
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    color: '#F5F0E8',
+                    marginBottom: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}>
+                    Fan Refund Policy
+                  </label>
+                  <select
+                    name="cancellation_policy"
+                    value={formData.cancellation_policy}
+                    onChange={handleInputChange}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(212,130,10,0.3)',
+                      background: '#2A1F1A',
+                      color: '#F5F0E8',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <option value="72_hours">Full refund 72+ hours before show (Recommended)</option>
+                    <option value="48_hours">Full refund 48+ hours before show</option>
+                    <option value="24_hours">Full refund 24+ hours before show</option>
+                    <option value="no_refunds">No refunds — all sales final</option>
+                  </select>
+                </div>
+              </div>
+
               {/* Ticket price + Revenue split calculator — only for split */}
               {dealType === 'split' && (
                 <>
@@ -909,6 +981,21 @@ function BookShowInner() {
                     <span style={{ color: '#F0A500', fontWeight: 600 }}>${formattedMinimumGuarantee}</span>.
                     You keep all ticket revenue. If the show doesn&apos;t cover your guarantee, that&apos;s your risk.
                   </div>
+                  {(formData.min_tickets || formData.cancellation_policy !== '72_hours') && (
+                    <div style={{ color: '#8C7B6B', fontSize: '0.85rem', marginTop: '10px', lineHeight: 1.5 }}>
+                      {formData.min_tickets && (
+                        <span>Minimum tickets: <span style={{ color: '#F5F0E8' }}>{formData.min_tickets}</span></span>
+                      )}
+                      {formData.min_tickets && formData.cancellation_policy !== '72_hours' && ' | '}
+                      {formData.cancellation_policy !== '72_hours' && (
+                        <span>Refund policy: <span style={{ color: '#F5F0E8' }}>
+                          {formData.cancellation_policy === '48_hours' && '48 hours'}
+                          {formData.cancellation_policy === '24_hours' && '24 hours'}
+                          {formData.cancellation_policy === 'no_refunds' && 'No refunds'}
+                        </span></span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -939,6 +1026,21 @@ function BookShowInner() {
                     <span style={{ color: '#F0A500', fontWeight: 600 }}>{splitHostPct}%</span>.
                     HouseShow keeps 7%.
                   </div>
+                  {(formData.min_tickets || formData.cancellation_policy !== '72_hours') && (
+                    <div style={{ color: '#8C7B6B', fontSize: '0.85rem', marginTop: '10px', lineHeight: 1.5 }}>
+                      {formData.min_tickets && (
+                        <span>Minimum tickets: <span style={{ color: '#F5F0E8' }}>{formData.min_tickets}</span></span>
+                      )}
+                      {formData.min_tickets && formData.cancellation_policy !== '72_hours' && ' | '}
+                      {formData.cancellation_policy !== '72_hours' && (
+                        <span>Refund policy: <span style={{ color: '#F5F0E8' }}>
+                          {formData.cancellation_policy === '48_hours' && '48 hours'}
+                          {formData.cancellation_policy === '24_hours' && '24 hours'}
+                          {formData.cancellation_policy === 'no_refunds' && 'No refunds'}
+                        </span></span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
